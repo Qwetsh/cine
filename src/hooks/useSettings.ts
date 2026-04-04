@@ -1,7 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
-// Major French streaming platforms (TMDB provider IDs)
-// Major French streaming platforms — IDs + logos fetched dynamically from TMDB
+// Major French streaming platforms — TMDB provider IDs
 export const STREAMING_PROVIDERS = [
   { id: 8, name: 'Netflix' },
   { id: 337, name: 'Disney+' },
@@ -42,19 +41,27 @@ const defaultSettings: Settings = {
   battleColor: 'blue',
 }
 
+// Cached snapshot — useSyncExternalStore requires referential stability
+let cachedRaw: string | null = null
+let cachedSettings: Settings = defaultSettings
+
 function getSettings(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultSettings
-    return { ...defaultSettings, ...JSON.parse(raw) }
+    if (raw === cachedRaw) return cachedSettings
+    cachedRaw = raw
+    cachedSettings = raw ? { ...defaultSettings, ...JSON.parse(raw) } : defaultSettings
+    return cachedSettings
   } catch {
     return defaultSettings
   }
 }
 
 function saveSettings(settings: Settings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-  // Notify subscribers
+  const json = JSON.stringify(settings)
+  cachedRaw = json
+  cachedSettings = settings
+  localStorage.setItem(STORAGE_KEY, json)
   window.dispatchEvent(new Event('cine-settings-change'))
 }
 
