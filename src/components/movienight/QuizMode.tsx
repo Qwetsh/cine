@@ -521,12 +521,14 @@ function QuizPlayPhase({
 
           let questions
           if (session!.theme === 'poster') {
-            // Poster mode: use movie titles + posters directly
-            questions = generatePosterQuestions(movies.slice(0, 20), 10)
+            // Poster mode: use movie titles + posters directly from the full pool
+            questions = generatePosterQuestions(movies, 10)
           } else {
-            // Standard: fetch details and generate varied questions
+            // Pick 12 random movies from the pool for variety
+            const shuffled = [...movies].sort(() => Math.random() - 0.5)
+            const picked = shuffled.slice(0, 12)
             const details = await Promise.all(
-              movies.slice(0, 5).map(m => tmdb.getMovie(m.id))
+              picked.map(m => tmdb.getMovie(m.id))
             )
             const pool = details.flatMap(m => generateQuestions(m))
             questions = selectQuestions(pool, 10)
@@ -630,6 +632,19 @@ function QuizPlayPhase({
 
 // ── Helpers ──
 
+/** Fetch multiple pages from discover and merge results */
+async function fetchMultiplePages(
+  params: Parameters<typeof tmdb.discoverMovies>[0],
+  pages: number = 3,
+): Promise<TmdbMovie[]> {
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, i) =>
+      tmdb.discoverMovies({ ...params, page: i + 1 })
+    )
+  )
+  return results.flatMap(r => r.results)
+}
+
 async function discoverMoviesByTheme(
   theme: QuizTheme,
   themeValue: string | null,
@@ -640,54 +655,57 @@ async function discoverMoviesByTheme(
       const people = await tmdb.searchPerson(themeValue)
       const actor = people.results.find(p => p.known_for_department === 'Acting')
       if (!actor) return []
-      const result = await tmdb.discoverMovies({
+      return fetchMultiplePages({
         with_cast: String(actor.id),
         sort_by: 'popularity.desc',
-        'vote_count.gte': '50',
-      })
-      return result.results
+        'vote_count.gte': '20',
+      }, 3)
     }
     case 'director': {
       if (!themeValue) return []
       const people = await tmdb.searchPerson(themeValue)
       const director = people.results.find(p => p.known_for_department === 'Directing')
       if (!director) return []
-      const result = await tmdb.discoverMovies({
+      // Directors have fewer films, fetch 2 pages with lower threshold
+      return fetchMultiplePages({
         with_crew: String(director.id),
         sort_by: 'popularity.desc',
-        'vote_count.gte': '50',
-      })
-      return result.results
+        'vote_count.gte': '10',
+      }, 2)
     }
     case 'country': {
       if (!themeValue) return []
-      const result = await tmdb.discoverMovies({
+      return fetchMultiplePages({
         with_origin_country: themeValue,
         sort_by: 'popularity.desc',
         'vote_count.gte': '100',
-      })
-      return result.results
+      }, 3)
     }
     case 'decade': {
       const decade = DECADES.find(d => d.label === themeValue)
       if (!decade) return []
-      const result = await tmdb.discoverMovies({
+      return fetchMultiplePages({
         'primary_release_date.gte': `${decade.start}-01-01`,
         'primary_release_date.lte': `${decade.end}-12-31`,
         sort_by: 'popularity.desc',
         'vote_count.gte': '200',
-      })
-      return result.results
+      }, 3)
     }
+    case 'poster':
     case 'general':
     default: {
-      const page = Math.floor(Math.random() * 5) + 1
-      const result = await tmdb.discoverMovies({
-        sort_by: 'popularity.desc',
-        'vote_count.gte': '500',
-        page,
-      })
-      return result.results
+      // Random starting page offset for variety
+      const offset = Math.floor(Math.random() * 5)
+      const results = await Promise.all(
+        Array.from({ length: 3 }, (_, i) =>
+          tmdb.discoverMovies({
+            sort_by: 'popularity.desc',
+            'vote_count.gte': '300',
+            page: offset + i + 1,
+          })
+        )
+      )
+      return results.flatMap(r => r.results)
     }
   }
 }
