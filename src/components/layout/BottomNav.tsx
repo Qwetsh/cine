@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { to: '/search', label: 'Rechercher', icon: '🔍' },
   { to: '/watchlist', label: 'À voir', icon: '📋' },
   { to: '/collection', label: 'Collection', icon: '⭐' },
+  { to: '/pick', label: 'Soirée', icon: '🎲' },
 ]
 
 export function BottomNav() {

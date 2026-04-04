@@ -11,6 +11,7 @@ import { WatchlistPage } from './pages/WatchlistPage'
 import { CollectionPage } from './pages/CollectionPage'
 import { MovieDetailPage } from './pages/MovieDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { MovieNightPage } from './pages/MovieNightPage'
 
 export function App() {
   return (
@@ -29,6 +30,7 @@ export function App() {
                 <Route path="search" element={<SearchPage />} />
                 <Route path="watchlist" element={<WatchlistPage />} />
                 <Route path="collection" element={<CollectionPage />} />
+                <Route path="pick" element={<MovieNightPage />} />
                 <Route path="movie/:id" element={<MovieDetailPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

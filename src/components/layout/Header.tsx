@@ -5,6 +5,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/search': 'Rechercher',
   '/watchlist': 'À regarder',
   '/collection': 'Notre collection',
+  '/pick': 'Soirée Ciné',
 }
 
 export function Header() {
