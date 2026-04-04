@@ -256,15 +256,51 @@ export function MovieDetailPage() {
         )}
 
         {director && (
-          <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-            Réalisé par <span className="text-[var(--color-text)] font-medium">{director.name}</span>
-          </p>
+          <div className="mt-4">
+            <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Réalisé par</p>
+            <button
+              onClick={() => navigate(`/person/${director.id}`)}
+              className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 transition-colors"
+            >
+              {director.profile_path ? (
+                <img
+                  src={getPosterUrl(director.profile_path, 'small').replace('/w185', '/w92')}
+                  alt={director.name}
+                  className="w-7 h-7 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-xs">🎬</div>
+              )}
+              <span className="text-sm font-medium text-[var(--color-text)]">{director.name}</span>
+              <span className="text-[var(--color-text-muted)] text-xs">›</span>
+            </button>
+          </div>
         )}
 
         {cast.length > 0 && (
           <div className="mt-4">
             <h2 className="font-semibold text-[var(--color-text)] mb-2">Avec</h2>
-            <p className="text-sm text-[var(--color-text-muted)]">{cast.map(a => a.name).join(', ')}</p>
+            <div className="flex flex-wrap gap-2">
+              {cast.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => navigate(`/person/${a.id}`)}
+                  className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 transition-colors"
+                >
+                  {a.profile_path ? (
+                    <img
+                      src={getPosterUrl(a.profile_path, 'small').replace('/w185', '/w92')}
+                      alt={a.name}
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-[10px]">🎭</div>
+                  )}
+                  <span className="text-xs text-[var(--color-text)]">{a.name}</span>
+                  <span className="text-[var(--color-text-muted)] text-[10px]">›</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
