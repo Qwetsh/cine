@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QuizData, QuizQuestion } from '../../lib/quiz'
 import { calculateScore } from '../../lib/quiz'
 import { getPosterUrl } from '../../lib/tmdb'
+import { useSettings, BATTLE_COLORS } from '../../hooks/useSettings'
 
 const QUESTION_TIMEOUT = 15_000
 const REVEAL_DURATION = 3_000
@@ -146,8 +147,10 @@ export function QuizGame({
     const winner = scores[0] > scores[1] ? (isUser1 ? 'Toi' : partnerName)
       : scores[1] > scores[0] ? (isUser1 ? partnerName : 'Toi')
       : 'Égalité'
-    const myScore = isUser1 ? scores[0] : scores[1]
-    const theirScore = isUser1 ? scores[1] : scores[0]
+    const finalMyScore = isUser1 ? scores[0] : scores[1]
+    const finalTheirScore = isUser1 ? scores[1] : scores[0]
+    const finalTotal = finalMyScore + finalTheirScore
+    const finalPct = finalTotal > 0 ? (finalMyScore / finalTotal) * 100 : 50
 
     return (
       <div className="px-4 text-center py-12 space-y-5">
@@ -155,15 +158,43 @@ export function QuizGame({
         <p className="text-xl font-bold text-[var(--color-text)]">
           {winner === 'Égalité' ? 'Égalité !' : `${winner} gagne !`}
         </p>
+
+        {/* Energy bar */}
+        <div className="energy-bar-container">
+          <div className="energy-bar">
+            <div
+              className="energy-bar__left"
+              style={{
+                width: `${finalPct}%`,
+                background: myColor.gradient,
+                boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)`,
+              }}
+            />
+            <div
+              className="energy-bar__right"
+              style={{ width: `${100 - finalPct}%` }}
+            />
+            <div
+              className="energy-bar__clash"
+              style={{ left: `${finalPct}%` }}
+            >
+              <div className="energy-bar__spark" />
+              <div className="energy-bar__spark energy-bar__spark--2" />
+              <div className="energy-bar__spark energy-bar__spark--3" />
+              <div className="energy-bar__glow" />
+            </div>
+          </div>
+        </div>
+
         <div className="flex justify-center gap-8">
           <div className="text-center">
             <p className="text-xs text-[var(--color-text-muted)]">Toi</p>
-            <p className="text-3xl font-bold text-[var(--color-accent)]">{myScore}</p>
+            <p className="text-3xl font-bold text-[var(--color-accent)]">{finalMyScore}</p>
           </div>
           <div className="text-[var(--color-text-muted)] self-center text-lg">vs</div>
           <div className="text-center">
             <p className="text-xs text-[var(--color-text-muted)]">{partnerName}</p>
-            <p className="text-3xl font-bold text-red-400">{theirScore}</p>
+            <p className="text-3xl font-bold text-red-400">{finalTheirScore}</p>
           </div>
         </div>
       </div>
@@ -186,13 +217,20 @@ export function QuizGame({
   const myCurrentAnswer = myAnswer
   const partnerCurrentAnswer = partnerAnswers[current_index]
 
+  const settings = useSettings()
+  const myColor = BATTLE_COLORS.find(c => c.id === settings.battleColor) ?? BATTLE_COLORS[0]
+  const myScore = isUser1 ? scores[0] : scores[1]
+  const theirScore = isUser1 ? scores[1] : scores[0]
+  const totalScore = myScore + theirScore
+  const myPct = totalScore > 0 ? (myScore / totalScore) * 100 : 50
+
   return (
     <div className="px-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
         <div className="text-center min-w-[60px]">
           <p className="text-[10px] text-[var(--color-text-muted)]">Toi</p>
-          <p className="text-xl font-bold text-[var(--color-accent)]">{isUser1 ? scores[0] : scores[1]}</p>
+          <p className="text-xl font-bold text-[var(--color-accent)]">{myScore}</p>
         </div>
 
         <div className="flex flex-col items-center gap-1">
@@ -206,7 +244,34 @@ export function QuizGame({
 
         <div className="text-center min-w-[60px]">
           <p className="text-[10px] text-[var(--color-text-muted)]">{partnerName}</p>
-          <p className="text-xl font-bold text-red-400">{isUser1 ? scores[1] : scores[0]}</p>
+          <p className="text-xl font-bold text-red-400">{theirScore}</p>
+        </div>
+      </div>
+
+      {/* Energy bar */}
+      <div className="energy-bar-container">
+        <div className="energy-bar">
+          <div
+            className="energy-bar__left"
+            style={{
+              width: `${myPct}%`,
+              background: myColor.gradient,
+              boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)`,
+            }}
+          />
+          <div
+            className="energy-bar__right"
+            style={{ width: `${100 - myPct}%` }}
+          />
+          <div
+            className="energy-bar__clash"
+            style={{ left: `${myPct}%` }}
+          >
+            <div className="energy-bar__spark" />
+            <div className="energy-bar__spark energy-bar__spark--2" />
+            <div className="energy-bar__spark energy-bar__spark--3" />
+            <div className="energy-bar__glow" />
+          </div>
         </div>
       </div>
 
