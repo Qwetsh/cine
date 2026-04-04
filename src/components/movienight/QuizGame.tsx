@@ -293,10 +293,12 @@ function PosterQuestion({
   revealed: boolean
   filmTitle: string
 }) {
-  // Blur: starts at 16px, decreases to 2px as time runs out. Fully clear on reveal.
+  // Blur: starts at 20px, fast initial deblur then slows down (square root curve).
+  // At 15s → 20px, at 7s → ~7px, at 3s → ~4px, at 0s → 2px
+  const progress = 1 - (timeLeft / QUESTION_TIMEOUT_MS) // 0 → 1
   const blurPx = revealed
     ? 0
-    : Math.max(2, 16 * (timeLeft / QUESTION_TIMEOUT_MS))
+    : Math.max(2, 20 * (1 - Math.sqrt(progress)))
 
   return (
     <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 text-center">
