@@ -25,6 +25,9 @@ export function QuizGame({
   const { questions, current_index, phase, scores } = quizData
   const question = questions[current_index] as QuizQuestion | undefined
 
+  const { settings } = useSettings()
+  const myColor = BATTLE_COLORS.find(c => c.id === settings.battleColor) ?? BATTLE_COLORS[0]
+
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS)
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIMEOUT)
   const [myAnswer, setMyAnswer] = useState<number | null>(null)
@@ -217,12 +220,10 @@ export function QuizGame({
   const myCurrentAnswer = myAnswer
   const partnerCurrentAnswer = partnerAnswers[current_index]
 
-  const settings = useSettings()
-  const myColor = BATTLE_COLORS.find(c => c.id === settings.battleColor) ?? BATTLE_COLORS[0]
-  const myScore = isUser1 ? scores[0] : scores[1]
-  const theirScore = isUser1 ? scores[1] : scores[0]
-  const totalScore = myScore + theirScore
-  const myPct = totalScore > 0 ? (myScore / totalScore) * 100 : 50
+  const myScoreQ = isUser1 ? scores[0] : scores[1]
+  const theirScoreQ = isUser1 ? scores[1] : scores[0]
+  const totalScoreQ = myScoreQ + theirScoreQ
+  const myPct = totalScoreQ > 0 ? (myScoreQ / totalScoreQ) * 100 : 50
 
   return (
     <div className="px-4 space-y-4">
@@ -230,7 +231,7 @@ export function QuizGame({
       <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
         <div className="text-center min-w-[60px]">
           <p className="text-[10px] text-[var(--color-text-muted)]">Toi</p>
-          <p className="text-xl font-bold text-[var(--color-accent)]">{myScore}</p>
+          <p className="text-xl font-bold text-[var(--color-accent)]">{myScoreQ}</p>
         </div>
 
         <div className="flex flex-col items-center gap-1">
@@ -244,7 +245,7 @@ export function QuizGame({
 
         <div className="text-center min-w-[60px]">
           <p className="text-[10px] text-[var(--color-text-muted)]">{partnerName}</p>
-          <p className="text-xl font-bold text-red-400">{theirScore}</p>
+          <p className="text-xl font-bold text-red-400">{theirScoreQ}</p>
         </div>
       </div>
 
