@@ -82,8 +82,11 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
       // Random page (1-5) for variety
       const page = Math.floor(Math.random() * 5) + 1
 
+      // Lower vote threshold for older films (fewer votes on TMDB)
+      const voteThreshold = session.yearMax < 1990 ? '10' : session.yearMax < 2000 ? '30' : '50'
+
       const params: Record<string, string | number | undefined> = {
-        'vote_count.gte': '50',
+        'vote_count.gte': voteThreshold,
         'vote_average.gte': '6',
         sort_by: 'popularity.desc',
         page,
@@ -138,12 +141,17 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
 
     switch (type) {
       case 'too_old':
-        // Shift year range forward
+        // Shift year range forward, keep a 20-year window
         session.yearMin = Math.min(session.yearMin + 10, currentYear - 5)
+        if (session.yearMax < session.yearMin + 10) {
+          session.yearMax = Math.min(session.yearMin + 20, currentYear)
+        }
         break
       case 'too_recent':
-        // Shift year range backward
-        session.yearMax = Math.max(session.yearMax - 10, 1950)
+        // Shift year range backward, keep a 20-year window
+        session.yearMax = Math.max(session.yearMax - 10, 1930)
+        session.yearMin = Math.min(session.yearMin, session.yearMax - 20)
+        if (session.yearMin < 1920) session.yearMin = 1920
         break
       case 'not_this_genre':
         // Exclude all genres of this movie
