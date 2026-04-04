@@ -14,11 +14,19 @@ const PLACEHOLDERS: Record<string, string> = {
   director: 'Nom du réalisateur…',
 }
 
+function getSavedQuery(): string {
+  try {
+    const raw = sessionStorage.getItem('cine_search_state')
+    if (!raw) return ''
+    return JSON.parse(raw).query ?? ''
+  } catch { return '' }
+}
+
 export function SearchPage() {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(getSavedQuery)
   const {
     results, loading, hasMore, filters,
-    search, loadMore, setMode, toggleGenre, setYearRange, clearFilters, clear,
+    search, loadMore, setMode, toggleGenre, setYearRange, clearFilters, clear, saveState,
   } = useTmdbSearch()
   const { genres } = useGenres()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -123,7 +131,7 @@ export function SearchPage() {
       <MovieGrid
         movies={results}
         loading={loading}
-        onMovieClick={movie => navigate(`/movie/${movie.id}`)}
+        onMovieClick={movie => { saveState(); navigate(`/movie/${movie.id}`) }}
       />
 
       {/* Load more */}

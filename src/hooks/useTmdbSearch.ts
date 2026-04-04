@@ -21,15 +21,27 @@ function applyClientFilters(movies: TmdbMovie[], filters: SearchFilters): TmdbMo
   })
 }
 
+const STORAGE_KEY = 'cine_search_state'
+
+function loadSavedState(): { query: string; filters: SearchFilters } | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch { return null }
+}
+
 export function useTmdbSearch() {
+  const saved = loadSavedState()
+
   const [results, setResults] = useState<TmdbMovie[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
-  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS)
+  const [filters, setFilters] = useState<SearchFilters>(saved?.filters ?? DEFAULT_FILTERS)
 
-  const queryRef = useRef('')
+  const queryRef = useRef(saved?.query ?? '')
   const personIdRef = useRef<number | null>(null)
   const requestIdRef = useRef(0)
 
@@ -118,10 +130,11 @@ export function useTmdbSearch() {
     }
   }, [])
 
-  // Load popular movies on mount
+  // Restore saved search or load popular on mount
   useEffect(() => {
-    executeSearch('', DEFAULT_FILTERS, 1, false)
-  }, [executeSearch])
+    executeSearch(queryRef.current, filters, 1, false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const search = useCallback((query: string) => {
     queryRef.current = query
@@ -182,7 +195,16 @@ export function useTmdbSearch() {
     setResults([])
     setTotalPages(0)
     setCurrentPage(1)
+    sessionStorage.removeItem(STORAGE_KEY)
   }, [])
+
+  // Save current state to sessionStorage (call before navigating away)
+  const saveState = useCallback(() => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      query: queryRef.current,
+      filters,
+    }))
+  }, [filters])
 
   return {
     results,
@@ -198,5 +220,6 @@ export function useTmdbSearch() {
     setYearRange,
     clearFilters,
     clear,
+    saveState,
   }
 }
