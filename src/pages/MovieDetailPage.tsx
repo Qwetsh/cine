@@ -13,7 +13,8 @@ export function MovieDetailPage() {
   const [loading, setLoading] = useState(true)
   const [onWatchlist, setOnWatchlist] = useState(false)
   const [inCollection, setInCollection] = useState(false)
-  const [actionLoading, setActionLoading] = useState<'watchlist' | 'collection' | null>(null)
+  const [inPersonal, setInPersonal] = useState(false)
+  const [actionLoading, setActionLoading] = useState<'watchlist' | 'collection' | 'personal' | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -28,12 +29,11 @@ export function MovieDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  // Vérifier le statut dans watchlist/collection une fois le film chargé
+  // Vérifier le statut dans watchlist/collection/perso une fois le film chargé
   useEffect(() => {
-    if (!movie || !coupleId) return
+    if (!movie) return
 
     async function checkStatus() {
-      // On cherche par tmdb_id dans movies puis on vérifie watchlist/collection
       const { data: movieRow } = await supabase
         .from('movies')
         .select('id')
@@ -42,16 +42,23 @@ export function MovieDetailPage() {
 
       if (!movieRow) return
 
-      const [wl, col] = await Promise.all([
-        supabase.from('watchlist').select('id').eq('couple_id', coupleId!).eq('movie_id', movieRow.id).maybeSingle(),
-        supabase.from('collection').select('id').eq('couple_id', coupleId!).eq('movie_id', movieRow.id).maybeSingle(),
-      ])
-      setOnWatchlist(!!wl.data)
-      setInCollection(!!col.data)
+      if (coupleId) {
+        const [wl, col] = await Promise.all([
+          supabase.from('watchlist').select('id').eq('couple_id', coupleId).eq('movie_id', movieRow.id).maybeSingle(),
+          supabase.from('collection').select('id').eq('couple_id', coupleId).eq('movie_id', movieRow.id).maybeSingle(),
+        ])
+        setOnWatchlist(!!wl.data)
+        setInCollection(!!col.data)
+      }
+
+      if (user) {
+        const { data } = await supabase.from('personal_collection').select('id').eq('user_id', user.id).eq('movie_id', movieRow.id).maybeSingle()
+        setInPersonal(!!data)
+      }
     }
 
     checkStatus()
-  }, [movie, coupleId])
+  }, [movie, coupleId, user])
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -114,6 +121,28 @@ export function MovieDetailPage() {
       if (!error) {
         setInCollection(true)
         showToast('Ajouté à la collection ✓')
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleMarkPersonal() {
+    if (!user) { navigate('/login'); return }
+    if (!movie || actionLoading) return
+    setActionLoading('personal')
+    try {
+      const movieDbId = await ensureMovie(movie)
+      const { error } = await supabase.from('personal_collection').insert({
+        movie_id: movieDbId,
+        user_id: user.id,
+        watched_at: new Date().toISOString(),
+      })
+      if (!error) {
+        setInPersonal(true)
+        showToast('Ajouté à ta collection perso ✓')
       }
     } catch (e) {
       console.error(e)
@@ -239,32 +268,52 @@ export function MovieDetailPage() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3 mt-6">
-          {inCollection ? (
-            <div className="flex-1 bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
-              ✓ Dans la collection
+        <div className="space-y-3 mt-6">
+          {/* Couple actions */}
+          {coupleId && (
+            <div className="flex gap-3">
+              {inCollection ? (
+                <div className="flex-1 bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
+                  ✓ Vu ensemble
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleAddToWatchlist}
+                    disabled={onWatchlist || actionLoading !== null}
+                    className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
+                  >
+                    {actionLoading === 'watchlist'
+                      ? '…'
+                      : onWatchlist
+                      ? '✓ Dans la liste'
+                      : '+ À regarder'}
+                  </button>
+                  <button
+                    onClick={handleMarkWatched}
+                    disabled={actionLoading !== null}
+                    className="flex-1 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+                  >
+                    {actionLoading === 'collection' ? '…' : '👫 Vu ensemble'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Personal action */}
+          {inPersonal ? (
+            <div className="bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
+              ✓ Dans ma collection perso
             </div>
           ) : (
-            <>
-              <button
-                onClick={handleAddToWatchlist}
-                disabled={onWatchlist || actionLoading !== null}
-                className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
-              >
-                {actionLoading === 'watchlist'
-                  ? '…'
-                  : onWatchlist
-                  ? '✓ Dans la liste'
-                  : '+ À regarder'}
-              </button>
-              <button
-                onClick={handleMarkWatched}
-                disabled={actionLoading !== null}
-                className="flex-1 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
-              >
-                {actionLoading === 'collection' ? '…' : '✓ On l\'a vu !'}
-              </button>
-            </>
+            <button
+              onClick={handleMarkPersonal}
+              disabled={actionLoading !== null}
+              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+            >
+              {actionLoading === 'personal' ? '…' : '🎬 Vu en solo'}
+            </button>
           )}
         </div>
       </div>

@@ -33,6 +33,14 @@ export interface CollectionMovieEntry {
   movie: MovieWithPoster
 }
 
+export interface PersonalCollectionEntry {
+  id: string
+  watched_at: string
+  rating: number | null
+  note: string | null
+  movie: MovieWithPoster
+}
+
 export interface AuthUser {
   id: string
   email: string

@@ -3,8 +3,11 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const isProd = process.env.NODE_ENV === 'production'
+const base = isProd ? '/cine/' : '/'
+
 export default defineConfig({
-  base: '/cine/',
+  base,
   plugins: [
     react(),
     tailwindcss(),
@@ -19,8 +22,8 @@ export default defineConfig({
         background_color: '#0f0f0f',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/cine/',
-        start_url: '/cine/',
+        scope: base,
+        start_url: base,
         icons: [
           {
             src: 'icons/icon-192x192.png',

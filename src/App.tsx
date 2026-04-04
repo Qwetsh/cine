@@ -17,7 +17,7 @@ export function App() {
     <ErrorBoundary>
     <AuthProvider>
       <CoupleProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
           <Routes>
             {/* Route publique */}
             <Route path="/login" element={<LoginPage />} />
