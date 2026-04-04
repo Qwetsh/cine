@@ -10,12 +10,13 @@ import { usePreferences } from '../hooks/usePreferences'
 import { useSmartSuggestion } from '../hooks/useSmartSuggestion'
 import { SuggestionCard } from '../components/movienight/SuggestionCard'
 import { WatchlistPicker } from '../components/movienight/WatchlistPicker'
+import { DuelMode } from '../components/movienight/DuelMode'
 import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
 import type { TmdbMovie } from '../lib/tmdb'
 import type { WatchlistMovieEntry } from '../types'
 
-type Tab = 'suggest' | 'pick'
+type Tab = 'suggest' | 'pick' | 'duel'
 
 export function MovieNightPage() {
   const navigate = useNavigate()
@@ -103,13 +104,23 @@ export function MovieNightPage() {
               : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
           ].join(' ')}
         >
-          Piocher dans la liste
+          Piocher
+        </button>
+        <button
+          onClick={() => setTab('duel')}
+          className={[
+            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+            tab === 'duel'
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+          ].join(' ')}
+        >
+          Duel
         </button>
       </div>
 
       {tab === 'suggest' ? (
         <div className="px-4 space-y-4 pb-4">
-          {/* Intro / start */}
           {!smartSuggestion.suggestion && !smartSuggestion.loading && !smartSuggestion.noMoreResults && (
             <div className="text-center py-8">
               <span className="text-6xl block mb-4">🎬</span>
@@ -130,12 +141,10 @@ export function MovieNightPage() {
             </div>
           )}
 
-          {/* Loading */}
           {smartSuggestion.loading && (
             <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] h-64 animate-pulse" />
           )}
 
-          {/* Suggestion card */}
           {smartSuggestion.suggestion && !smartSuggestion.loading && (
             <SuggestionCard
               movie={smartSuggestion.suggestion}
@@ -145,7 +154,6 @@ export function MovieNightPage() {
             />
           )}
 
-          {/* No more results */}
           {smartSuggestion.noMoreResults && (
             <div className="text-center py-8">
               <span className="text-4xl block mb-3">🤷</span>
@@ -161,12 +169,14 @@ export function MovieNightPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : tab === 'pick' ? (
         <WatchlistPicker
           entries={watchlist.entries}
           loading={watchlist.loading}
           onMarkWatched={handleMarkWatched}
         />
+      ) : (
+        <DuelMode />
       )}
     </div>
   )
