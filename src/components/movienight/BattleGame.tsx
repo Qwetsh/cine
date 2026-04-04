@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getPosterUrl } from '../../lib/tmdb'
 import type { LobbyFilm } from '../../hooks/useLobby'
 
 const GAME_DURATION = 10_000 // 10 seconds
@@ -167,68 +166,73 @@ export function BattleGame({
     )
   }
 
-  // Result screen
+  // Result: show brief "Temps écoulé" then DuelMode handles the winner screen
   if (result) {
     return (
-      <div className="px-4 text-center py-8 space-y-4">
-        <span className="text-5xl block">
-          {result.winner === 'me' ? '🏆' : result.winner === 'partner' ? '😅' : '🤝'}
-        </span>
-        <p className="text-lg font-bold text-[var(--color-text)]">
-          {result.winner === 'me'
-            ? 'Tu as gagné !'
-            : result.winner === 'partner'
-            ? `${partnerName} a gagné !`
-            : 'Égalité ! Le hasard a tranché'}
-        </p>
-        <div className="flex justify-center gap-6 text-sm text-[var(--color-text-muted)]">
-          <span>Toi : <strong className="text-[var(--color-text)]">{score}</strong></span>
-          <span>{partnerName} : <strong className="text-[var(--color-text)]">{partnerScore}</strong></span>
-        </div>
-
-        <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 mt-4">
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">Ce soir on regarde :</p>
-          <div className="w-24 h-36 mx-auto rounded-xl overflow-hidden shadow-lg mb-3">
-            <img src={getPosterUrl(result.winnerFilm.poster_path, 'medium')} alt={result.winnerFilm.title} className="w-full h-full object-cover" />
+      <div className="px-4 text-center py-16">
+        <span className="text-5xl block mb-4 animate-pulse">⏱️</span>
+        <p className="text-lg font-bold text-[var(--color-text)]">Temps écoulé !</p>
+        <div className="flex justify-center gap-8 mt-4 text-sm">
+          <div className="text-center">
+            <p className="text-[var(--color-text-muted)] text-xs">Toi</p>
+            <p className="text-2xl font-bold text-[var(--color-accent)]">{score}</p>
           </div>
-          <p className="font-bold text-[var(--color-text)]">{result.winnerFilm.title}</p>
+          <div className="text-[var(--color-text-muted)] self-center text-lg">vs</div>
+          <div className="text-center">
+            <p className="text-[var(--color-text-muted)] text-xs">{partnerName}</p>
+            <p className="text-2xl font-bold text-red-400">{partnerScore}</p>
+          </div>
         </div>
       </div>
     )
   }
 
   // Playing screen
+  const seconds = Math.ceil(timeLeft / 1000)
+  const timerPct = (timeLeft / GAME_DURATION) * 100
+  const isLow = seconds <= 3
+
   return (
     <div className="px-4 space-y-3">
-      {/* Timer */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--color-text-muted)]">
-          {Math.ceil(timeLeft / 1000)}s
-        </span>
-        <div className="flex-1 mx-3 h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
-          <div
-            className="h-full bg-[var(--color-accent)] transition-all duration-100"
-            style={{ width: `${(timeLeft / GAME_DURATION) * 100}%` }}
-          />
+      {/* Header: Timer + Scores */}
+      <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-2.5">
+        {/* My score */}
+        <div className="text-center min-w-[60px]">
+          <p className="text-[10px] text-[var(--color-text-muted)]">Toi</p>
+          <p className="text-2xl font-bold text-[var(--color-accent)]">{score}</p>
         </div>
-        <span className="text-xs font-bold text-[var(--color-text)]">{score}</span>
+
+        {/* Timer circle */}
+        <div className="flex flex-col items-center">
+          <div className={`w-14 h-14 rounded-full border-[3px] flex items-center justify-center ${isLow ? 'border-red-500' : 'border-[var(--color-accent)]'}`}
+            style={{
+              background: `conic-gradient(${isLow ? '#ef4444' : 'var(--color-accent)'} ${timerPct}%, var(--color-surface-2) ${timerPct}%)`,
+            }}
+          >
+            <span className={`text-lg font-bold bg-[var(--color-surface)] rounded-full w-10 h-10 flex items-center justify-center ${isLow ? 'text-red-400' : 'text-[var(--color-text)]'}`}>
+              {seconds}
+            </span>
+          </div>
+        </div>
+
+        {/* Partner score */}
+        <div className="text-center min-w-[60px]">
+          <p className="text-[10px] text-[var(--color-text-muted)]">{partnerName}</p>
+          <p className="text-2xl font-bold text-red-400">{partnerScore}</p>
+        </div>
       </div>
 
-      {/* Score bar (me vs partner) */}
+      {/* VS bar */}
       {totalScore > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-[var(--color-text-muted)] w-8 text-right">{score}</span>
-          <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-2)] overflow-hidden flex">
-            <div
-              className="h-full bg-[var(--color-accent)] transition-all duration-200"
-              style={{ width: `${myProgress * 100}%` }}
-            />
-            <div
-              className="h-full bg-red-400 transition-all duration-200"
-              style={{ width: `${(1 - myProgress) * 100}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-[var(--color-text-muted)] w-8">{partnerScore}</span>
+        <div className="h-1.5 rounded-full overflow-hidden flex">
+          <div
+            className="h-full bg-[var(--color-accent)] transition-all duration-200"
+            style={{ width: `${myProgress * 100}%` }}
+          />
+          <div
+            className="h-full bg-red-400 transition-all duration-200"
+            style={{ width: `${(1 - myProgress) * 100}%` }}
+          />
         </div>
       )}
 
@@ -236,16 +240,16 @@ export function BattleGame({
       <div
         ref={gameAreaRef}
         className="relative bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden select-none"
-        style={{ height: '350px', touchAction: 'manipulation' }}
+        style={{ height: '340px', touchAction: 'manipulation' }}
       >
         {targets.map(target => (
           <button
             key={target.id}
             onClick={() => handleTap(target.id)}
-            className="absolute w-12 h-12 -ml-6 -mt-6 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] active:scale-90 transition-transform shadow-lg flex items-center justify-center animate-ping-once"
+            className="absolute w-14 h-14 -ml-7 -mt-7 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] active:scale-75 transition-transform shadow-lg flex items-center justify-center animate-ping-once"
             style={{ left: target.x, top: target.y }}
           >
-            <span className="text-xl">🎯</span>
+            <span className="text-2xl">🎯</span>
           </button>
         ))}
         {targets.length === 0 && (

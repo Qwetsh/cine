@@ -40,7 +40,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
       .from('movie_night_lobbies')
       .select('*')
       .eq('couple_id', coupleId)
-      .in('status', ['picking', 'ready', 'battle'])
+      .in('status', ['picking', 'ready', 'battle', 'done'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -69,13 +69,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
           if (payload.eventType === 'DELETE') {
             setLobby(null)
           } else {
-            const row = payload.new as Lobby
-            // Only track active lobbies
-            if (row.status === 'done') {
-              setLobby(null)
-            } else {
-              setLobby(row)
-            }
+            setLobby(payload.new as Lobby)
           }
         }
       )
@@ -189,6 +183,16 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
     setLobby(null)
   }, [lobby])
 
+  // Dismiss finished lobby (delete and clear)
+  const dismiss = useCallback(async () => {
+    if (!lobby) return
+    await supabase
+      .from('movie_night_lobbies')
+      .delete()
+      .eq('id', lobby.id)
+    setLobby(null)
+  }, [lobby])
+
   return {
     lobby,
     loading,
@@ -198,6 +202,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
     setWinner,
     updateScore,
     cancel,
+    dismiss,
     myFilm: isUser1 ? lobby?.film_user1 : lobby?.film_user2,
     partnerFilm: isUser1 ? lobby?.film_user2 : lobby?.film_user1,
   }
