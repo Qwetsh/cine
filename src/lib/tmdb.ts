@@ -130,6 +130,26 @@ export interface TmdbPersonSearchResult {
   total_results: number
 }
 
+export interface WatchProvider {
+  provider_id: number
+  provider_name: string
+  logo_path: string
+  display_priority: number
+}
+
+export interface WatchProviderCountry {
+  link?: string
+  flatrate?: WatchProvider[]
+  rent?: WatchProvider[]
+  buy?: WatchProvider[]
+  free?: WatchProvider[]
+}
+
+export interface WatchProviderResult {
+  id: number
+  results: Record<string, WatchProviderCountry>
+}
+
 export interface DiscoverParams {
   with_genres?: string
   'primary_release_date.gte'?: string
@@ -178,6 +198,9 @@ export const tmdb = {
 
   searchPerson: (query: string) =>
     tmdbFetch<TmdbPersonSearchResult>('/search/person', { query }),
+
+  getWatchProviders: (id: number) =>
+    tmdbFetch<WatchProviderResult>(`/movie/${id}/watch/providers`),
 
   discoverMovies: (params: DiscoverParams) => {
     const stringParams: Record<string, string> = {}

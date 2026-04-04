@@ -5,6 +5,7 @@ import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
+import { WatchProviders } from '../components/movie/WatchProviders'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
 export function MovieDetailPage() {
@@ -266,6 +267,9 @@ export function MovieDetailPage() {
             <p className="text-sm text-[var(--color-text-muted)]">{cast.map(a => a.name).join(', ')}</p>
           </div>
         )}
+
+        {/* Où regarder */}
+        <WatchProviders tmdbId={movie.id} />
 
         {/* Actions */}
         <div className="space-y-3 mt-6">
