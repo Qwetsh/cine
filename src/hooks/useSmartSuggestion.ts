@@ -3,7 +3,7 @@ import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../lib/tmdb'
 import type { Preferences } from './usePreferences'
 
-export type FeedbackType = 'too_old' | 'too_recent' | 'not_this_genre' | 'same_genre_diff_movie' | 'accept'
+export type FeedbackType = 'too_old' | 'too_recent' | 'not_this_genre' | 'exclude_genre' | 'same_genre_diff_movie' | 'accept'
 
 interface SessionState {
   excludedMovieIds: Set<number>
@@ -136,7 +136,7 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferences, tmdbGenres])
 
-  const giveFeedback = useCallback((type: FeedbackType, movie: TmdbMovie) => {
+  const giveFeedback = useCallback((type: FeedbackType, movie: TmdbMovie, genreId?: number) => {
     const session = getOrInitSession()
 
     switch (type) {
@@ -152,6 +152,13 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
         session.yearMax = Math.max(session.yearMax - 10, 1930)
         session.yearMin = Math.min(session.yearMin, session.yearMax - 20)
         if (session.yearMin < 1920) session.yearMin = 1920
+        break
+      case 'exclude_genre':
+        // Exclude one specific genre
+        if (genreId != null) {
+          session.excludedGenreIds.add(genreId)
+          session.preferredGenreIds.delete(genreId)
+        }
         break
       case 'not_this_genre':
         // Exclude all genres of this movie

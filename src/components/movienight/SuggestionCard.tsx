@@ -5,7 +5,7 @@ import type { FeedbackType } from '../../hooks/useSmartSuggestion'
 interface Props {
   movie: TmdbMovie
   genres: TmdbGenre[]
-  onFeedback: (type: FeedbackType, movie: TmdbMovie) => void
+  onFeedback: (type: FeedbackType, movie: TmdbMovie, genreId?: number) => void
   onAccept: (movie: TmdbMovie) => void
 }
 
@@ -62,26 +62,33 @@ export function SuggestionCard({ movie, genres, onFeedback, onAccept }: Props) {
         >
           On regarde ce soir !
         </button>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex gap-2">
           <button
             onClick={() => onFeedback('too_old', movie)}
-            className="bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] rounded-lg py-2 text-xs font-medium transition-colors"
+            className="flex-1 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] rounded-lg py-2 text-xs font-medium transition-colors"
           >
             Trop vieux
           </button>
           <button
             onClick={() => onFeedback('too_recent', movie)}
-            className="bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] rounded-lg py-2 text-xs font-medium transition-colors"
+            className="flex-1 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] rounded-lg py-2 text-xs font-medium transition-colors"
           >
             Trop récent
           </button>
-          <button
-            onClick={() => onFeedback('not_this_genre', movie)}
-            className="bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] rounded-lg py-2 text-xs font-medium transition-colors"
-          >
-            Pas ce thème
-          </button>
         </div>
+        {movieGenres.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {movieGenres.map(g => (
+              <button
+                key={g.id}
+                onClick={() => onFeedback('exclude_genre', movie, g.id)}
+                className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] text-xs font-medium transition-colors"
+              >
+                Pas de {g.name}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           onClick={() => onFeedback('same_genre_diff_movie', movie)}
           className="w-full bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] rounded-lg py-2 text-xs font-medium transition-colors"
