@@ -632,14 +632,30 @@ function QuizPlayPhase({
 
 // ── Helpers ──
 
-/** Fetch multiple pages from discover and merge results */
-async function fetchMultiplePages(
+/** Pick a random sort order for discover to vary results between sessions */
+const SORT_OPTIONS = [
+  'popularity.desc',
+  'revenue.desc',
+  'vote_count.desc',
+  'vote_average.desc',
+  'primary_release_date.desc',
+] as const
+
+function randomSort(): string {
+  return SORT_OPTIONS[Math.floor(Math.random() * SORT_OPTIONS.length)]
+}
+
+/** Fetch pages from discover with random offset for variety */
+async function fetchRandomPages(
   params: Parameters<typeof tmdb.discoverMovies>[0],
   pages: number = 3,
+  maxOffset: number = 10,
 ): Promise<TmdbMovie[]> {
+  const offset = Math.floor(Math.random() * maxOffset)
+  const sort = params.sort_by ?? randomSort()
   const results = await Promise.all(
     Array.from({ length: pages }, (_, i) =>
-      tmdb.discoverMovies({ ...params, page: i + 1 })
+      tmdb.discoverMovies({ ...params, sort_by: sort, page: offset + i + 1 })
     )
   )
   return results.flatMap(r => r.results)
@@ -655,57 +671,43 @@ async function discoverMoviesByTheme(
       const people = await tmdb.searchPerson(themeValue)
       const actor = people.results.find(p => p.known_for_department === 'Acting')
       if (!actor) return []
-      return fetchMultiplePages({
+      return fetchRandomPages({
         with_cast: String(actor.id),
-        sort_by: 'popularity.desc',
         'vote_count.gte': '20',
-      }, 3)
+      }, 3, 3)
     }
     case 'director': {
       if (!themeValue) return []
       const people = await tmdb.searchPerson(themeValue)
       const director = people.results.find(p => p.known_for_department === 'Directing')
       if (!director) return []
-      // Directors have fewer films, fetch 2 pages with lower threshold
-      return fetchMultiplePages({
+      return fetchRandomPages({
         with_crew: String(director.id),
-        sort_by: 'popularity.desc',
         'vote_count.gte': '10',
-      }, 2)
+      }, 2, 2)
     }
     case 'country': {
       if (!themeValue) return []
-      return fetchMultiplePages({
+      return fetchRandomPages({
         with_origin_country: themeValue,
-        sort_by: 'popularity.desc',
         'vote_count.gte': '100',
-      }, 3)
+      }, 3, 8)
     }
     case 'decade': {
       const decade = DECADES.find(d => d.label === themeValue)
       if (!decade) return []
-      return fetchMultiplePages({
+      return fetchRandomPages({
         'primary_release_date.gte': `${decade.start}-01-01`,
         'primary_release_date.lte': `${decade.end}-12-31`,
-        sort_by: 'popularity.desc',
         'vote_count.gte': '200',
-      }, 3)
+      }, 3, 8)
     }
     case 'poster':
     case 'general':
     default: {
-      // Random starting page offset for variety
-      const offset = Math.floor(Math.random() * 5)
-      const results = await Promise.all(
-        Array.from({ length: 3 }, (_, i) =>
-          tmdb.discoverMovies({
-            sort_by: 'popularity.desc',
-            'vote_count.gte': '300',
-            page: offset + i + 1,
-          })
-        )
-      )
-      return results.flatMap(r => r.results)
+      return fetchRandomPages({
+        'vote_count.gte': '300',
+      }, 3, 15)
     }
   }
 }
