@@ -57,15 +57,12 @@ export function useCouple(userId: string | null): CoupleState {
     partnerCode = partnerCode.trim()
     if (!partnerCode) return { error: 'Code invalide' }
 
-    // Résoudre le code d'invitation vers un user ID
-    const { data: partnerProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('invite_code', partnerCode)
-      .maybeSingle()
+    // Résoudre le code d'invitation vers un user ID (via fonction SECURITY DEFINER)
+    const { data: resolvedId } = await supabase
+      .rpc('resolve_invite_code', { code: partnerCode })
 
-    if (!partnerProfile) return { error: 'Code invalide ou utilisateur introuvable' }
-    const partnerUserId = partnerProfile.id as string
+    if (!resolvedId) return { error: 'Code invalide ou utilisateur introuvable' }
+    const partnerUserId = resolvedId as string
 
     if (partnerUserId === userId) return { error: 'Vous ne pouvez pas vous lier à vous-même' }
 
@@ -97,11 +94,8 @@ export function useCouple(userId: string | null): CoupleState {
       return { error: 'Impossible de créer le couple. Réessayez.' }
     }
 
-    // Mettre à jour partner_id sur les deux profils
-    await Promise.all([
-      supabase.from('profiles').update({ partner_id: partnerUserId }).eq('id', userId),
-      supabase.from('profiles').update({ partner_id: userId }).eq('id', partnerUserId),
-    ])
+    // Mettre à jour partner_id sur les deux profils (via fonction SECURITY DEFINER)
+    await supabase.rpc('link_partners', { user_a: userId, user_b: partnerUserId })
 
     await fetchCouple()
     return { error: null }
