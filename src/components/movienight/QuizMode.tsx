@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCoupleContext } from '../../contexts/CoupleContext'
 import { useQuizLobby } from '../../hooks/useQuizLobby'
-import type { QuizType, QuizTheme } from '../../hooks/useQuizLobby'
+import type { QuizTheme } from '../../hooks/useQuizLobby'
 import { tmdb, getPosterUrl, COUNTRIES } from '../../lib/tmdb'
 import type { TmdbPerson, TmdbMovie } from '../../lib/tmdb'
 import { generateQuestions, generateQuestionsFromTwoFilms, selectQuestions, createEmptyQuizData } from '../../lib/quiz'
 import type { QuizData } from '../../lib/quiz'
 import { LobbyPicking } from './LobbyPicking'
 import { QuizGame } from './QuizGame'
-import type { LobbyFilm } from '../../hooks/useLobby'
 
 const DECADES = [
   { label: '80s', start: 1980, end: 1989 },
