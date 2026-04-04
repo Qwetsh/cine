@@ -17,7 +17,7 @@ import { supabase } from '../lib/supabase'
 import type { TmdbMovie } from '../lib/tmdb'
 import type { WatchlistMovieEntry } from '../types'
 
-type Tab = 'suggest' | 'pick' | 'duel' | 'quiz'
+type Tab = 'suggest' | 'pick' | 'duel'
 
 export function MovieNightPage() {
   const navigate = useNavigate()
@@ -31,6 +31,7 @@ export function MovieNightPage() {
   const smartSuggestion = useSmartSuggestion(preferences, genres)
 
   const [tab, setTab] = useState<Tab>('suggest')
+  const [showQuiz, setShowQuiz] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   function showToast(msg: string) {
@@ -65,6 +66,26 @@ export function MovieNightPage() {
       await watchlist.removeFromWatchlist(entry.id)
       showToast('Bon film !')
     }
+  }
+
+  // Quiz mode takes over the whole page
+  if (showQuiz) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="px-4 pt-6 pb-4">
+          <button
+            onClick={() => setShowQuiz(false)}
+            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Soirée Ciné
+          </button>
+        </div>
+        <QuizMode />
+      </div>
+    )
   }
 
   return (
@@ -117,17 +138,6 @@ export function MovieNightPage() {
           ].join(' ')}
         >
           Duel
-        </button>
-        <button
-          onClick={() => setTab('quiz')}
-          className={[
-            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-            tab === 'quiz'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-          ].join(' ')}
-        >
-          Quiz
         </button>
       </div>
 
@@ -187,11 +197,36 @@ export function MovieNightPage() {
           loading={watchlist.loading}
           onMarkWatched={handleMarkWatched}
         />
-      ) : tab === 'duel' ? (
-        <DuelMode />
       ) : (
-        <QuizMode />
+        <DuelMode />
       )}
+
+      {/* Quiz button — separate section */}
+      <div className="mx-4 mt-6 mb-8">
+        <button
+          onClick={() => setShowQuiz(true)}
+          className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[var(--color-accent)]/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">🧠</span>
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <p className="font-medium text-[var(--color-text)] text-sm">Quiz Ciné</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                Testez vos connaissances ciné en duo
+              </p>
+            </div>
+            <svg
+              width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors flex-shrink-0"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </div>
+        </button>
+      </div>
     </div>
   )
 }
