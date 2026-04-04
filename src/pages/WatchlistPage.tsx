@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useCollection } from '../hooks/useCollection'
+import { useLocalFilter } from '../hooks/useLocalFilter'
 import { getPosterUrl } from '../lib/tmdb'
+import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
 import type { WatchlistMovieEntry } from '../types'
 
 export function WatchlistPage() {
@@ -14,6 +16,11 @@ export function WatchlistPage() {
   const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId)
   const { addToCollection } = useCollection(coupleId)
   const [actionId, setActionId] = useState<string | null>(null)
+
+  const {
+    filters, filtered, availableGenres, activeCount,
+    setQuery, toggleGenre, setYearRange, clearAll,
+  } = useLocalFilter(entries)
 
   async function handleMarkWatched(entry: WatchlistMovieEntry) {
     setActionId(entry.id)
@@ -60,11 +67,12 @@ export function WatchlistPage() {
         {!loading && (
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
             {entries.length} film{entries.length !== 1 ? 's' : ''} dans la liste
+            {activeCount > 0 && ` · ${filtered.length} affiché${filtered.length !== 1 ? 's' : ''}`}
           </p>
         )}
       </div>
 
-      <div className="px-4 mb-4">
+      <div className="px-4 mb-3">
         <button
           onClick={() => navigate('/search')}
           className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
@@ -72,6 +80,19 @@ export function WatchlistPage() {
           + Ajouter un film
         </button>
       </div>
+
+      {/* Filter accordion */}
+      {!loading && entries.length > 0 && (
+        <CollectionFilterPanel
+          filters={filters}
+          availableGenres={availableGenres}
+          activeCount={activeCount}
+          onQueryChange={setQuery}
+          onToggleGenre={toggleGenre}
+          onYearRangeChange={setYearRange}
+          onClearAll={clearAll}
+        />
+      )}
 
       {loading ? (
         <ul className="px-4 space-y-3">
@@ -91,15 +112,21 @@ export function WatchlistPage() {
             Parcourir les films
           </button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center py-16 text-[var(--color-text-muted)]">
+          <p className="text-sm">Aucun film ne correspond aux filtres</p>
+          <button onClick={clearAll} className="mt-2 text-xs text-[var(--color-accent)] hover:underline">
+            Effacer les filtres
+          </button>
+        </div>
       ) : (
         <ul className="px-4 space-y-3 pb-4">
-          {entries.map(entry => (
+          {filtered.map(entry => (
             <li
               key={entry.id}
               className="bg-[var(--color-surface)] rounded-xl overflow-hidden border border-[var(--color-border)]"
             >
               <div className="flex gap-3 p-3">
-                {/* Affiche */}
                 <button
                   onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
                   className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
@@ -112,7 +139,6 @@ export function WatchlistPage() {
                   />
                 </button>
 
-                {/* Infos */}
                 <div className="flex-1 min-w-0">
                   <button
                     onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
@@ -140,7 +166,6 @@ export function WatchlistPage() {
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex flex-col gap-2 justify-start pt-1">
                   <button
                     onClick={() => handleMarkWatched(entry)}

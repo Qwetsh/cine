@@ -4,8 +4,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
+import { useLocalFilter } from '../hooks/useLocalFilter'
 import { getPosterUrl } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
+import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
 import type { CollectionMovieEntry, PersonalCollectionEntry } from '../types'
 
 type Tab = 'couple' | 'perso'
@@ -21,6 +23,11 @@ export function CollectionPage() {
   const [sort, setSort] = useState<SortKey>('date')
   const [editingNote, setEditingNote] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')
+
+  // Local filters per tab
+  const coupleFilter = useLocalFilter(couple.entries)
+  const personalFilter = useLocalFilter(personal.entries)
+  const currentFilter = tab === 'couple' ? coupleFilter : personalFilter
 
   // --- Couple helpers ---
   function getMyRating(entry: CollectionMovieEntry) {
@@ -69,8 +76,8 @@ export function CollectionPage() {
     setEditingNote(null)
   }
 
-  // --- Sort ---
-  const coupleEntries = [...couple.entries].sort((a, b) => {
+  // --- Sort filtered entries ---
+  const coupleEntries = [...coupleFilter.filtered].sort((a, b) => {
     if (sort === 'date') return b.watched_at.localeCompare(a.watched_at)
     if (sort === 'title') return a.movie.title.localeCompare(b.movie.title)
     if (sort === 'rating') {
@@ -86,7 +93,7 @@ export function CollectionPage() {
     return 0
   })
 
-  const personalEntries = [...personal.entries].sort((a, b) => {
+  const personalEntries = [...personalFilter.filtered].sort((a, b) => {
     if (sort === 'date') return b.watched_at.localeCompare(a.watched_at)
     if (sort === 'title') return a.movie.title.localeCompare(b.movie.title)
     if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
@@ -95,6 +102,7 @@ export function CollectionPage() {
 
   const entries = tab === 'couple' ? coupleEntries : personalEntries
   const loading = tab === 'couple' ? couple.loading : personal.loading
+  const totalCount = tab === 'couple' ? couple.entries.length : personal.entries.length
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -135,9 +143,23 @@ export function CollectionPage() {
             {tab === 'couple'
               ? `${couple.entries.length} film${couple.entries.length !== 1 ? 's' : ''} vus ensemble`
               : `${personal.entries.length} film${personal.entries.length !== 1 ? 's' : ''} vus en solo`}
+            {currentFilter.activeCount > 0 && ` · ${entries.length} affiché${entries.length !== 1 ? 's' : ''}`}
           </p>
         )}
       </div>
+
+      {/* Filter accordion */}
+      {!loading && totalCount > 0 && (
+        <CollectionFilterPanel
+          filters={currentFilter.filters}
+          availableGenres={currentFilter.availableGenres}
+          activeCount={currentFilter.activeCount}
+          onQueryChange={currentFilter.setQuery}
+          onToggleGenre={currentFilter.toggleGenre}
+          onYearRangeChange={currentFilter.setYearRange}
+          onClearAll={currentFilter.clearAll}
+        />
+      )}
 
       {/* Sort */}
       <div className="flex gap-2 px-4 mb-4">
@@ -164,7 +186,7 @@ export function CollectionPage() {
             <li key={i} className="bg-[var(--color-surface)] rounded-xl h-40 animate-pulse border border-[var(--color-border)]" />
           ))}
         </ul>
-      ) : entries.length === 0 ? (
+      ) : totalCount === 0 ? (
         <div className="flex flex-col items-center py-20 text-[var(--color-text-muted)]">
           <span className="text-5xl mb-4">{tab === 'couple' ? '👫' : '🎬'}</span>
           <p className="font-medium">
@@ -183,6 +205,13 @@ export function CollectionPage() {
               Aller au profil
             </button>
           )}
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="flex flex-col items-center py-16 text-[var(--color-text-muted)]">
+          <p className="text-sm">Aucun film ne correspond aux filtres</p>
+          <button onClick={currentFilter.clearAll} className="mt-2 text-xs text-[var(--color-accent)] hover:underline">
+            Effacer les filtres
+          </button>
         </div>
       ) : tab === 'couple' ? (
         /* --- COUPLE LIST --- */
