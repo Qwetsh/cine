@@ -1,12 +1,16 @@
+import { useCallback, useEffect, useRef } from 'react'
 import { useCoupleContext } from '../../contexts/CoupleContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLobby } from '../../hooks/useLobby'
-import { getPosterUrl } from '../../lib/tmdb'
+import { getPosterUrl, tmdb } from '../../lib/tmdb'
+import { generateQuestionsFromTwoFilms, createEmptyQuizData } from '../../lib/quiz'
 import { LobbyPicking } from './LobbyPicking'
 import { LobbyReveal } from './LobbyReveal'
 import { RandomReveal } from './RandomReveal'
 import { BattleGame } from './BattleGame'
+import { QuizGame } from './QuizGame'
 import type { LobbyFilm } from '../../hooks/useLobby'
+import type { QuizData } from '../../lib/quiz'
 
 export function DuelMode() {
   const { user } = useAuth()
@@ -56,7 +60,7 @@ export function DuelMode() {
 
   // Phase: done → show winner
   if (status === 'done' && winner_film) {
-    const isBattle = mode === 'battle'
+    const isBattle = mode === 'battle' || mode === 'quiz'
     return (
       <div className="px-4 text-center py-8 space-y-5">
         <span className="text-6xl block">🏆</span>
@@ -180,5 +184,99 @@ export function DuelMode() {
     )
   }
 
+  // Phase: quiz
+  if (status === 'quiz' && film_user1 && film_user2) {
+    return (
+      <DuelQuizPhase
+        lobby={lobby}
+        film1={film_user1}
+        film2={film_user2}
+        partnerName={partnerName}
+        isUser1={isUser1}
+      />
+    )
+  }
+
   return null
+}
+
+// Separate component to handle quiz generation + gameplay
+function DuelQuizPhase({
+  lobby, film1, film2, partnerName, isUser1,
+}: {
+  lobby: ReturnType<typeof useLobby>
+  film1: LobbyFilm
+  film2: LobbyFilm
+  partnerName: string
+  isUser1: boolean
+}) {
+  const generatingRef = useRef(false)
+  const quizData = lobby.lobby?.quiz_data as QuizData | null
+
+  // Host generates questions when entering quiz phase
+  useEffect(() => {
+    if (!isUser1 || generatingRef.current) return
+    if (quizData && quizData.questions.length > 0) return
+
+    generatingRef.current = true
+
+    async function generate() {
+      try {
+        const [m1, m2] = await Promise.all([
+          tmdb.getMovie(film1.tmdb_id),
+          tmdb.getMovie(film2.tmdb_id),
+        ])
+        const questions = generateQuestionsFromTwoFilms(m1, m2, 10)
+        const emptyData = createEmptyQuizData()
+        emptyData.questions = questions
+        emptyData.answers_user1 = new Array(questions.length).fill(null)
+        emptyData.answers_user2 = new Array(questions.length).fill(null)
+        emptyData.times_user1 = new Array(questions.length).fill(null)
+        emptyData.times_user2 = new Array(questions.length).fill(null)
+        emptyData.phase = 'countdown'
+        await lobby.updateQuizData(emptyData)
+      } catch (err) {
+        console.error('Quiz generation error:', err)
+      }
+    }
+
+    generate()
+  }, [isUser1, quizData, film1.tmdb_id, film2.tmdb_id, lobby])
+
+  const handleAdvance = useCallback((nextIndex: number, phase: QuizData['phase']) => {
+    lobby.advanceQuiz(nextIndex, phase)
+  }, [lobby])
+
+  const handleGameEnd = useCallback((s1: number, s2: number) => {
+    let winnerFilm: LobbyFilm
+    if (s1 > s2) {
+      winnerFilm = film1
+    } else if (s2 > s1) {
+      winnerFilm = film2
+    } else {
+      winnerFilm = Math.random() > 0.5 ? film1 : film2
+    }
+    lobby.setWinner(winnerFilm, s1, s2)
+  }, [lobby, film1, film2])
+
+  if (!quizData || quizData.questions.length === 0) {
+    return (
+      <div className="px-4 text-center py-16">
+        <span className="text-5xl block mb-4 animate-pulse">🧠</span>
+        <p className="text-sm text-[var(--color-text-muted)]">Génération des questions...</p>
+      </div>
+    )
+  }
+
+  return (
+    <QuizGame
+      quizData={quizData}
+      partnerName={partnerName}
+      isUser1={isUser1}
+      isHost={isUser1}
+      onAnswer={lobby.submitQuizAnswer}
+      onAdvance={handleAdvance}
+      onGameEnd={handleGameEnd}
+    />
+  )
 }

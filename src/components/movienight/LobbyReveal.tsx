@@ -5,7 +5,7 @@ interface Props {
   film1: LobbyFilm
   film2: LobbyFilm
   partnerName: string
-  onChooseMode: (mode: 'random' | 'battle') => void
+  onChooseMode: (mode: 'random' | 'battle' | 'quiz') => void
   onCancel: () => void
 }
 
@@ -38,6 +38,12 @@ export function LobbyReveal({ film1, film2, partnerName, onChooseMode, onCancel 
             className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3.5 font-medium text-sm border border-[var(--color-border)] transition-colors"
           >
             ⚔️ Bataille de rapidité
+          </button>
+          <button
+            onClick={() => onChooseMode('quiz')}
+            className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3.5 font-medium text-sm border border-[var(--color-border)] transition-colors"
+          >
+            🧠 Quiz Ciné
           </button>
         </div>
       </div>

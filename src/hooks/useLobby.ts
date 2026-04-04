@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import type { QuizData } from '../lib/quiz'
 
 export interface LobbyFilm {
   tmdb_id: number
@@ -13,13 +14,14 @@ export interface Lobby {
   id: string
   couple_id: string
   created_by: string
-  status: 'picking' | 'ready' | 'battle' | 'done'
-  mode: 'random' | 'battle' | null
+  status: 'picking' | 'ready' | 'battle' | 'quiz' | 'done'
+  mode: 'random' | 'battle' | 'quiz' | null
   film_user1: LobbyFilm | null
   film_user2: LobbyFilm | null
   score_user1: number
   score_user2: number
   winner_film: LobbyFilm | null
+  quiz_data: QuizData | null
   created_at: string
 }
 
@@ -40,7 +42,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
       .from('movie_night_lobbies')
       .select('*')
       .eq('couple_id', coupleId)
-      .in('status', ['picking', 'ready', 'battle', 'done'])
+      .in('status', ['picking', 'ready', 'battle', 'quiz', 'done'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -92,7 +94,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
       .from('movie_night_lobbies')
       .delete()
       .eq('couple_id', coupleId)
-      .in('status', ['picking', 'ready', 'battle'])
+      .in('status', ['picking', 'ready', 'battle', 'quiz'])
 
     const { data, error } = await supabase
       .from('movie_night_lobbies')
@@ -129,16 +131,17 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
       .eq('id', lobby.id)
   }, [lobby, isUser1])
 
-  // Choose mode (random or battle)
-  const chooseMode = useCallback(async (mode: 'random' | 'battle') => {
+  // Choose mode (random, battle, or quiz)
+  const chooseMode = useCallback(async (mode: 'random' | 'battle' | 'quiz') => {
     if (!lobby) return
 
     const updates: Record<string, unknown> = { mode }
     if (mode === 'battle') {
       updates.status = 'battle'
-      // 0 = not ready, -1 = ready (sentinel before game starts)
       updates.score_user1 = 0
       updates.score_user2 = 0
+    } else if (mode === 'quiz') {
+      updates.status = 'quiz'
     }
 
     await supabase
@@ -184,6 +187,66 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
       .eq('id', lobby.id)
   }, [lobby, isUser1])
 
+  // Update quiz data (merge partial into existing)
+  const updateQuizData = useCallback(async (data: Partial<QuizData>) => {
+    if (!lobby) return
+    const current = lobby.quiz_data ?? {}
+    await supabase
+      .from('movie_night_lobbies')
+      .update({ quiz_data: { ...current, ...data } })
+      .eq('id', lobby.id)
+  }, [lobby])
+
+  // Submit quiz answer (each user writes only their own arrays)
+  const submitQuizAnswer = useCallback(async (
+    questionIndex: number,
+    answerIndex: number,
+    timeMs: number,
+    score: number
+  ) => {
+    if (!lobby?.quiz_data) return
+    const qd = { ...lobby.quiz_data }
+
+    const answers = isUser1 ? [...qd.answers_user1] : [...qd.answers_user2]
+    const times = isUser1 ? [...qd.times_user1] : [...qd.times_user2]
+    answers[questionIndex] = answerIndex
+    times[questionIndex] = timeMs
+
+    const scores: [number, number] = [...qd.scores]
+    if (isUser1) scores[0] += score
+    else scores[1] += score
+
+    const updates: Partial<QuizData> = { scores }
+    if (isUser1) {
+      updates.answers_user1 = answers
+      updates.times_user1 = times
+    } else {
+      updates.answers_user2 = answers
+      updates.times_user2 = times
+    }
+
+    await supabase
+      .from('movie_night_lobbies')
+      .update({ quiz_data: { ...qd, ...updates } })
+      .eq('id', lobby.id)
+  }, [lobby, isUser1])
+
+  // Advance to next question (host only)
+  const advanceQuiz = useCallback(async (nextIndex: number, phase: QuizData['phase']) => {
+    if (!lobby?.quiz_data) return
+    await supabase
+      .from('movie_night_lobbies')
+      .update({
+        quiz_data: {
+          ...lobby.quiz_data,
+          current_index: nextIndex,
+          question_started_at: new Date().toISOString(),
+          phase,
+        },
+      })
+      .eq('id', lobby.id)
+  }, [lobby])
+
   // Cancel / delete lobby
   const cancel = useCallback(async () => {
     if (!lobby) return
@@ -215,6 +278,9 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
     cancel,
     dismiss,
     setReady,
+    updateQuizData,
+    submitQuizAnswer,
+    advanceQuiz,
     myFilm: isUser1 ? lobby?.film_user1 : lobby?.film_user2,
     partnerFilm: isUser1 ? lobby?.film_user2 : lobby?.film_user1,
   }
