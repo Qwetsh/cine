@@ -6,6 +6,7 @@ import { MovieGrid } from '../components/movie/MovieGrid'
 import { SegmentedControl } from '../components/search/SegmentedControl'
 import { GenreChips } from '../components/search/GenreChips'
 import { YearFilter } from '../components/search/YearFilter'
+import { CountryChips } from '../components/search/CountryChips'
 import { ActiveFilters } from '../components/search/ActiveFilters'
 
 const PLACEHOLDERS: Record<string, string> = {
@@ -26,14 +27,14 @@ export function SearchPage() {
   const [query, setQuery] = useState(getSavedQuery)
   const {
     results, loading, hasMore, filters,
-    search, loadMore, setMode, toggleGenre, setYearRange, clearFilters, clear, saveState,
+    search, loadMore, setMode, toggleGenre, setYearRange, setCountry, clearFilters, clear, saveState,
   } = useTmdbSearch()
   const { genres } = useGenres()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const navigate = useNavigate()
 
-  const hasFilters = filters.genres.length > 0 || filters.yearRange !== null
+  const hasFilters = filters.genres.length > 0 || filters.yearRange !== null || filters.country !== null
 
   function handleQueryChange(value: string) {
     setQuery(value)
@@ -109,6 +110,12 @@ export function SearchPage() {
           value={filters.yearRange}
           onChange={setYearRange}
         />
+
+        {/* Country filter */}
+        <CountryChips
+          selected={filters.country}
+          onSelect={setCountry}
+        />
       </div>
 
       {/* Active filter pills */}
@@ -117,6 +124,7 @@ export function SearchPage() {
         genres={genres}
         onRemoveGenre={toggleGenre}
         onRemoveYearRange={() => setYearRange(null)}
+        onRemoveCountry={() => setCountry(null)}
         onClearAll={clearFilters}
       />
 

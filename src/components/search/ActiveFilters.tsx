@@ -1,17 +1,21 @@
 import type { TmdbGenre, SearchFilters } from '../../lib/tmdb'
+import { COUNTRIES } from '../../lib/tmdb'
 
 interface Props {
   filters: SearchFilters
   genres: TmdbGenre[]
   onRemoveGenre: (id: number) => void
   onRemoveYearRange: () => void
+  onRemoveCountry: () => void
   onClearAll: () => void
 }
 
-export function ActiveFilters({ filters, genres, onRemoveGenre, onRemoveYearRange, onClearAll }: Props) {
+export function ActiveFilters({ filters, genres, onRemoveGenre, onRemoveYearRange, onRemoveCountry, onClearAll }: Props) {
   const activeGenres = genres.filter(g => filters.genres.includes(g.id))
   const hasYear = filters.yearRange !== null
-  const count = activeGenres.length + (hasYear ? 1 : 0)
+  const hasCountry = filters.country !== null
+  const countryName = hasCountry ? COUNTRIES.find(c => c.code === filters.country)?.name ?? filters.country : null
+  const count = activeGenres.length + (hasYear ? 1 : 0) + (hasCountry ? 1 : 0)
 
   if (count === 0) return null
 
@@ -33,6 +37,15 @@ export function ActiveFilters({ filters, genres, onRemoveGenre, onRemoveYearRang
           className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[var(--color-accent)]/20 text-[var(--color-accent)] font-medium"
         >
           {filters.yearRange![0]}–{filters.yearRange![1]}
+          <span className="text-[10px] opacity-70">✕</span>
+        </button>
+      )}
+      {hasCountry && (
+        <button
+          onClick={onRemoveCountry}
+          className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[var(--color-accent)]/20 text-[var(--color-accent)] font-medium"
+        >
+          {countryName}
           <span className="text-[10px] opacity-70">✕</span>
         </button>
       )}

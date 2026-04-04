@@ -6,6 +6,7 @@ const DEFAULT_FILTERS: SearchFilters = {
   mode: 'title',
   genres: [],
   yearRange: null,
+  country: null,
 }
 
 function applyClientFilters(movies: TmdbMovie[], filters: SearchFilters): TmdbMovie[] {
@@ -60,7 +61,8 @@ export function useTmdbSearch() {
       const hasQuery = trimmed !== ''
       const hasGenres = searchFilters.genres.length > 0
       const hasYear = searchFilters.yearRange !== null
-      const hasAnyFilter = hasGenres || hasYear
+      const hasCountry = searchFilters.country !== null
+      const hasAnyFilter = hasGenres || hasYear || hasCountry
 
       const discoverParams: Record<string, string | number | undefined> = {}
       if (hasGenres) discoverParams.with_genres = searchFilters.genres.join(',')
@@ -68,6 +70,7 @@ export function useTmdbSearch() {
         discoverParams['primary_release_date.gte'] = `${searchFilters.yearRange![0]}-01-01`
         discoverParams['primary_release_date.lte'] = `${searchFilters.yearRange![1]}-12-31`
       }
+      if (hasCountry) discoverParams.with_origin_country = searchFilters.country!
       discoverParams['vote_count.gte'] = '10'
       discoverParams.page = page
 
@@ -76,12 +79,25 @@ export function useTmdbSearch() {
       if (searchFilters.mode === 'title' && hasQuery && !hasAnyFilter) {
         // Case 1: Title search only
         data = await tmdb.searchMovies(trimmed, page)
-      } else if (searchFilters.mode === 'title' && hasQuery && hasAnyFilter) {
-        // Case 2: Title + filters → search + client-side filter
+      } else if (searchFilters.mode === 'title' && hasQuery && hasAnyFilter && !hasCountry) {
+        // Case 2: Title + genre/year filters → search + client-side filter
         const raw = await tmdb.searchMovies(trimmed, page)
         data = {
           results: applyClientFilters(raw.results, searchFilters),
           total_pages: raw.total_pages,
+        }
+      } else if (searchFilters.mode === 'title' && hasQuery && hasAnyFilter && hasCountry) {
+        // Case 2b: Title + country → discover (country needs server-side)
+        discoverParams.sort_by = 'popularity.desc'
+        data = await tmdb.discoverMovies(discoverParams)
+        // Client-side title filter on discover results
+        const lower = trimmed.toLowerCase()
+        data = {
+          results: data.results.filter(m =>
+            m.title.toLowerCase().includes(lower) ||
+            m.original_title.toLowerCase().includes(lower)
+          ),
+          total_pages: data.total_pages,
         }
       } else if (searchFilters.mode === 'title' && !hasQuery && hasAnyFilter) {
         // Case 3: Filters only → discover
@@ -181,9 +197,17 @@ export function useTmdbSearch() {
     })
   }, [executeSearch])
 
+  const setCountry = useCallback((country: string | null) => {
+    setFilters(prev => {
+      const next = { ...prev, country }
+      executeSearch(queryRef.current, next, 1, false)
+      return next
+    })
+  }, [executeSearch])
+
   const clearFilters = useCallback(() => {
     setFilters(prev => {
-      const next = { ...prev, genres: [], yearRange: null }
+      const next = { ...prev, genres: [], yearRange: null, country: null }
       executeSearch(queryRef.current, next, 1, false)
       return next
     })
@@ -218,6 +242,7 @@ export function useTmdbSearch() {
     setMode,
     toggleGenre,
     setYearRange,
+    setCountry,
     clearFilters,
     clear,
     saveState,

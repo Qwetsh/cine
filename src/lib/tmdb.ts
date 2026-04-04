@@ -162,13 +162,39 @@ export interface DiscoverParams {
   watch_region?: string
   with_watch_providers?: string
   with_watch_monetization_types?: string
+  with_origin_country?: string
 }
 
 export interface SearchFilters {
   mode: SearchMode
   genres: number[]
   yearRange: [number, number] | null
+  country: string | null
 }
+
+// Common origin countries for film filtering
+export const COUNTRIES = [
+  { code: 'FR', name: 'France' },
+  { code: 'US', name: 'États-Unis' },
+  { code: 'GB', name: 'Royaume-Uni' },
+  { code: 'DE', name: 'Allemagne' },
+  { code: 'IT', name: 'Italie' },
+  { code: 'ES', name: 'Espagne' },
+  { code: 'JP', name: 'Japon' },
+  { code: 'KR', name: 'Corée du Sud' },
+  { code: 'IN', name: 'Inde' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'AU', name: 'Australie' },
+  { code: 'BR', name: 'Brésil' },
+  { code: 'SE', name: 'Suède' },
+  { code: 'DK', name: 'Danemark' },
+  { code: 'CN', name: 'Chine' },
+  { code: 'RU', name: 'Russie' },
+  { code: 'MX', name: 'Mexique' },
+  { code: 'AR', name: 'Argentine' },
+  { code: 'BE', name: 'Belgique' },
+  { code: 'TR', name: 'Turquie' },
+] as const
 
 // Fonctions API
 export const tmdb = {
