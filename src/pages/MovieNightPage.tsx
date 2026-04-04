@@ -11,12 +11,13 @@ import { useSmartSuggestion } from '../hooks/useSmartSuggestion'
 import { SuggestionCard } from '../components/movienight/SuggestionCard'
 import { WatchlistPicker } from '../components/movienight/WatchlistPicker'
 import { DuelMode } from '../components/movienight/DuelMode'
+import { QuizMode } from '../components/movienight/QuizMode'
 import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
 import type { TmdbMovie } from '../lib/tmdb'
 import type { WatchlistMovieEntry } from '../types'
 
-type Tab = 'suggest' | 'pick' | 'duel'
+type Tab = 'suggest' | 'pick' | 'duel' | 'quiz'
 
 export function MovieNightPage() {
   const navigate = useNavigate()
@@ -117,6 +118,17 @@ export function MovieNightPage() {
         >
           Duel
         </button>
+        <button
+          onClick={() => setTab('quiz')}
+          className={[
+            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+            tab === 'quiz'
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+          ].join(' ')}
+        >
+          Quiz
+        </button>
       </div>
 
       {tab === 'suggest' ? (
@@ -175,8 +187,10 @@ export function MovieNightPage() {
           loading={watchlist.loading}
           onMarkWatched={handleMarkWatched}
         />
-      ) : (
+      ) : tab === 'duel' ? (
         <DuelMode />
+      ) : (
+        <QuizMode />
       )}
     </div>
   )
