@@ -33,6 +33,20 @@ export function QuizMode() {
 
   const partnerName = partner?.display_name ?? 'Partenaire'
 
+  // Track if partner left mid-quiz
+  const [partnerLeft, setPartnerLeft] = useState(false)
+  const prevSessionRef = useRef<typeof quiz.session>(null)
+
+  useEffect(() => {
+    const prev = prevSessionRef.current
+    // Session was active (playing/setup with theme) and now it's gone → partner left
+    if (prev && !quiz.session && (prev.status === 'playing' || (prev.status === 'setup' && prev.theme))) {
+      // Only show "partner left" if WE didn't cancel it ourselves
+      setPartnerLeft(true)
+    }
+    prevSessionRef.current = quiz.session
+  }, [quiz.session])
+
   if (!coupleId) {
     return (
       <div className="flex flex-col items-center py-16 text-[var(--color-text-muted)]">
@@ -47,6 +61,27 @@ export function QuizMode() {
     return (
       <div className="px-4 py-8">
         <div className="h-40 bg-[var(--color-surface)] rounded-2xl animate-pulse border border-[var(--color-border)]" />
+      </div>
+    )
+  }
+
+  // Partner left message
+  if (partnerLeft && !quiz.session) {
+    return (
+      <div className="px-4 text-center py-12 space-y-4">
+        <span className="text-5xl block">👋</span>
+        <p className="text-[var(--color-text)] font-medium">
+          {partnerName} a quitté le quiz
+        </p>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          La session a été interrompue
+        </p>
+        <button
+          onClick={() => setPartnerLeft(false)}
+          className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
+        >
+          OK
+        </button>
       </div>
     )
   }
@@ -85,6 +120,7 @@ export function QuizMode() {
   }
 
   const { session } = quiz
+  const isCreator = session.created_by === user?.id
 
   // Done → results
   if (session.status === 'done') {
@@ -127,14 +163,92 @@ export function QuizMode() {
     )
   }
 
-  // Classic: setup → pick theme
+  // Classic: setup phase
   if (session.type === 'classic' && session.status === 'setup') {
+    // Theme not yet chosen → creator picks theme
+    if (!session.theme) {
+      if (isCreator) {
+        return (
+          <ClassicSetup
+            onSelectTheme={quiz.setTheme}
+            onCancel={quiz.cancel}
+          />
+        )
+      }
+      // Partner waiting for creator to pick theme
+      return (
+        <div className="px-4 text-center py-12 space-y-4">
+          <span className="text-5xl block animate-pulse">🎯</span>
+          <p className="text-[var(--color-text)] font-medium">Quiz Classique</p>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            {partnerName} choisit le thème du quiz…
+          </p>
+          <button
+            onClick={quiz.cancel}
+            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] py-2 transition-colors"
+          >
+            Quitter
+          </button>
+        </div>
+      )
+    }
+
+    // Theme chosen → waiting for partner to join
+    if (isCreator) {
+      return (
+        <div className="px-4 text-center py-12 space-y-4">
+          <span className="text-5xl block">🎯</span>
+          <p className="text-[var(--color-text)] font-medium">Quiz Classique</p>
+          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4">
+            <p className="text-sm text-[var(--color-text-muted)]">Thème choisi :</p>
+            <p className="text-lg font-bold text-[var(--color-text)] mt-1">
+              {THEME_LABELS[session.theme]}
+              {session.theme_value ? ` — ${session.theme_value}` : ''}
+            </p>
+          </div>
+          <div className="animate-pulse">
+            <span className="text-3xl">⏳</span>
+          </div>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            En attente de {partnerName}…
+          </p>
+          <button
+            onClick={quiz.cancel}
+            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] py-2 transition-colors"
+          >
+            Annuler
+          </button>
+        </div>
+      )
+    }
+
+    // Partner sees the invite → can join
     return (
-      <ClassicSetup
-        onSelectTheme={quiz.setTheme}
-        onStart={quiz.startPlaying}
-        onCancel={quiz.cancel}
-      />
+      <div className="px-4 text-center py-12 space-y-4">
+        <span className="text-5xl block">🎯</span>
+        <p className="text-[var(--color-text)] font-medium">
+          {partnerName} te lance un Quiz !
+        </p>
+        <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4">
+          <p className="text-sm text-[var(--color-text-muted)]">Thème :</p>
+          <p className="text-lg font-bold text-[var(--color-text)] mt-1">
+            {THEME_LABELS[session.theme]}
+            {session.theme_value ? ` — ${session.theme_value}` : ''}
+          </p>
+        </div>
+        <button
+          onClick={quiz.startPlaying}
+          className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3.5 font-medium text-sm transition-colors"
+        >
+          Rejoindre le quiz !
+        </button>
+        <button
+          onClick={quiz.cancel}
+          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] py-2 transition-colors"
+        >
+          Refuser
+        </button>
+      </div>
     )
   }
 
@@ -165,15 +279,13 @@ export function QuizMode() {
   return null
 }
 
-// ── Classic Setup: choose theme ──
+// ── Classic Setup: choose theme (creator only) ──
 
 function ClassicSetup({
   onSelectTheme,
-  onStart,
   onCancel,
 }: {
   onSelectTheme: (theme: QuizTheme, value?: string) => Promise<void>
-  onStart: () => Promise<void>
   onCancel: () => Promise<void>
 }) {
   const [theme, setTheme] = useState<QuizTheme | null>(null)
@@ -181,6 +293,7 @@ function ClassicSetup({
   const [personQuery, setPersonQuery] = useState('')
   const [personResults, setPersonResults] = useState<TmdbPerson[]>([])
   const [searching, setSearching] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   function handlePersonSearch(value: string) {
@@ -204,14 +317,16 @@ function ClassicSetup({
     setPersonResults([])
   }
 
-  async function handleStart() {
-    if (!theme) return
+  async function handleConfirmTheme() {
+    if (!theme || submitting) return
+    setSubmitting(true)
+    // Save theme — status stays 'setup', partner will see the invite
     await onSelectTheme(theme, themeValue || undefined)
-    await onStart()
+    setSubmitting(false)
   }
 
   const needsValue = theme === 'actor' || theme === 'director'
-  const canStart = theme && (!needsValue || themeValue)
+  const canConfirm = theme && (!needsValue || themeValue)
 
   return (
     <div className="px-4 space-y-4">
@@ -329,18 +444,18 @@ function ClassicSetup({
         </div>
       )}
 
-      {/* Start button */}
+      {/* Confirm theme button (sends invite to partner) */}
       <button
-        onClick={handleStart}
-        disabled={!canStart}
+        onClick={handleConfirmTheme}
+        disabled={!canConfirm || submitting}
         className={[
           'w-full rounded-xl py-3 font-medium text-sm transition-colors',
-          canStart
+          canConfirm && !submitting
             ? 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white'
             : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] cursor-not-allowed',
         ].join(' ')}
       >
-        Lancer le quiz
+        {submitting ? 'Envoi…' : 'Proposer ce thème'}
       </button>
 
       <button
@@ -353,7 +468,7 @@ function ClassicSetup({
   )
 }
 
-// ── Play Phase: generate questions + QuizGame ──
+// ── Play Phase: generate questions + QuizGame + quit button ──
 
 function QuizPlayPhase({
   quiz,
@@ -365,6 +480,7 @@ function QuizPlayPhase({
   isUser1: boolean
 }) {
   const generatingRef = useRef(false)
+  const [confirmQuit, setConfirmQuit] = useState(false)
   const { session } = quiz
   const quizData = session?.quiz_data as QuizData | null
 
@@ -378,7 +494,6 @@ function QuizPlayPhase({
     async function generate() {
       try {
         if (session!.type === 'fight') {
-          // Fight: questions from both picked films
           const film1 = session!.film_user1
           const film2 = session!.film_user2
           if (!film1 || !film2) return
@@ -397,18 +512,13 @@ function QuizPlayPhase({
           data.phase = 'countdown'
           await quiz.updateQuizData(data)
         } else {
-          // Classic: discover movies by theme, then generate questions
           const movies = await discoverMoviesByTheme(
             session!.theme as QuizTheme,
             session!.theme_value
           )
-
-          // Fetch full details for up to 5 movies
           const details = await Promise.all(
             movies.slice(0, 5).map(m => tmdb.getMovie(m.id))
           )
-
-          // Generate question pool from all films
           const pool = details.flatMap(m => generateQuestions(m))
           const questions = selectQuestions(pool, 10)
 
@@ -442,25 +552,69 @@ function QuizPlayPhase({
     quiz.finish(s1, s2)
   }, [quiz])
 
+  // Quit confirmation overlay
+  if (confirmQuit) {
+    return (
+      <div className="px-4 text-center py-12 space-y-4">
+        <span className="text-5xl block">⚠️</span>
+        <p className="text-[var(--color-text)] font-medium">Quitter le quiz ?</p>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          La session sera terminée pour les deux joueurs.
+        </p>
+        <div className="space-y-3 pt-2">
+          <button
+            onClick={() => quiz.cancel()}
+            className="w-full bg-red-500 hover:bg-red-600 text-white rounded-xl py-3 font-medium text-sm transition-colors"
+          >
+            Oui, quitter
+          </button>
+          <button
+            onClick={() => setConfirmQuit(false)}
+            className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+          >
+            Reprendre le quiz
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!quizData || quizData.questions.length === 0) {
     return (
       <div className="px-4 text-center py-16">
         <span className="text-5xl block mb-4 animate-pulse">🧠</span>
         <p className="text-sm text-[var(--color-text-muted)]">Génération des questions...</p>
+        <button
+          onClick={() => setConfirmQuit(true)}
+          className="mt-6 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+        >
+          Quitter
+        </button>
       </div>
     )
   }
 
   return (
-    <QuizGame
-      quizData={quizData}
-      partnerName={partnerName}
-      isUser1={isUser1}
-      isHost={isUser1}
-      onAnswer={quiz.submitQuizAnswer}
-      onAdvance={handleAdvance}
-      onGameEnd={handleGameEnd}
-    />
+    <div>
+      <QuizGame
+        quizData={quizData}
+        partnerName={partnerName}
+        isUser1={isUser1}
+        isHost={isUser1}
+        onAnswer={quiz.submitQuizAnswer}
+        onAdvance={handleAdvance}
+        onGameEnd={handleGameEnd}
+      />
+      {/* Quit button below the quiz */}
+      <div className="px-4 pt-4 pb-2">
+        <button
+          onClick={() => setConfirmQuit(true)}
+          className="w-full text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
+        >
+          Quitter le quiz
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -517,7 +671,6 @@ async function discoverMoviesByTheme(
     }
     case 'general':
     default: {
-      // Random page of popular movies
       const page = Math.floor(Math.random() * 5) + 1
       const result = await tmdb.discoverMovies({
         sort_by: 'popularity.desc',
