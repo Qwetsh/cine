@@ -1,0 +1,106 @@
+import { useCallback, useSyncExternalStore } from 'react'
+
+// Major French streaming platforms (TMDB provider IDs)
+// Major French streaming platforms — IDs + logos fetched dynamically from TMDB
+export const STREAMING_PROVIDERS = [
+  { id: 8, name: 'Netflix' },
+  { id: 337, name: 'Disney+' },
+  { id: 119, name: 'Amazon Prime Video' },
+  { id: 381, name: 'Canal+' },
+  { id: 350, name: 'Apple TV+' },
+  { id: 56, name: 'OCS' },
+  { id: 236, name: 'Crunchyroll' },
+  { id: 1899, name: 'Max' },
+  { id: 283, name: 'Paramount+' },
+] as const
+
+export type BattleColor = 'blue' | 'green' | 'purple' | 'pink' | 'orange'
+
+export const BATTLE_COLORS: { id: BattleColor; label: string; gradient: string; glow: string }[] = [
+  { id: 'blue', label: 'Bleu', gradient: 'linear-gradient(90deg, #1a6eff, #4dabff, #80cfff)', glow: '#4dabff88' },
+  { id: 'green', label: 'Vert', gradient: 'linear-gradient(90deg, #10b981, #34d399, #6ee7b7)', glow: '#34d39988' },
+  { id: 'purple', label: 'Violet', gradient: 'linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd)', glow: '#a78bfa88' },
+  { id: 'pink', label: 'Rose', gradient: 'linear-gradient(90deg, #ec4899, #f472b6, #fbcfe8)', glow: '#f472b688' },
+  { id: 'orange', label: 'Orange', gradient: 'linear-gradient(90deg, #f97316, #fb923c, #fdba74)', glow: '#fb923c88' },
+]
+
+export interface Settings {
+  // Streaming filters
+  filterByStreaming: boolean
+  enabledProviders: number[]
+  hideRentals: boolean
+  // Battle
+  battleColor: BattleColor
+}
+
+const STORAGE_KEY = 'cine_settings'
+
+const defaultSettings: Settings = {
+  filterByStreaming: false,
+  enabledProviders: [],
+  hideRentals: false,
+  battleColor: 'blue',
+}
+
+function getSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return defaultSettings
+    return { ...defaultSettings, ...JSON.parse(raw) }
+  } catch {
+    return defaultSettings
+  }
+}
+
+function saveSettings(settings: Settings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+  // Notify subscribers
+  window.dispatchEvent(new Event('cine-settings-change'))
+}
+
+// External store for useSyncExternalStore
+const subscribe = (cb: () => void) => {
+  window.addEventListener('cine-settings-change', cb)
+  window.addEventListener('storage', cb)
+  return () => {
+    window.removeEventListener('cine-settings-change', cb)
+    window.removeEventListener('storage', cb)
+  }
+}
+
+export function useSettings() {
+  const settings = useSyncExternalStore(subscribe, getSettings, () => defaultSettings)
+
+  const update = useCallback((patch: Partial<Settings>) => {
+    const current = getSettings()
+    saveSettings({ ...current, ...patch })
+  }, [])
+
+  const toggleProvider = useCallback((providerId: number) => {
+    const current = getSettings()
+    const enabled = current.enabledProviders.includes(providerId)
+      ? current.enabledProviders.filter(id => id !== providerId)
+      : [...current.enabledProviders, providerId]
+    saveSettings({ ...current, enabledProviders: enabled })
+  }, [])
+
+  return { settings, update, toggleProvider }
+}
+
+// Helper: get TMDB discover params for streaming filter
+export function getStreamingDiscoverParams(settings: Settings): Record<string, string> {
+  if (!settings.filterByStreaming || settings.enabledProviders.length === 0) return {}
+
+  const params: Record<string, string> = {
+    watch_region: 'FR',
+    with_watch_providers: settings.enabledProviders.join('|'),
+  }
+
+  if (settings.hideRentals) {
+    params.with_watch_monetization_types = 'flatrate|free'
+  } else {
+    params.with_watch_monetization_types = 'flatrate|free|rent|buy'
+  }
+
+  return params
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LobbyFilm } from '../../hooks/useLobby'
+import { useSettings, BATTLE_COLORS } from '../../hooks/useSettings'
 
 const GAME_DURATION = 10_000
 const TARGET_INTERVAL_MIN = 250
@@ -36,6 +37,9 @@ export function BattleGame({
   const [targets, setTargets] = useState<Target[]>([])
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION)
   const [result, setResult] = useState<{ winner: 'me' | 'partner' | 'tie'; winnerFilm: LobbyFilm } | null>(null)
+
+  const { settings } = useSettings()
+  const myColor = BATTLE_COLORS.find(c => c.id === settings.battleColor) ?? BATTLE_COLORS[0]
 
   const scoreRef = useRef(0)
   const targetIdRef = useRef(0)
@@ -279,7 +283,7 @@ export function BattleGame({
         <div className="energy-bar">
           <div
             className="energy-bar__left"
-            style={{ width: `${myPct}%` }}
+            style={{ width: `${myPct}%`, background: myColor.gradient, boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)` }}
           />
           <div
             className="energy-bar__right"

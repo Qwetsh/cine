@@ -159,6 +159,9 @@ export interface DiscoverParams {
   sort_by?: string
   'vote_count.gte'?: string
   page?: number
+  watch_region?: string
+  with_watch_providers?: string
+  with_watch_monetization_types?: string
 }
 
 export interface SearchFilters {

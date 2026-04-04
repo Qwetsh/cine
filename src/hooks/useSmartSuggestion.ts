@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../lib/tmdb'
 import type { Preferences } from './usePreferences'
+import { useSettings, getStreamingDiscoverParams } from './useSettings'
 
 export type FeedbackType = 'too_old' | 'too_recent' | 'not_this_genre' | 'exclude_genre' | 'same_genre_diff_movie' | 'accept'
 
@@ -27,6 +28,7 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
   const [loading, setLoading] = useState(false)
   const [noMoreResults, setNoMoreResults] = useState(false)
   const sessionRef = useRef<SessionState | null>(null)
+  const { settings } = useSettings()
 
   const currentYear = new Date().getFullYear()
 
@@ -97,6 +99,10 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
       if (selectedGenres.length > 0) {
         params.with_genres = selectedGenres.join(',')
       }
+
+      // Apply streaming platform filter from user settings
+      const streamingParams = getStreamingDiscoverParams(settings)
+      Object.assign(params, streamingParams)
 
       const data = await tmdb.discoverMovies(params)
 
