@@ -109,6 +109,44 @@ export interface TmdbSearchResult {
   total_results: number
 }
 
+export type SearchMode = 'title' | 'actor' | 'director'
+
+export interface TmdbGenre {
+  id: number
+  name: string
+}
+
+export interface TmdbPerson {
+  id: number
+  name: string
+  known_for_department: string
+  profile_path: string | null
+}
+
+export interface TmdbPersonSearchResult {
+  page: number
+  results: TmdbPerson[]
+  total_pages: number
+  total_results: number
+}
+
+export interface DiscoverParams {
+  with_genres?: string
+  'primary_release_date.gte'?: string
+  'primary_release_date.lte'?: string
+  with_cast?: string
+  with_crew?: string
+  sort_by?: string
+  'vote_count.gte'?: string
+  page?: number
+}
+
+export interface SearchFilters {
+  mode: SearchMode
+  genres: number[]
+  yearRange: [number, number] | null
+}
+
 // Fonctions API
 export const tmdb = {
   searchMovies: (query: string, page = 1) =>
@@ -134,4 +172,18 @@ export const tmdb = {
 
   getSimilar: (id: number) =>
     tmdbFetch<TmdbSearchResult>(`/movie/${id}/similar`),
+
+  getGenres: () =>
+    tmdbFetch<{ genres: TmdbGenre[] }>('/genre/movie/list'),
+
+  searchPerson: (query: string) =>
+    tmdbFetch<TmdbPersonSearchResult>('/search/person', { query }),
+
+  discoverMovies: (params: DiscoverParams) => {
+    const stringParams: Record<string, string> = {}
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) stringParams[key] = String(value)
+    }
+    return tmdbFetch<TmdbSearchResult>('/discover/movie', stringParams)
+  },
 }

@@ -1,6 +1,25 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
-import type { TmdbMovie } from '../lib/tmdb'
+import type { TmdbMovie, SearchMode, SearchFilters } from '../lib/tmdb'
+
+const DEFAULT_FILTERS: SearchFilters = {
+  mode: 'title',
+  genres: [],
+  yearRange: null,
+}
+
+function applyClientFilters(movies: TmdbMovie[], filters: SearchFilters): TmdbMovie[] {
+  return movies.filter(movie => {
+    if (filters.genres.length > 0) {
+      if (!filters.genres.some(g => movie.genre_ids.includes(g))) return false
+    }
+    if (filters.yearRange) {
+      const year = movie.release_date ? new Date(movie.release_date).getFullYear() : 0
+      if (year < filters.yearRange[0] || year > filters.yearRange[1]) return false
+    }
+    return true
+  })
+}
 
 export function useTmdbSearch() {
   const [results, setResults] = useState<TmdbMovie[]>([])
@@ -8,52 +27,178 @@ export function useTmdbSearch() {
   const [error, setError] = useState<string | null>(null)
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
-  const [currentQuery, setCurrentQuery] = useState('')
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS)
 
-  const search = useCallback(async (query: string, page = 1) => {
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
+  const queryRef = useRef('')
+  const personIdRef = useRef<number | null>(null)
+  const requestIdRef = useRef(0)
 
+  const hasFilters = filters.genres.length > 0 || filters.yearRange !== null
+
+  const executeSearch = useCallback(async (
+    query: string,
+    searchFilters: SearchFilters,
+    page: number,
+    append: boolean
+  ) => {
+    const reqId = ++requestIdRef.current
     setLoading(true)
     setError(null)
-    setCurrentQuery(query)
-    setCurrentPage(page)
 
     try {
-      const data = await tmdb.searchMovies(query, page)
-      setResults(page === 1 ? data.results : prev => [...prev, ...data.results])
+      const trimmed = query.trim()
+      const hasQuery = trimmed !== ''
+      const hasGenres = searchFilters.genres.length > 0
+      const hasYear = searchFilters.yearRange !== null
+      const hasAnyFilter = hasGenres || hasYear
+
+      const discoverParams: Record<string, string | number | undefined> = {}
+      if (hasGenres) discoverParams.with_genres = searchFilters.genres.join(',')
+      if (hasYear) {
+        discoverParams['primary_release_date.gte'] = `${searchFilters.yearRange![0]}-01-01`
+        discoverParams['primary_release_date.lte'] = `${searchFilters.yearRange![1]}-12-31`
+      }
+      discoverParams['vote_count.gte'] = '10'
+      discoverParams.page = page
+
+      let data: { results: TmdbMovie[]; total_pages: number }
+
+      if (searchFilters.mode === 'title' && hasQuery && !hasAnyFilter) {
+        // Case 1: Title search only
+        data = await tmdb.searchMovies(trimmed, page)
+      } else if (searchFilters.mode === 'title' && hasQuery && hasAnyFilter) {
+        // Case 2: Title + filters → search + client-side filter
+        const raw = await tmdb.searchMovies(trimmed, page)
+        data = {
+          results: applyClientFilters(raw.results, searchFilters),
+          total_pages: raw.total_pages,
+        }
+      } else if (searchFilters.mode === 'title' && !hasQuery && hasAnyFilter) {
+        // Case 3: Filters only → discover
+        data = await tmdb.discoverMovies(discoverParams)
+      } else if ((searchFilters.mode === 'actor' || searchFilters.mode === 'director') && hasQuery) {
+        // Case 4/5: Person search → discover
+        if (!append || !personIdRef.current) {
+          const personData = await tmdb.searchPerson(trimmed)
+          const dept = searchFilters.mode === 'actor' ? 'Acting' : 'Directing'
+          const person = personData.results.find(p => p.known_for_department === dept)
+            ?? personData.results[0]
+          if (!person) {
+            if (reqId === requestIdRef.current) {
+              setResults([])
+              setTotalPages(0)
+              setLoading(false)
+            }
+            return
+          }
+          personIdRef.current = person.id
+        }
+
+        if (searchFilters.mode === 'actor') {
+          discoverParams.with_cast = String(personIdRef.current)
+        } else {
+          discoverParams.with_crew = String(personIdRef.current)
+        }
+        data = await tmdb.discoverMovies(discoverParams)
+      } else if (!hasQuery && !hasAnyFilter) {
+        // Case 5: No query, no filters → popular
+        data = await tmdb.getPopular(page)
+      } else {
+        data = { results: [], total_pages: 0 }
+      }
+
+      if (reqId !== requestIdRef.current) return // stale
+
+      setResults(prev => append ? [...prev, ...data.results] : data.results)
       setTotalPages(data.total_pages)
+      setCurrentPage(page)
     } catch (err) {
+      if (reqId !== requestIdRef.current) return
       setError(err instanceof Error ? err.message : 'Erreur lors de la recherche')
     } finally {
-      setLoading(false)
+      if (reqId === requestIdRef.current) setLoading(false)
     }
   }, [])
 
+  // Load popular movies on mount
+  useEffect(() => {
+    executeSearch('', DEFAULT_FILTERS, 1, false)
+  }, [executeSearch])
+
+  const search = useCallback((query: string) => {
+    queryRef.current = query
+    personIdRef.current = null
+    executeSearch(query, filters, 1, false)
+  }, [filters, executeSearch])
+
+  const refresh = useCallback(() => {
+    personIdRef.current = null
+    executeSearch(queryRef.current, filters, 1, false)
+  }, [filters, executeSearch])
+
   const loadMore = useCallback(() => {
-    if (currentPage < totalPages) {
-      search(currentQuery, currentPage + 1)
+    if (currentPage < totalPages && !loading) {
+      executeSearch(queryRef.current, filters, currentPage + 1, true)
     }
-  }, [currentPage, totalPages, currentQuery, search])
+  }, [currentPage, totalPages, loading, filters, executeSearch])
+
+  const setMode = useCallback((mode: SearchMode) => {
+    setFilters(prev => {
+      const next = { ...prev, mode }
+      personIdRef.current = null
+      executeSearch(queryRef.current, next, 1, false)
+      return next
+    })
+  }, [executeSearch])
+
+  const toggleGenre = useCallback((genreId: number) => {
+    setFilters(prev => {
+      const genres = prev.genres.includes(genreId)
+        ? prev.genres.filter(g => g !== genreId)
+        : [...prev.genres, genreId]
+      const next = { ...prev, genres }
+      executeSearch(queryRef.current, next, 1, false)
+      return next
+    })
+  }, [executeSearch])
+
+  const setYearRange = useCallback((range: [number, number] | null) => {
+    setFilters(prev => {
+      const next = { ...prev, yearRange: range }
+      executeSearch(queryRef.current, next, 1, false)
+      return next
+    })
+  }, [executeSearch])
+
+  const clearFilters = useCallback(() => {
+    setFilters(prev => {
+      const next = { ...prev, genres: [], yearRange: null }
+      executeSearch(queryRef.current, next, 1, false)
+      return next
+    })
+  }, [executeSearch])
 
   const clear = useCallback(() => {
+    queryRef.current = ''
+    personIdRef.current = null
     setResults([])
-    setCurrentQuery('')
-    setCurrentPage(1)
     setTotalPages(0)
+    setCurrentPage(1)
   }, [])
 
   return {
     results,
     loading,
     error,
-    totalPages,
-    currentPage,
     hasMore: currentPage < totalPages,
+    filters,
     search,
+    refresh,
     loadMore,
+    setMode,
+    toggleGenre,
+    setYearRange,
+    clearFilters,
     clear,
   }
 }

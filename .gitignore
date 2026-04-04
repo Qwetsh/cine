@@ -35,3 +35,7 @@ Thumbs.db
 # PWA (généré au build)
 sw.js
 workbox-*.js
+
+# Claude Code & BMad (config locale)
+.claude/
+_bmad/

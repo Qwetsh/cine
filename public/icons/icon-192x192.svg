@@ -1,0 +1,19 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'>
+  <rect width='192' height='192' rx='23.04' fill='#0f0f0f'/>
+  <!-- Film strip holes top -->
+  <rect x='15.36' y='15.36' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='51.84' y='15.36' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='88.32000000000001' y='15.36' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='124.80000000000001' y='15.36' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='161.28' y='15.36' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <!-- Film strip holes bottom -->
+  <rect x='15.36' y='161.28' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='51.84' y='161.28' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='88.32000000000001' y='161.28' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='124.80000000000001' y='161.28' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <rect x='161.28' y='161.28' width='19.200000000000003' height='15.36' rx='3' fill='#e50914'/>
+  <!-- Film strip band -->
+  <rect x='0' y='36.480000000000004' width='192' height='119.03999999999999' fill='#1a1a1a'/>
+  <!-- Play button -->
+  <polygon points='67.19999999999999,61.44 138.24,96 67.19999999999999,130.56' fill='#e50914'/>
+</svg>

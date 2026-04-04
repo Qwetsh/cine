@@ -13,64 +13,56 @@ export function useCollection(coupleId: string | null) {
       setLoading(false)
       return
     }
-
     setLoading(true)
     setError(null)
 
     const { data, error } = await supabase
       .from('collection')
-      .select(`
-        id, watched_at, rating_user1, rating_user2, note_user1, note_user2,
-        movie:movies(*)
-      `)
+      .select('id, watched_at, rating_user1, rating_user2, note_user1, note_user2, movie:movies(*)')
       .eq('couple_id', coupleId)
       .order('watched_at', { ascending: false })
 
     if (error) {
       setError(error.message)
     } else {
-      setEntries((data as unknown as CollectionMovieEntry[]) ?? [])
+      setEntries(((data as unknown as CollectionMovieEntry[]) ?? []).filter(e => e.movie != null))
     }
     setLoading(false)
   }, [coupleId])
 
-  useEffect(() => {
-    fetchCollection()
-  }, [fetchCollection])
+  useEffect(() => { fetchCollection() }, [fetchCollection])
 
-  async function addToCollection(params: {
-    movieId: string
-    watchedAt?: string
-    ratingUser1?: number
-    ratingUser2?: number
-    noteUser1?: string
-    noteUser2?: string
-  }) {
+  async function addToCollection(movieId: string): Promise<{ error: string | null }> {
     if (!coupleId) return { error: 'Aucun couple configuré' }
-
     const { error } = await supabase.from('collection').insert({
-      movie_id: params.movieId,
+      movie_id: movieId,
       couple_id: coupleId,
-      watched_at: params.watchedAt ?? new Date().toISOString(),
-      rating_user1: params.ratingUser1 ?? null,
-      rating_user2: params.ratingUser2 ?? null,
-      note_user1: params.noteUser1 ?? null,
-      note_user2: params.noteUser2 ?? null,
+      watched_at: new Date().toISOString(),
     })
-
     if (!error) await fetchCollection()
-    return { error }
+    return { error: error?.message ?? null }
   }
 
   async function updateRating(entryId: string, isUser1: boolean, rating: number, note?: string) {
     const updates = isUser1
-      ? { rating_user1: rating, note_user1: note }
-      : { rating_user2: rating, note_user2: note }
+      ? { rating_user1: rating, note_user1: note ?? null }
+      : { rating_user2: rating, note_user2: note ?? null }
 
     const { error } = await supabase.from('collection').update(updates).eq('id', entryId)
     if (!error) await fetchCollection()
-    return { error }
+    return { error: error?.message ?? null }
   }
 
-  return { entries, loading, error, addToCollection, updateRating, refetch: fetchCollection }
+  async function isInCollection(movieDbId: string): Promise<boolean> {
+    if (!coupleId) return false
+    const { data } = await supabase
+      .from('collection')
+      .select('id')
+      .eq('couple_id', coupleId)
+      .eq('movie_id', movieDbId)
+      .maybeSingle()
+    return !!data
+  }
+
+  return { entries, loading, error, addToCollection, updateRating, isInCollection, refetch: fetchCollection }
 }
