@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LobbyFilm } from '../../hooks/useLobby'
 
-const GAME_DURATION = 10_000 // 10 seconds
-const TARGET_INTERVAL_MIN = 400
-const TARGET_INTERVAL_MAX = 900
-const TARGET_LIFETIME = 1200
+const GAME_DURATION = 10_000
+const TARGET_INTERVAL_MIN = 250
+const TARGET_INTERVAL_MAX = 550
+const TARGET_LIFETIME = 900
 
 interface Target {
   id: number
@@ -19,14 +19,18 @@ interface Props {
   partnerName: string
   partnerScore: number
   isUser1: boolean
+  partnerReady: boolean
+  onReady: () => void
   onScoreUpdate: (score: number) => void
   onGameEnd: (myScore: number) => void
 }
 
 export function BattleGame({
-  film1, film2, partnerName, partnerScore, isUser1, onScoreUpdate, onGameEnd,
+  film1, film2, partnerName, partnerScore, isUser1,
+  partnerReady, onReady, onScoreUpdate, onGameEnd,
 }: Props) {
-  const [phase, setPhase] = useState<'countdown' | 'playing' | 'finished'>('countdown')
+  const [phase, setPhase] = useState<'waiting' | 'countdown' | 'playing' | 'finished'>('waiting')
+  const [myReady, setMyReady] = useState(false)
   const [countdown, setCountdown] = useState(3)
   const [score, setScore] = useState(0)
   const [targets, setTargets] = useState<Target[]>([])
@@ -39,6 +43,18 @@ export function BattleGame({
   const animFrameRef = useRef<number | undefined>(undefined)
   const targetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const gameStartRef = useRef(0)
+
+  // Ready check → both ready → countdown
+  function handleReady() {
+    setMyReady(true)
+    onReady()
+  }
+
+  useEffect(() => {
+    if (phase === 'waiting' && myReady && partnerReady) {
+      setPhase('countdown')
+    }
+  }, [phase, myReady, partnerReady])
 
   // Countdown
   useEffect(() => {
@@ -55,14 +71,13 @@ export function BattleGame({
   const spawnTarget = useCallback(() => {
     if (!gameAreaRef.current) return
     const rect = gameAreaRef.current.getBoundingClientRect()
-    const padding = 30
+    const padding = 35
     const x = padding + Math.random() * (rect.width - padding * 2)
     const y = padding + Math.random() * (rect.height - padding * 2)
     const id = ++targetIdRef.current
 
     setTargets(prev => [...prev, { id, x, y, createdAt: Date.now() }])
 
-    // Remove target after lifetime
     setTimeout(() => {
       setTargets(prev => prev.filter(t => t.id !== id))
     }, TARGET_LIFETIME)
@@ -74,9 +89,15 @@ export function BattleGame({
 
     gameStartRef.current = Date.now()
 
-    // Spawn targets at random intervals
     function scheduleNext() {
-      const delay = TARGET_INTERVAL_MIN + Math.random() * (TARGET_INTERVAL_MAX - TARGET_INTERVAL_MIN)
+      const elapsed = Date.now() - gameStartRef.current
+      const progress = elapsed / GAME_DURATION
+      // Accelerate over time: intervals shrink by 40%
+      const speedFactor = 1 - progress * 0.4
+      const min = TARGET_INTERVAL_MIN * speedFactor
+      const max = TARGET_INTERVAL_MAX * speedFactor
+      const delay = min + Math.random() * (max - min)
+
       targetTimerRef.current = setTimeout(() => {
         if (Date.now() - gameStartRef.current < GAME_DURATION) {
           spawnTarget()
@@ -85,10 +106,9 @@ export function BattleGame({
       }, delay)
     }
 
-    spawnTarget() // first target immediately
+    spawnTarget()
     scheduleNext()
 
-    // Time tracking
     function tick() {
       const elapsed = Date.now() - gameStartRef.current
       const remaining = Math.max(0, GAME_DURATION - elapsed)
@@ -112,7 +132,6 @@ export function BattleGame({
   useEffect(() => {
     if (phase !== 'finished') return
 
-    // Small delay to let partner score sync
     const timer = setTimeout(() => {
       const myScore = scoreRef.current
       const theirScore = partnerScore
@@ -126,7 +145,6 @@ export function BattleGame({
         winner = 'partner'
         winnerFilm = isUser1 ? film2 : film1
       } else {
-        // Tie → random
         winner = 'tie'
         winnerFilm = Math.random() > 0.5 ? film1 : film2
       }
@@ -147,26 +165,63 @@ export function BattleGame({
     onScoreUpdate(newScore)
   }
 
-  // Progress bar
-  const myProgress = score / (score + partnerScore || 1)
-  const totalScore = score + partnerScore
+  // Energy bar position: 50% = even, >50% = I'm winning
+  const total = score + partnerScore
+  const myPct = total > 0 ? (score / total) * 100 : 50
 
-  // Countdown screen
-  if (phase === 'countdown') {
+  // ── WAITING: ready check ──
+  if (phase === 'waiting') {
     return (
-      <div className="px-4 flex flex-col items-center justify-center py-20">
-        <p className="text-sm text-[var(--color-text-muted)] mb-4">Prépare-toi !</p>
-        <span className="text-7xl font-bold text-[var(--color-accent)] animate-pulse">
-          {countdown || 'GO !'}
-        </span>
-        <p className="text-xs text-[var(--color-text-muted)] mt-6">
-          Tape les cibles le plus vite possible !
+      <div className="px-4 text-center py-12 space-y-6">
+        <span className="text-5xl block">⚔️</span>
+        <p className="text-lg font-bold text-[var(--color-text)]">Bataille de rapidité</p>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Tapez les cibles le plus vite possible pendant 10 secondes !
         </p>
+
+        <div className="flex gap-4 justify-center">
+          {/* Me */}
+          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 min-w-[120px]">
+            <p className="text-xs text-[var(--color-text-muted)] mb-2">Toi</p>
+            {myReady ? (
+              <p className="text-sm font-bold text-green-400">Prêt !</p>
+            ) : (
+              <button
+                onClick={handleReady}
+                className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Prêt !
+              </button>
+            )}
+          </div>
+
+          {/* Partner */}
+          <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 min-w-[120px]">
+            <p className="text-xs text-[var(--color-text-muted)] mb-2">{partnerName}</p>
+            {partnerReady ? (
+              <p className="text-sm font-bold text-green-400">Prêt !</p>
+            ) : (
+              <p className="text-sm text-[var(--color-text-muted)] animate-pulse">En attente…</p>
+            )}
+          </div>
+        </div>
       </div>
     )
   }
 
-  // Result: show brief "Temps écoulé" then DuelMode handles the winner screen
+  // ── COUNTDOWN ──
+  if (phase === 'countdown') {
+    return (
+      <div className="px-4 flex flex-col items-center justify-center py-20">
+        <p className="text-sm text-[var(--color-text-muted)] mb-4">C'est parti !</p>
+        <span className="text-8xl font-black text-[var(--color-accent)] animate-pulse">
+          {countdown || 'GO !'}
+        </span>
+      </div>
+    )
+  }
+
+  // ── RESULT: brief transition ──
   if (result) {
     return (
       <div className="px-4 text-center py-16">
@@ -187,7 +242,7 @@ export function BattleGame({
     )
   }
 
-  // Playing screen
+  // ── PLAYING ──
   const seconds = Math.ceil(timeLeft / 1000)
   const timerPct = (timeLeft / GAME_DURATION) * 100
   const isLow = seconds <= 3
@@ -196,13 +251,11 @@ export function BattleGame({
     <div className="px-4 space-y-3">
       {/* Header: Timer + Scores */}
       <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-2.5">
-        {/* My score */}
         <div className="text-center min-w-[60px]">
           <p className="text-[10px] text-[var(--color-text-muted)]">Toi</p>
           <p className="text-2xl font-bold text-[var(--color-accent)]">{score}</p>
         </div>
 
-        {/* Timer circle */}
         <div className="flex flex-col items-center">
           <div className={`w-14 h-14 rounded-full border-[3px] flex items-center justify-center ${isLow ? 'border-red-500' : 'border-[var(--color-accent)]'}`}
             style={{
@@ -215,26 +268,35 @@ export function BattleGame({
           </div>
         </div>
 
-        {/* Partner score */}
         <div className="text-center min-w-[60px]">
           <p className="text-[10px] text-[var(--color-text-muted)]">{partnerName}</p>
           <p className="text-2xl font-bold text-red-400">{partnerScore}</p>
         </div>
       </div>
 
-      {/* VS bar */}
-      {totalScore > 0 && (
-        <div className="h-1.5 rounded-full overflow-hidden flex">
+      {/* Energy bar — DBZ beam clash */}
+      <div className="energy-bar-container">
+        <div className="energy-bar">
           <div
-            className="h-full bg-[var(--color-accent)] transition-all duration-200"
-            style={{ width: `${myProgress * 100}%` }}
+            className="energy-bar__left"
+            style={{ width: `${myPct}%` }}
           />
           <div
-            className="h-full bg-red-400 transition-all duration-200"
-            style={{ width: `${(1 - myProgress) * 100}%` }}
+            className="energy-bar__right"
+            style={{ width: `${100 - myPct}%` }}
           />
+          {/* Clash point with lightning */}
+          <div
+            className="energy-bar__clash"
+            style={{ left: `${myPct}%` }}
+          >
+            <div className="energy-bar__spark" />
+            <div className="energy-bar__spark energy-bar__spark--2" />
+            <div className="energy-bar__spark energy-bar__spark--3" />
+            <div className="energy-bar__glow" />
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Game area */}
       <div
@@ -254,7 +316,7 @@ export function BattleGame({
         ))}
         {targets.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-sm text-[var(--color-text-muted)] animate-pulse">Prépare-toi…</p>
+            <p className="text-sm text-[var(--color-text-muted)] animate-pulse">…</p>
           </div>
         )}
       </div>

@@ -147,7 +147,10 @@ export function DuelMode() {
 
   // Phase: battle minigame
   if (status === 'battle' && film_user1 && film_user2) {
-    const partnerScore = isUser1 ? lobby.lobby.score_user2 : lobby.lobby.score_user1
+    const rawPartnerScore = isUser1 ? lobby.lobby.score_user2 : lobby.lobby.score_user1
+    // -1 = ready sentinel, treat as 0 for game score, but check for ready state
+    const partnerReady = rawPartnerScore === -1 || rawPartnerScore > 0
+    const partnerScore = rawPartnerScore < 0 ? 0 : rawPartnerScore
 
     return (
       <BattleGame
@@ -156,6 +159,8 @@ export function DuelMode() {
         partnerName={partnerName}
         partnerScore={partnerScore}
         isUser1={isUser1}
+        partnerReady={partnerReady}
+        onReady={lobby.setReady}
         onScoreUpdate={lobby.updateScore}
         onGameEnd={(myScore) => {
           const theirScore = partnerScore

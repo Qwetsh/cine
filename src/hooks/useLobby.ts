@@ -136,6 +136,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
     const updates: Record<string, unknown> = { mode }
     if (mode === 'battle') {
       updates.status = 'battle'
+      // 0 = not ready, -1 = ready (sentinel before game starts)
       updates.score_user1 = 0
       updates.score_user2 = 0
     }
@@ -145,6 +146,16 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
       .update(updates)
       .eq('id', lobby.id)
   }, [lobby])
+
+  // Mark myself as ready for battle
+  const setReady = useCallback(async () => {
+    if (!lobby) return
+    const field = isUser1 ? 'score_user1' : 'score_user2'
+    await supabase
+      .from('movie_night_lobbies')
+      .update({ [field]: -1 })
+      .eq('id', lobby.id)
+  }, [lobby, isUser1])
 
   // Set winner (after random or battle)
   const setWinner = useCallback(async (winnerFilm: LobbyFilm, scoreU1?: number, scoreU2?: number) => {
@@ -203,6 +214,7 @@ export function useLobby(coupleId: string | null, userId: string | null, isUser1
     updateScore,
     cancel,
     dismiss,
+    setReady,
     myFilm: isUser1 ? lobby?.film_user1 : lobby?.film_user2,
     partnerFilm: isUser1 ? lobby?.film_user2 : lobby?.film_user1,
   }
