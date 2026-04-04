@@ -293,6 +293,8 @@ function PosterQuestion({
   revealed: boolean
   filmTitle: string
 }) {
+  const [imageLoaded, setImageLoaded] = useState(false)
+
   // Blur: starts at 20px, fast initial deblur then slows down (square root curve).
   // At 15s → 20px, at 7s → ~7px, at 3s → ~4px, at 0s → 2px
   const progress = 1 - (timeLeft / QUESTION_TIMEOUT_MS) // 0 → 1
@@ -303,15 +305,20 @@ function PosterQuestion({
   return (
     <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 text-center">
       <p className="text-sm font-bold text-[var(--color-text)] mb-3">Quel est ce film ?</p>
-      <div className="relative w-36 h-52 mx-auto rounded-xl overflow-hidden shadow-lg">
+      <div className="relative w-36 h-52 mx-auto rounded-xl overflow-hidden shadow-lg bg-[var(--color-surface-2)]">
         <img
           src={getPosterUrl(posterPath, 'medium')}
           alt="Affiche mystère"
-          className="w-full h-full object-cover transition-[filter] duration-300"
-          style={{ filter: `blur(${blurPx}px)` }}
+          onLoad={() => setImageLoaded(true)}
+          className="w-full h-full object-cover"
+          style={{
+            filter: `blur(${imageLoaded ? blurPx : 40}px)`,
+            opacity: imageLoaded ? 1 : 0,
+            transition: 'filter 0.15s linear',
+          }}
           draggable={false}
         />
-        {!revealed && blurPx > 10 && (
+        {(!imageLoaded || (!revealed && blurPx > 10)) && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-4xl">🎬</span>
           </div>
