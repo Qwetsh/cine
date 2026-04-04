@@ -285,13 +285,39 @@ export function generateQuestions(movie: TmdbMovieDetail): QuizQuestion[] {
   return questions
 }
 
-/** Select a balanced set of questions from a pool */
+/** Select a balanced set of questions from a pool, maximizing film diversity */
 export function selectQuestions(pool: QuizQuestion[], count: number = 10): QuizQuestion[] {
-  const easy = shuffle(pool.filter(q => q.difficulty === 'easy'))
-  const medium = shuffle(pool.filter(q => q.difficulty === 'medium'))
-  const hard = shuffle(pool.filter(q => q.difficulty === 'hard'))
+  const shuffled = shuffle(pool)
 
-  // Target: 3 easy, 4 medium, 3 hard — adjust if not enough
+  // Pass 1: pick 1 question per unique film (diverse selection)
+  const usedFilms = new Set<number>()
+  const diverse: QuizQuestion[] = []
+  const rest: QuizQuestion[] = []
+
+  for (const q of shuffled) {
+    if (!usedFilms.has(q.source_film.tmdb_id)) {
+      usedFilms.add(q.source_film.tmdb_id)
+      diverse.push(q)
+    } else {
+      rest.push(q)
+    }
+  }
+
+  // If we have enough diverse questions, balance by difficulty
+  if (diverse.length >= count) {
+    return balanceByDifficulty(diverse, count)
+  }
+
+  // Not enough unique films — fill with duplicates
+  const combined = [...diverse, ...shuffle(rest)]
+  return balanceByDifficulty(combined, count)
+}
+
+function balanceByDifficulty(pool: QuizQuestion[], count: number): QuizQuestion[] {
+  const easy = pool.filter(q => q.difficulty === 'easy')
+  const medium = pool.filter(q => q.difficulty === 'medium')
+  const hard = pool.filter(q => q.difficulty === 'hard')
+
   const selected: QuizQuestion[] = []
 
   const take = (arr: QuizQuestion[], n: number) => {
@@ -301,17 +327,12 @@ export function selectQuestions(pool: QuizQuestion[], count: number = 10): QuizQ
   }
 
   let remaining = count
-  const easyCount = take(easy, Math.min(3, remaining))
-  remaining -= easyCount
-  const medCount = take(medium, Math.min(4, remaining))
-  remaining -= medCount
-  const hardCount = take(hard, Math.min(3, remaining))
-  remaining -= hardCount
+  remaining -= take(easy, Math.min(3, remaining))
+  remaining -= take(medium, Math.min(4, remaining))
+  remaining -= take(hard, Math.min(3, remaining))
 
-  // Fill remaining from any difficulty
   if (remaining > 0) {
-    const leftovers = [...easy, ...medium, ...hard]
-    take(leftovers, remaining)
+    take([...easy, ...medium, ...hard], remaining)
   }
 
   return shuffle(selected).slice(0, count)
