@@ -1,0 +1,137 @@
+const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
+const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p'
+
+const apiKey = import.meta.env.VITE_TMDB_API_KEY
+
+if (!apiKey) {
+  console.warn('VITE_TMDB_API_KEY manquant — les recherches de films ne fonctionneront pas.')
+}
+
+// Tailles d'images disponibles sur TMDB
+export const POSTER_SIZES = {
+  small: 'w185',
+  medium: 'w342',
+  large: 'w500',
+  original: 'original',
+} as const
+
+export const BACKDROP_SIZES = {
+  small: 'w300',
+  medium: 'w780',
+  large: 'w1280',
+  original: 'original',
+} as const
+
+export function getPosterUrl(
+  posterPath: string | null,
+  size: keyof typeof POSTER_SIZES = 'medium'
+): string {
+  if (!posterPath) return '/placeholder-poster.svg'
+  return `${TMDB_IMAGE_BASE_URL}/${POSTER_SIZES[size]}${posterPath}`
+}
+
+export function getBackdropUrl(
+  backdropPath: string | null,
+  size: keyof typeof BACKDROP_SIZES = 'large'
+): string {
+  if (!backdropPath) return '/placeholder-backdrop.svg'
+  return `${TMDB_IMAGE_BASE_URL}/${BACKDROP_SIZES[size]}${backdropPath}`
+}
+
+async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
+  const url = new URL(`${TMDB_BASE_URL}${endpoint}`)
+  url.searchParams.set('api_key', apiKey)
+  url.searchParams.set('language', 'fr-FR')
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value)
+  }
+
+  const res = await fetch(url.toString())
+  if (!res.ok) {
+    throw new Error(`TMDB API error ${res.status}: ${res.statusText}`)
+  }
+  return res.json() as Promise<T>
+}
+
+// Types TMDB
+export interface TmdbMovie {
+  id: number
+  title: string
+  original_title: string
+  overview: string
+  poster_path: string | null
+  backdrop_path: string | null
+  release_date: string
+  vote_average: number
+  vote_count: number
+  genre_ids: number[]
+  popularity: number
+  adult: boolean
+}
+
+export interface TmdbMovieDetail extends TmdbMovie {
+  runtime: number | null
+  genres: { id: number; name: string }[]
+  tagline: string
+  status: string
+  budget: number
+  revenue: number
+  production_countries: { iso_3166_1: string; name: string }[]
+  spoken_languages: { iso_639_1: string; name: string }[]
+  homepage: string
+  imdb_id: string | null
+  credits?: {
+    cast: TmdbCastMember[]
+    crew: TmdbCrewMember[]
+  }
+}
+
+export interface TmdbCastMember {
+  id: number
+  name: string
+  character: string
+  profile_path: string | null
+  order: number
+}
+
+export interface TmdbCrewMember {
+  id: number
+  name: string
+  job: string
+  department: string
+  profile_path: string | null
+}
+
+export interface TmdbSearchResult {
+  page: number
+  results: TmdbMovie[]
+  total_pages: number
+  total_results: number
+}
+
+// Fonctions API
+export const tmdb = {
+  searchMovies: (query: string, page = 1) =>
+    tmdbFetch<TmdbSearchResult>('/search/movie', { query, page: String(page) }),
+
+  getMovie: (id: number) =>
+    tmdbFetch<TmdbMovieDetail>(`/movie/${id}`, { append_to_response: 'credits' }),
+
+  getPopular: (page = 1) =>
+    tmdbFetch<TmdbSearchResult>('/movie/popular', { page: String(page) }),
+
+  getTrending: (timeWindow: 'day' | 'week' = 'week') =>
+    tmdbFetch<TmdbSearchResult>(`/trending/movie/${timeWindow}`),
+
+  getNowPlaying: (page = 1) =>
+    tmdbFetch<TmdbSearchResult>('/movie/now_playing', { page: String(page) }),
+
+  getTopRated: (page = 1) =>
+    tmdbFetch<TmdbSearchResult>('/movie/top_rated', { page: String(page) }),
+
+  getUpcoming: (page = 1) =>
+    tmdbFetch<TmdbSearchResult>('/movie/upcoming', { page: String(page) }),
+
+  getSimilar: (id: number) =>
+    tmdbFetch<TmdbSearchResult>(`/movie/${id}/similar`),
+}
