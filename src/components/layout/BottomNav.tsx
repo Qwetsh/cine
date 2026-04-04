@@ -1,18 +1,67 @@
 import { NavLink } from 'react-router-dom'
 
+// SVG icons — cinema style, thin stroke
+function IconHome({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
+      <path d="M9 21V12h6v9" />
+    </svg>
+  )
+}
+
+function IconSearch({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  )
+}
+
+function IconWatchlist({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M8 7v10l4-3 4 3V7" />
+    </svg>
+  )
+}
+
+function IconCollection({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <path d="M2 8h2M20 8h2M2 16h2M20 16h2" />
+    </svg>
+  )
+}
+
+function IconSoiree({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20L8 4h8l4 16" />
+      <path d="M6 12h12" />
+      <circle cx="12" cy="8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 const NAV_ITEMS = [
-  { to: '/', label: 'Accueil', icon: '🏠' },
-  { to: '/search', label: 'Rechercher', icon: '🔍' },
-  { to: '/watchlist', label: 'À voir', icon: '📋' },
-  { to: '/collection', label: 'Collection', icon: '⭐' },
-  { to: '/pick', label: 'Soirée', icon: '🎲' },
+  { to: '/', label: 'Accueil', Icon: IconHome },
+  { to: '/search', label: 'Rechercher', Icon: IconSearch },
+  { to: '/watchlist', label: 'À voir', Icon: IconWatchlist },
+  { to: '/collection', label: 'Collection', Icon: IconCollection },
+  { to: '/pick', label: 'Soirée', Icon: IconSoiree },
 ]
 
 export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)]/95 backdrop-blur border-t border-[var(--color-border)] safe-area-inset-bottom">
       <div className="flex items-stretch max-w-2xl mx-auto">
-        {NAV_ITEMS.map(({ to, label, icon }) => (
+        {NAV_ITEMS.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -26,8 +75,12 @@ export function BottomNav() {
               ].join(' ')
             }
           >
-            <span className="text-xl leading-none">{icon}</span>
-            <span>{label}</span>
+            {({ isActive }) => (
+              <>
+                <Icon active={isActive} />
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>
