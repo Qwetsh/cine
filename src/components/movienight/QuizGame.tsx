@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QuizData, QuizQuestion } from '../../lib/quiz'
 import { calculateScore } from '../../lib/quiz'
+import { getPosterUrl } from '../../lib/tmdb'
 
 const QUESTION_TIMEOUT = 15_000
 const REVEAL_DURATION = 3_000
@@ -210,12 +211,21 @@ export function QuizGame({
       </div>
 
       {/* Question */}
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center min-h-[100px] flex flex-col justify-center">
-        <p className="font-bold text-[var(--color-text)] leading-snug">{question.text}</p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">
-          🎬 {question.source_film.title}
-        </p>
-      </div>
+      {question.type === 'poster' && question.poster_path ? (
+        <PosterQuestion
+          posterPath={question.poster_path}
+          timeLeft={timeLeft}
+          revealed={showResult || myCurrentAnswer != null}
+          filmTitle={question.source_film.title}
+        />
+      ) : (
+        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center min-h-[100px] flex flex-col justify-center">
+          <p className="font-bold text-[var(--color-text)] leading-snug">{question.text}</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-2">
+            🎬 {question.source_film.title}
+          </p>
+        </div>
+      )}
 
       {/* Answers 2×2 grid */}
       <div className="grid grid-cols-2 gap-2.5">
@@ -264,6 +274,52 @@ export function QuizGame({
           </span>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Blurred poster component ──
+
+const QUESTION_TIMEOUT_MS = 15_000
+
+function PosterQuestion({
+  posterPath,
+  timeLeft,
+  revealed,
+  filmTitle,
+}: {
+  posterPath: string
+  timeLeft: number
+  revealed: boolean
+  filmTitle: string
+}) {
+  // Blur: starts at 25px, decreases to 3px as time runs out. Fully clear on reveal.
+  const blurPx = revealed
+    ? 0
+    : Math.max(3, 25 * (timeLeft / QUESTION_TIMEOUT_MS))
+
+  return (
+    <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 text-center">
+      <p className="text-sm font-bold text-[var(--color-text)] mb-3">Quel est ce film ?</p>
+      <div className="relative w-36 h-52 mx-auto rounded-xl overflow-hidden shadow-lg">
+        <img
+          src={getPosterUrl(posterPath, 'medium')}
+          alt="Affiche mystère"
+          className="w-full h-full object-cover transition-[filter] duration-300"
+          style={{ filter: `blur(${blurPx}px)` }}
+          draggable={false}
+        />
+        {!revealed && blurPx > 10 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-4xl">🎬</span>
+          </div>
+        )}
+      </div>
+      {revealed && (
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+          {filmTitle}
+        </p>
+      )}
     </div>
   )
 }

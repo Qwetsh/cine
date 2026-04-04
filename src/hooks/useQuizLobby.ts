@@ -4,7 +4,7 @@ import type { QuizData } from '../lib/quiz'
 import type { LobbyFilm } from './useLobby'
 
 export type QuizType = 'classic' | 'fight'
-export type QuizTheme = 'actor' | 'director' | 'country' | 'decade' | 'general'
+export type QuizTheme = 'actor' | 'director' | 'country' | 'decade' | 'general' | 'poster'
 
 export interface QuizSession {
   id: string

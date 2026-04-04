@@ -5,7 +5,7 @@ import { useQuizLobby } from '../../hooks/useQuizLobby'
 import type { QuizTheme } from '../../hooks/useQuizLobby'
 import { tmdb, getPosterUrl, COUNTRIES } from '../../lib/tmdb'
 import type { TmdbPerson, TmdbMovie } from '../../lib/tmdb'
-import { generateQuestions, generateQuestionsFromTwoFilms, selectQuestions, createEmptyQuizData } from '../../lib/quiz'
+import { generateQuestions, generateQuestionsFromTwoFilms, generatePosterQuestions, selectQuestions, createEmptyQuizData } from '../../lib/quiz'
 import type { QuizData } from '../../lib/quiz'
 import { LobbyPicking } from './LobbyPicking'
 import { QuizGame } from './QuizGame'
@@ -23,6 +23,7 @@ const THEME_LABELS: Record<QuizTheme, string> = {
   director: '🎬 Réalisateur',
   country: '🌍 Pays',
   decade: '📅 Décennie',
+  poster: '🖼️ Affiche floue',
   general: '🎲 Général',
 }
 
@@ -325,8 +326,9 @@ function ClassicSetup({
     setSubmitting(false)
   }
 
-  const needsValue = theme === 'actor' || theme === 'director'
-  const canConfirm = theme && (!needsValue || themeValue)
+  const needsPersonSearch = theme === 'actor' || theme === 'director'
+  const needsSelection = needsPersonSearch || theme === 'country' || theme === 'decade'
+  const canConfirm = theme && (!needsSelection || themeValue)
 
   return (
     <div className="px-4 space-y-4">
@@ -355,7 +357,7 @@ function ClassicSetup({
       </div>
 
       {/* Person search (actor/director) */}
-      {needsValue && (
+      {needsPersonSearch && (
         <div>
           {themeValue ? (
             <div className="flex items-center gap-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-accent)] p-3">
@@ -516,11 +518,19 @@ function QuizPlayPhase({
             session!.theme as QuizTheme,
             session!.theme_value
           )
-          const details = await Promise.all(
-            movies.slice(0, 5).map(m => tmdb.getMovie(m.id))
-          )
-          const pool = details.flatMap(m => generateQuestions(m))
-          const questions = selectQuestions(pool, 10)
+
+          let questions
+          if (session!.theme === 'poster') {
+            // Poster mode: use movie titles + posters directly
+            questions = generatePosterQuestions(movies.slice(0, 20), 10)
+          } else {
+            // Standard: fetch details and generate varied questions
+            const details = await Promise.all(
+              movies.slice(0, 5).map(m => tmdb.getMovie(m.id))
+            )
+            const pool = details.flatMap(m => generateQuestions(m))
+            questions = selectQuestions(pool, 10)
+          }
 
           if (questions.length === 0) {
             console.error('No questions generated')

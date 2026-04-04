@@ -15,6 +15,7 @@ export type QuestionType =
   | 'runtime'
   | 'country'
   | 'tagline'
+  | 'poster'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -26,6 +27,8 @@ export interface QuizQuestion {
   options: string[]
   correct_index: number
   source_film: { tmdb_id: number; title: string }
+  /** Poster path for 'poster' type questions (TMDB poster_path) */
+  poster_path?: string | null
 }
 
 export interface QuizData {
@@ -351,6 +354,43 @@ export function createEmptyQuizData(): QuizData {
     scores: [0, 0],
     phase: 'generating',
   }
+}
+
+/** Generate poster questions from a list of movies (for poster theme) */
+export function generatePosterQuestions(
+  movies: { id: number; title: string; poster_path: string | null }[],
+  count: number = 10
+): QuizQuestion[] {
+  // Only movies with posters
+  const withPosters = movies.filter(m => m.poster_path)
+  if (withPosters.length < 4) return []
+
+  const questions: QuizQuestion[] = []
+  const shuffled = shuffle(withPosters)
+
+  for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+    const correct = shuffled[i]
+    // Pick 3 wrong titles from other movies
+    const wrongs = shuffle(withPosters.filter(m => m.id !== correct.id))
+      .slice(0, 3)
+      .map(m => m.title)
+
+    if (wrongs.length < 3) continue
+
+    const { options, correct_index } = buildOptions(correct.title, wrongs)
+    questions.push({
+      id: makeId(),
+      type: 'poster',
+      difficulty: 'medium',
+      text: 'Quel est ce film ?',
+      options,
+      correct_index,
+      source_film: { tmdb_id: correct.id, title: correct.title },
+      poster_path: correct.poster_path,
+    })
+  }
+
+  return shuffle(questions).slice(0, count)
 }
 
 /** Calculate score for an answer */
