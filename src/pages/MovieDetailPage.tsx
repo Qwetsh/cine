@@ -53,7 +53,7 @@ export function MovieDetailPage() {
     checkStatus()
   }, [movie, coupleId])
 
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     return () => { if (toastTimer.current) clearTimeout(toastTimer.current) }

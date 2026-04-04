@@ -22,7 +22,7 @@ export function SearchPage() {
   } = useTmdbSearch()
   const { genres } = useGenres()
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const navigate = useNavigate()
 
   const hasFilters = filters.genres.length > 0 || filters.yearRange !== null

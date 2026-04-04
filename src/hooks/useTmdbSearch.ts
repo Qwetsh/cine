@@ -33,8 +33,6 @@ export function useTmdbSearch() {
   const personIdRef = useRef<number | null>(null)
   const requestIdRef = useRef(0)
 
-  const hasFilters = filters.genres.length > 0 || filters.yearRange !== null
-
   const executeSearch = useCallback(async (
     query: string,
     searchFilters: SearchFilters,

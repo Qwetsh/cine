@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 
 export function ProfilePage() {
   const { user, signOut } = useAuth()
-  const { coupleId, partner, loading: coupleLoading, linkPartner, refresh } = useCoupleContext()
+  const { coupleId, partner, loading: coupleLoading, linkPartner } = useCoupleContext()
   const [partnerCode, setPartnerCode] = useState('')
   const [linkError, setLinkError] = useState<string | null>(null)
   const [linkSuccess, setLinkSuccess] = useState(false)
@@ -13,7 +13,7 @@ export function ProfilePage() {
   const [copied, setCopied] = useState(false)
 
   const [inviteCode, setInviteCode] = useState<string | null>(null)
-  const copiedTimer = useRef<ReturnType<typeof setTimeout>>()
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Générer ou récupérer un code d'invitation aléatoire (pas l'UUID auth)
   useEffect(() => {
