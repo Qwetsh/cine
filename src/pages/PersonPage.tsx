@@ -53,7 +53,7 @@ export function PersonPage() {
       tmdb.getPerson(numId),
       tmdb.getPersonEn(numId),
       tmdb.getPersonExternalIds(numId).catch(() => null),
-      fetch(`${TMDB_IMG}/../../../3/person/${numId}/movie_credits?api_key=${import.meta.env.VITE_TMDB_API_KEY}&language=fr-FR`)
+      fetch(`https://api.themoviedb.org/3/person/${numId}/movie_credits?api_key=${import.meta.env.VITE_TMDB_API_KEY}&language=fr-FR`)
         .then(r => r.json()) as Promise<CreditsResult>,
     ])
       .then(([personFr, personEn, extIds, creditsData]) => {
