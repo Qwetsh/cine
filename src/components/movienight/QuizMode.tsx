@@ -8,8 +8,21 @@ import type { TmdbPerson } from '../../lib/tmdb'
 import { generateQuestions, generateQuestionsFromTwoFilms, generatePosterQuestions, selectQuestions, createEmptyQuizData } from '../../lib/quiz'
 import type { QuizData } from '../../lib/quiz'
 import { discoverMoviesByTheme, DECADES } from '../../lib/discover'
+import type { QuizDifficulty } from '../../lib/discover'
+
+const DIFFICULTY_OPTIONS: { id: QuizDifficulty; label: string; emoji: string; desc: string }[] = [
+  { id: 'easy', label: 'Facile', emoji: '🟢', desc: 'Films populaires' },
+  { id: 'normal', label: 'Normal', emoji: '🟡', desc: 'Mix varié' },
+  { id: 'hard', label: 'Difficile', emoji: '🔴', desc: 'Films obscurs' },
+]
 import { LobbyPicking } from './LobbyPicking'
 import { QuizGame } from './QuizGame'
+
+const DIFFICULTY_LABELS: Record<QuizDifficulty, string> = {
+  easy: '🟢 Facile',
+  normal: '🟡 Normal',
+  hard: '🔴 Difficile',
+}
 
 const THEME_LABELS: Record<QuizTheme, string> = {
   actor: '🎭 Acteur',
@@ -199,6 +212,11 @@ export function QuizMode() {
               {THEME_LABELS[session.theme]}
               {session.theme_value ? ` — ${session.theme_value}` : ''}
             </p>
+            {session.difficulty && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                {DIFFICULTY_LABELS[session.difficulty]}
+              </p>
+            )}
           </div>
           <div className="animate-pulse">
             <span className="text-3xl">⏳</span>
@@ -229,6 +247,11 @@ export function QuizMode() {
             {THEME_LABELS[session.theme]}
             {session.theme_value ? ` — ${session.theme_value}` : ''}
           </p>
+          {session.difficulty && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              {DIFFICULTY_LABELS[session.difficulty]}
+            </p>
+          )}
         </div>
         <button
           onClick={quiz.startPlaying}
@@ -279,11 +302,12 @@ function ClassicSetup({
   onSelectTheme,
   onCancel,
 }: {
-  onSelectTheme: (theme: QuizTheme, value?: string) => Promise<void>
+  onSelectTheme: (theme: QuizTheme, value?: string, difficulty?: QuizDifficulty) => Promise<void>
   onCancel: () => Promise<void>
 }) {
   const [theme, setTheme] = useState<QuizTheme | null>(null)
   const [themeValue, setThemeValue] = useState('')
+  const [difficulty, setDifficulty] = useState<QuizDifficulty>('normal')
   const [personQuery, setPersonQuery] = useState('')
   const [personResults, setPersonResults] = useState<TmdbPerson[]>([])
   const [searching, setSearching] = useState(false)
@@ -315,7 +339,7 @@ function ClassicSetup({
     if (!theme || submitting) return
     setSubmitting(true)
     // Save theme — status stays 'setup', partner will see the invite
-    await onSelectTheme(theme, themeValue || undefined)
+    await onSelectTheme(theme, themeValue || undefined, difficulty)
     setSubmitting(false)
   }
 
@@ -347,6 +371,31 @@ function ClassicSetup({
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Difficulty selector */}
+      <div>
+        <p className="text-xs text-[var(--color-text-muted)] mb-2">Difficulté</p>
+        <div className="flex gap-2">
+          {DIFFICULTY_OPTIONS.map(d => (
+            <button
+              key={d.id}
+              onClick={() => setDifficulty(d.id)}
+              className={[
+                'flex-1 rounded-xl border p-2 text-center transition-all',
+                difficulty === d.id
+                  ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)]'
+                  : 'bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]',
+              ].join(' ')}
+            >
+              <span className="text-lg block">{d.emoji}</span>
+              <span className={`text-xs font-medium block ${difficulty === d.id ? 'text-[var(--color-accent)]' : 'text-[var(--color-text)]'}`}>
+                {d.label}
+              </span>
+              <span className="text-[10px] text-[var(--color-text-muted)] block">{d.desc}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Person search (actor/director) */}
@@ -509,7 +558,8 @@ function QuizPlayPhase({
         } else {
           const movies = await discoverMoviesByTheme(
             session!.theme as QuizTheme,
-            session!.theme_value
+            session!.theme_value,
+            (session!.difficulty as QuizDifficulty) ?? 'normal'
           )
 
           let questions

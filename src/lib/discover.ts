@@ -3,6 +3,22 @@ import type { TmdbMovie } from './tmdb'
 
 export type DiscoverTheme = 'actor' | 'director' | 'country' | 'decade' | 'poster' | 'general'
 
+export type QuizDifficulty = 'easy' | 'normal' | 'hard'
+
+/** Multiplier applied to vote_count thresholds per difficulty */
+const DIFFICULTY_MULTIPLIER: Record<QuizDifficulty, number> = {
+  easy: 3,
+  normal: 1,
+  hard: 0.3,
+}
+
+/** Max page offset per difficulty (easy = popular pages, hard = deeper pages) */
+const DIFFICULTY_OFFSET: Record<QuizDifficulty, { min: number; max: number }> = {
+  easy: { min: 0, max: 3 },
+  normal: { min: 0, max: 10 },
+  hard: { min: 3, max: 20 },
+}
+
 export const DECADES = [
   { label: '80s', start: 1980, end: 1989 },
   { label: '90s', start: 1990, end: 1999 },
@@ -43,7 +59,19 @@ export async function fetchRandomPages(
 export async function discoverMoviesByTheme(
   theme: DiscoverTheme,
   themeValue: string | null,
+  difficulty: QuizDifficulty = 'normal',
 ): Promise<TmdbMovie[]> {
+  const mult = DIFFICULTY_MULTIPLIER[difficulty]
+  const offsetRange = DIFFICULTY_OFFSET[difficulty]
+
+  function voteGte(base: number): string {
+    return String(Math.max(1, Math.round(base * mult)))
+  }
+
+  function offset(base: number): number {
+    return Math.max(offsetRange.min, Math.min(base, offsetRange.max))
+  }
+
   switch (theme) {
     case 'actor': {
       if (!themeValue) return []
@@ -52,8 +80,8 @@ export async function discoverMoviesByTheme(
       if (!actor) return []
       return fetchRandomPages({
         with_cast: String(actor.id),
-        'vote_count.gte': '20',
-      }, 3, 3)
+        'vote_count.gte': voteGte(20),
+      }, 3, offset(3))
     }
     case 'director': {
       if (!themeValue) return []
@@ -62,15 +90,15 @@ export async function discoverMoviesByTheme(
       if (!director) return []
       return fetchRandomPages({
         with_crew: String(director.id),
-        'vote_count.gte': '10',
-      }, 2, 2)
+        'vote_count.gte': voteGte(10),
+      }, 2, offset(2))
     }
     case 'country': {
       if (!themeValue) return []
       return fetchRandomPages({
         with_origin_country: themeValue,
-        'vote_count.gte': '100',
-      }, 3, 8)
+        'vote_count.gte': voteGte(100),
+      }, 3, offset(8))
     }
     case 'decade': {
       const decade = DECADES.find(d => d.label === themeValue)
@@ -78,15 +106,15 @@ export async function discoverMoviesByTheme(
       return fetchRandomPages({
         'primary_release_date.gte': `${decade.start}-01-01`,
         'primary_release_date.lte': `${decade.end}-12-31`,
-        'vote_count.gte': '200',
-      }, 3, 8)
+        'vote_count.gte': voteGte(200),
+      }, 3, offset(8))
     }
     case 'poster':
     case 'general':
     default: {
       return fetchRandomPages({
-        'vote_count.gte': '300',
-      }, 3, 15)
+        'vote_count.gte': voteGte(300),
+      }, 3, offset(15))
     }
   }
 }

@@ -35,7 +35,7 @@ function getCinemaStatus(releaseDate?: string): 'in_theaters' | 'upcoming' | nul
 }
 
 function getCinemaUrl(slug: string): string {
-  return `https://kinepolis.fr/cinemas/${slug}/aujourdhui`
+  return `https://kinepolis.fr/cinemas/${slug}`
 }
 
 export function WatchProviders({ tmdbId, releaseDate }: Props) {

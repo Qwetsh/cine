@@ -12,6 +12,13 @@ import {
 } from '../../lib/tournament-board'
 import type { TournamentBoard, TournamentGameState, FightState } from '../../lib/tournament-board'
 import { generateTournamentQuestions } from '../../lib/tournament-questions'
+import type { QuizDifficulty } from '../../lib/discover'
+
+const DIFFICULTY_OPTIONS: { id: QuizDifficulty; label: string; emoji: string }[] = [
+  { id: 'easy', label: 'Facile', emoji: '🟢' },
+  { id: 'normal', label: 'Normal', emoji: '🟡' },
+  { id: 'hard', label: 'Difficile', emoji: '🔴' },
+]
 import { TournamentBoardView } from './TournamentBoard'
 import { TournamentHP } from './TournamentHP'
 import { TournamentQuestion } from './TournamentQuestion'
@@ -29,6 +36,7 @@ export function TournamentMode() {
   const partnerName = partner?.display_name ?? 'Partenaire'
   const [confirmQuit, setConfirmQuit] = useState(false)
   const [partnerLeft, setPartnerLeft] = useState(false)
+  const [difficulty, setDifficulty] = useState<QuizDifficulty>('normal')
   const prevSessionRef = useRef(tournament.session)
   const generatingRef = useRef(false)
 
@@ -91,8 +99,26 @@ export function TournamentMode() {
           <p>⚔️ Fight final au centre</p>
           <p>🎭 Rues thématiques (acteurs, réals, pays…)</p>
         </div>
+        {/* Difficulty selector */}
+        <div className="flex gap-2">
+          {DIFFICULTY_OPTIONS.map(d => (
+            <button
+              key={d.id}
+              onClick={() => setDifficulty(d.id)}
+              className={[
+                'flex-1 rounded-xl border py-2.5 text-sm font-medium transition-all',
+                difficulty === d.id
+                  ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] text-[var(--color-accent)]'
+                  : 'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)]',
+              ].join(' ')}
+            >
+              {d.emoji} {d.label}
+            </button>
+          ))}
+        </div>
+
         <button
-          onClick={tournament.create}
+          onClick={() => tournament.create(difficulty)}
           className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3.5 font-medium text-sm transition-colors"
         >
           Créer un tournoi
@@ -114,6 +140,11 @@ export function TournamentMode() {
           <div className="animate-pulse">
             <span className="text-3xl">⏳</span>
           </div>
+          {session.difficulty && session.difficulty !== 'normal' && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {session.difficulty === 'easy' ? '🟢 Facile' : '🔴 Difficile'}
+            </p>
+          )}
           <p className="text-sm text-[var(--color-text-muted)]">
             En attente de {partnerName}…
           </p>
@@ -136,6 +167,9 @@ export function TournamentMode() {
         </p>
         <p className="text-sm text-[var(--color-text-muted)]">
           Plateau de jeu ciné — {STARTING_HP} PV chacun
+          {session.difficulty && session.difficulty !== 'normal'
+            ? ` — ${session.difficulty === 'easy' ? '🟢 Facile' : '🔴 Difficile'}`
+            : ''}
         </p>
         <button
           onClick={() => tournament.updateStatus('generating')}
@@ -207,9 +241,12 @@ function GeneratingPhase({
     async function generate() {
       try {
         const { board: boardStructure, questionSlotCount, streetThemes } = generateBoardStructure()
+        const sessionDifficulty = (tournament.session!.difficulty as QuizDifficulty) ?? 'normal'
         const { questions, fightQuestions } = await generateTournamentQuestions(
           streetThemes,
           questionSlotCount,
+          undefined,
+          sessionDifficulty,
         )
         const board = fillBoardQuestions(boardStructure, questions, fightQuestions)
         const gameState = createInitialGameState(board)

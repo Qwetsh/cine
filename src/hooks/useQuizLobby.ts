@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { QuizData } from '../lib/quiz'
 import type { LobbyFilm } from './useLobby'
+import type { QuizDifficulty } from '../lib/discover'
 
 export type QuizType = 'classic' | 'fight'
 export type QuizTheme = 'actor' | 'director' | 'country' | 'decade' | 'general' | 'poster'
@@ -14,6 +15,7 @@ export interface QuizSession {
   status: 'setup' | 'picking' | 'playing' | 'done'
   theme: QuizTheme | null
   theme_value: string | null
+  difficulty: QuizDifficulty | null
   film_user1: LobbyFilm | null
   film_user2: LobbyFilm | null
   quiz_data: QuizData | null
@@ -109,11 +111,11 @@ export function useQuizLobby(coupleId: string | null, userId: string | null, isU
   }, [coupleId, userId])
 
   // Set theme (classic mode)
-  const setTheme = useCallback(async (theme: QuizTheme, themeValue?: string) => {
+  const setTheme = useCallback(async (theme: QuizTheme, themeValue?: string, difficulty?: QuizDifficulty) => {
     if (!session) return
     await supabase
       .from('quiz_sessions')
-      .update({ theme, theme_value: themeValue ?? null })
+      .update({ theme, theme_value: themeValue ?? null, difficulty: difficulty ?? 'normal' })
       .eq('id', session.id)
   }, [session])
 
