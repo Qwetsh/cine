@@ -28,8 +28,8 @@ function pickRandom<T>(arr: T[], n: number): T[] {
 
 function ratingWeight(rating: number | null): number {
   if (rating == null) return 1
-  if (rating >= 5) return 3
-  if (rating >= 4) return 2
+  if (rating >= 9) return 3
+  if (rating >= 7) return 2
   return 1
 }
 
@@ -78,7 +78,7 @@ function buildGenreProfile(
 function getHighRatedMovies(collection: CollectionMovieEntry[]): CollectionMovieEntry[] {
   return collection.filter(e => {
     const best = Math.max(e.rating_user1 ?? 0, e.rating_user2 ?? 0)
-    return best >= 4
+    return best >= 7
   })
 }
 
