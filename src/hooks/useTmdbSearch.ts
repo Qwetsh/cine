@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
-import type { TmdbMovie, SearchMode, SearchFilters } from '../lib/tmdb'
+import type { TmdbMovie, TmdbPersonDetail, SearchMode, SearchFilters } from '../lib/tmdb'
 
 const DEFAULT_FILTERS: SearchFilters = {
   mode: 'title',
@@ -41,6 +41,7 @@ export function useTmdbSearch() {
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState<SearchFilters>(saved?.filters ?? DEFAULT_FILTERS)
+  const [matchedPerson, setMatchedPerson] = useState<TmdbPersonDetail | null>(null)
 
   const queryRef = useRef(saved?.query ?? '')
   const personIdRef = useRef<number | null>(null)
@@ -113,11 +114,16 @@ export function useTmdbSearch() {
             if (reqId === requestIdRef.current) {
               setResults([])
               setTotalPages(0)
+              setMatchedPerson(null)
               setLoading(false)
             }
             return
           }
           personIdRef.current = person.id
+          // Fetch full person details (biography, birthday, etc.)
+          tmdb.getPerson(person.id).then(detail => {
+            if (reqId === requestIdRef.current) setMatchedPerson(detail)
+          }).catch(() => { /* non-blocking */ })
         }
 
         if (searchFilters.mode === 'actor') {
@@ -155,6 +161,7 @@ export function useTmdbSearch() {
   const search = useCallback((query: string) => {
     queryRef.current = query
     personIdRef.current = null
+    setMatchedPerson(null)
     executeSearch(query, filters, 1, false)
   }, [filters, executeSearch])
 
@@ -173,6 +180,7 @@ export function useTmdbSearch() {
     setFilters(prev => {
       const next = { ...prev, mode }
       personIdRef.current = null
+      setMatchedPerson(null)
       executeSearch(queryRef.current, next, 1, false)
       return next
     })
@@ -216,6 +224,7 @@ export function useTmdbSearch() {
   const clear = useCallback(() => {
     queryRef.current = ''
     personIdRef.current = null
+    setMatchedPerson(null)
     setResults([])
     setTotalPages(0)
     setCurrentPage(1)
@@ -236,6 +245,7 @@ export function useTmdbSearch() {
     error,
     hasMore: currentPage < totalPages,
     filters,
+    matchedPerson,
     search,
     refresh,
     loadMore,

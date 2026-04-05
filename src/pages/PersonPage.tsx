@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { PersonBio } from '../components/search/PersonBio'
 import { MovieGrid } from '../components/movie/MovieGrid'
 import type { TmdbMovie } from '../lib/tmdb'
 
@@ -13,6 +14,9 @@ interface PersonDetail {
   profile_path: string | null
   known_for_department: string
   biography: string
+  birthday: string | null
+  deathday: string | null
+  place_of_birth: string | null
 }
 
 interface CreditsResult {
@@ -137,6 +141,9 @@ export function PersonPage() {
           </p>
         </div>
       </div>
+
+      {/* Bio */}
+      <PersonBio person={person} />
 
       {/* Filmography */}
       <MovieGrid

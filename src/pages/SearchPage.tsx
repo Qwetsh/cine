@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PersonCard } from '../components/search/PersonCard'
 import { useTmdbSearch } from '../hooks/useTmdbSearch'
 import { useGenres } from '../hooks/useGenres'
 import { MovieGrid } from '../components/movie/MovieGrid'
@@ -26,7 +27,7 @@ function getSavedQuery(): string {
 export function SearchPage() {
   const [query, setQuery] = useState(getSavedQuery)
   const {
-    results, loading, hasMore, filters,
+    results, loading, hasMore, filters, matchedPerson,
     search, loadMore, setMode, toggleGenre, setYearRange, setCountry, clearFilters, clear, saveState,
   } = useTmdbSearch()
   const { genres } = useGenres()
@@ -127,6 +128,11 @@ export function SearchPage() {
         onRemoveCountry={() => setCountry(null)}
         onClearAll={clearFilters}
       />
+
+      {/* Person info card */}
+      {matchedPerson && (
+        <PersonCard person={matchedPerson} filmCount={results.length} />
+      )}
 
       {/* Section title */}
       <div className="px-4 pt-2 pb-1">

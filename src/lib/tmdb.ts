@@ -123,6 +123,15 @@ export interface TmdbPerson {
   profile_path: string | null
 }
 
+export interface TmdbPersonDetail extends TmdbPerson {
+  biography: string
+  birthday: string | null
+  deathday: string | null
+  place_of_birth: string | null
+  also_known_as: string[]
+  homepage: string | null
+}
+
 export interface TmdbPersonSearchResult {
   page: number
   results: TmdbPerson[]
@@ -227,6 +236,9 @@ export const tmdb = {
 
   searchPerson: (query: string) =>
     tmdbFetch<TmdbPersonSearchResult>('/search/person', { query }),
+
+  getPerson: (id: number) =>
+    tmdbFetch<TmdbPersonDetail>(`/person/${id}`),
 
   getWatchProviders: (id: number) =>
     tmdbFetch<WatchProviderResult>(`/movie/${id}/watch/providers`),

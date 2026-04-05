@@ -65,7 +65,7 @@ export function TournamentAnswerReveal({ isCorrect, correctAnswer, myHp, theirHp
         🎬 {filmTitle}
       </p>
       <p className="text-sm text-red-400 font-medium">-1 PV</p>
-      <TournamentHP current={myHp} max={maxHp} label="Tes PV" />
+      <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={maxHp} nameP1="Toi" nameP2={partnerName} />
       {/* Rain effect */}
       <div className="defeat-rain" aria-hidden="true">
         {Array.from({ length: 20 }).map((_, i) => (
