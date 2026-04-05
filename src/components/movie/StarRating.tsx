@@ -25,6 +25,8 @@ export function StarRating({
   const [dragValue, setDragValue] = useState<number | null>(null)
   const [committedValue, setCommittedValue] = useState<number | null>(null)
   const draggingRef = useRef(false)
+  const startYRef = useRef(0)
+  const lockedRef = useRef<'horizontal' | 'vertical' | null>(null)
 
   // Clear committedValue once the prop catches up
   useEffect(() => {
@@ -45,14 +47,37 @@ export function StarRating({
   function handleTouchStart(e: React.TouchEvent) {
     if (readOnly || !onChange) return
     e.stopPropagation()
+    startYRef.current = e.touches[0].clientY
+    lockedRef.current = null
     draggingRef.current = true
-    const star = getStarFromX(e.touches[0].clientX)
-    if (star) setDragValue(star)
+    // Don't set dragValue yet — wait for direction lock
   }
 
   function handleTouchMove(e: React.TouchEvent) {
     if (!draggingRef.current) return
     e.stopPropagation()
+
+    const dx = Math.abs(e.touches[0].clientX - (containerRef.current?.getBoundingClientRect().left ?? 0))
+    const dy = Math.abs(e.touches[0].clientY - startYRef.current)
+
+    // Lock direction after small movement
+    if (!lockedRef.current) {
+      if (dy > 8) {
+        // Vertical scroll — abort star drag entirely
+        lockedRef.current = 'vertical'
+        draggingRef.current = false
+        setDragValue(null)
+        return
+      }
+      if (dx > 4) {
+        lockedRef.current = 'horizontal'
+      } else {
+        return // Wait for enough movement to decide
+      }
+    }
+
+    if (lockedRef.current !== 'horizontal') return
+
     e.preventDefault()
     const star = getStarFromX(e.touches[0].clientX)
     if (star) setDragValue(star)
@@ -62,6 +87,7 @@ export function StarRating({
     if (!draggingRef.current) return
     e.stopPropagation()
     draggingRef.current = false
+    lockedRef.current = null
     if (dragValue != null) {
       setCommittedValue(dragValue)
       onChange?.(dragValue)

@@ -10,7 +10,9 @@ const DELETE_WIDTH = 80
 
 export function SwipeToDelete({ onDelete, children }: Props) {
   const startXRef = useRef(0)
+  const startYRef = useRef(0)
   const currentXRef = useRef(0)
+  const lockedRef = useRef<'horizontal' | 'vertical' | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [offset, setOffset] = useState(0)
   const [swiping, setSwiping] = useState(false)
@@ -18,12 +20,25 @@ export function SwipeToDelete({ onDelete, children }: Props) {
 
   function handleTouchStart(e: React.TouchEvent) {
     startXRef.current = e.touches[0].clientX
+    startYRef.current = e.touches[0].clientY
     currentXRef.current = 0
+    lockedRef.current = null
     setSwiping(true)
   }
 
   function handleTouchMove(e: React.TouchEvent) {
     if (!swiping) return
+    const dx = Math.abs(e.touches[0].clientX - startXRef.current)
+    const dy = Math.abs(e.touches[0].clientY - startYRef.current)
+
+    // Lock direction after 8px of movement
+    if (!lockedRef.current && (dx > 8 || dy > 8)) {
+      lockedRef.current = dx > dy ? 'horizontal' : 'vertical'
+    }
+
+    // If vertical scroll detected, abort swipe
+    if (lockedRef.current !== 'horizontal') return
+
     const diff = startXRef.current - e.touches[0].clientX
     currentXRef.current = diff
     // Only allow swipe left (positive diff), cap at DELETE_WIDTH + extra
@@ -33,6 +48,7 @@ export function SwipeToDelete({ onDelete, children }: Props) {
 
   function handleTouchEnd() {
     setSwiping(false)
+    lockedRef.current = null
     if (currentXRef.current >= THRESHOLD) {
       // Snap open
       setOffset(DELETE_WIDTH)
