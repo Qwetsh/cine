@@ -4,8 +4,8 @@ import type { WatchProviderCountry } from '../../lib/tmdb'
 
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w92'
 
-// Kinepolis deep link — opens app or falls back to website
-const KINEPOLIS_URL = 'https://kinepolis.fr/films'
+// Kinepolis — universal links open the app if installed on mobile
+const KINEPOLIS_URL = 'https://kinepolis.fr/search/movies/'
 
 interface Props {
   tmdbId: number
