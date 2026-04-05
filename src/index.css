@@ -306,3 +306,38 @@
   0%, 100% { box-shadow: 0 0 4px rgba(250, 204, 21, 0.2); }
   50% { box-shadow: 0 0 14px rgba(250, 204, 21, 0.5), 0 0 4px rgba(250, 204, 21, 0.3); }
 }
+
+/* Tournament board — floating golden particles */
+.board-particle {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(234, 179, 8, 0.8), rgba(234, 179, 8, 0.2));
+  animation: particle-float var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+  opacity: 0;
+}
+
+@keyframes particle-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0);
+  }
+  15% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+    transform: translateY(-20px) translateX(var(--drift));
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) translateX(calc(var(--drift) * -0.5));
+  }
+}

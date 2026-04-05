@@ -2,6 +2,16 @@ import { useEffect, useRef } from 'react'
 import type { TournamentBoard as TBoard, TournamentGameState } from '../../lib/tournament-board'
 import { TournamentTile } from './TournamentTile'
 
+// Pre-computed particles for the board background (stable across renders)
+const PARTICLES = Array.from({ length: 15 }, () => ({
+  x: `${Math.random() * 100}%`,
+  y: `${Math.random() * 100}%`,
+  size: `${1.5 + Math.random() * 2.5}px`,
+  duration: `${6 + Math.random() * 8}s`,
+  delay: `${Math.random() * 6}s`,
+  drift: `${(Math.random() - 0.5) * 30}px`,
+}))
+
 interface Props {
   board: TBoard
   gameState: TournamentGameState
@@ -51,6 +61,24 @@ export function TournamentBoardView({
           background: 'radial-gradient(ellipse at center, transparent 40%, rgba(10,5,8,0.6) 100%)',
         }}
       />
+
+      {/* Floating golden particles */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+        {PARTICLES.map((p, i) => (
+          <div
+            key={i}
+            className="board-particle"
+            style={{
+              '--x': p.x,
+              '--y': p.y,
+              '--size': p.size,
+              '--duration': p.duration,
+              '--delay': p.delay,
+              '--drift': p.drift,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
 
       <div className="flex flex-col items-center gap-1 relative z-10">
         {rows.map((row, rowIdx) => {
