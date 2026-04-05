@@ -9,8 +9,9 @@ import {
   getNextMoves,
   STARTING_HP,
   CENTER_BONUS_MAX,
+  GAME_LENGTH_CONFIG,
 } from '../../lib/tournament-board'
-import type { TournamentBoard, TournamentGameState, FightState } from '../../lib/tournament-board'
+import type { TournamentBoard, TournamentGameState, FightState, GameLength } from '../../lib/tournament-board'
 import { generateTournamentQuestions } from '../../lib/tournament-questions'
 import type { QuizDifficulty } from '../../lib/discover'
 
@@ -19,6 +20,11 @@ const DIFFICULTY_OPTIONS: { id: QuizDifficulty; label: string; emoji: string }[]
   { id: 'normal', label: 'Normal', emoji: '🟡' },
   { id: 'hard', label: 'Difficile', emoji: '🔴' },
 ]
+
+const LENGTH_OPTIONS = Object.entries(GAME_LENGTH_CONFIG).map(([id, cfg]) => ({
+  id: id as GameLength,
+  ...cfg,
+}))
 import { TournamentBoardView } from './TournamentBoard'
 import { TournamentHP } from './TournamentHP'
 import { TournamentQuestion } from './TournamentQuestion'
@@ -37,6 +43,7 @@ export function TournamentMode() {
   const [confirmQuit, setConfirmQuit] = useState(false)
   const [partnerLeft, setPartnerLeft] = useState(false)
   const [difficulty, setDifficulty] = useState<QuizDifficulty>('normal')
+  const [gameLength, setGameLength] = useState<GameLength>('short')
   const prevSessionRef = useRef(tournament.session)
   const generatingRef = useRef(false)
 
@@ -99,6 +106,28 @@ export function TournamentMode() {
           <p>⚔️ Fight final au centre</p>
           <p>🎭 Rues thématiques (acteurs, réals, pays…)</p>
         </div>
+        {/* Game length selector */}
+        <div className="flex gap-2">
+          {LENGTH_OPTIONS.map(l => (
+            <button
+              key={l.id}
+              onClick={() => setGameLength(l.id)}
+              className={[
+                'flex-1 rounded-xl border p-2.5 text-center transition-all',
+                gameLength === l.id
+                  ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)]'
+                  : 'bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]',
+              ].join(' ')}
+            >
+              <span className="text-lg block">{l.emoji}</span>
+              <span className={`text-xs font-medium block ${gameLength === l.id ? 'text-[var(--color-accent)]' : 'text-[var(--color-text)]'}`}>
+                {l.label}
+              </span>
+              <span className="text-[10px] text-[var(--color-text-muted)] block">{l.desc}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Difficulty selector */}
         <div className="flex gap-2">
           {DIFFICULTY_OPTIONS.map(d => (
@@ -118,7 +147,7 @@ export function TournamentMode() {
         </div>
 
         <button
-          onClick={() => tournament.create(difficulty)}
+          onClick={() => tournament.create(difficulty, gameLength)}
           className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3.5 font-medium text-sm transition-colors"
         >
           Créer un tournoi
@@ -140,11 +169,12 @@ export function TournamentMode() {
           <div className="animate-pulse">
             <span className="text-3xl">⏳</span>
           </div>
-          {session.difficulty && session.difficulty !== 'normal' && (
-            <p className="text-xs text-[var(--color-text-muted)]">
-              {session.difficulty === 'easy' ? '🟢 Facile' : '🔴 Difficile'}
-            </p>
-          )}
+          <p className="text-xs text-[var(--color-text-muted)]">
+            {session.game_length === 'long' ? '🎬 Partie longue' : '⚡ Partie courte'}
+            {session.difficulty && session.difficulty !== 'normal'
+              ? ` — ${session.difficulty === 'easy' ? '🟢 Facile' : '🔴 Difficile'}`
+              : ''}
+          </p>
           <p className="text-sm text-[var(--color-text-muted)]">
             En attente de {partnerName}…
           </p>
@@ -166,7 +196,7 @@ export function TournamentMode() {
           {partnerName} te lance un Tournoi !
         </p>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Plateau de jeu ciné — {STARTING_HP} PV chacun
+          {session.game_length === 'long' ? '🎬 Partie longue' : '⚡ Partie courte'} — {STARTING_HP} PV
           {session.difficulty && session.difficulty !== 'normal'
             ? ` — ${session.difficulty === 'easy' ? '🟢 Facile' : '🔴 Difficile'}`
             : ''}
@@ -240,12 +270,14 @@ function GeneratingPhase({
 
     async function generate() {
       try {
-        const { board: boardStructure, questionSlotCount, streetThemes } = generateBoardStructure()
+        const sessionLength = (tournament.session!.game_length as GameLength) ?? 'short'
         const sessionDifficulty = (tournament.session!.difficulty as QuizDifficulty) ?? 'normal'
+        const config = GAME_LENGTH_CONFIG[sessionLength]
+        const { board: boardStructure, questionSlotCount, streetThemes } = generateBoardStructure(sessionLength)
         const { questions, fightQuestions } = await generateTournamentQuestions(
           streetThemes,
           questionSlotCount,
-          undefined,
+          config.tilesPerStreet,
           sessionDifficulty,
         )
         const board = fillBoardQuestions(boardStructure, questions, fightQuestions)
@@ -413,20 +445,7 @@ function PlayingPhase({
         <div>
           {/* HP Header */}
           <div className="px-4 mb-3">
-            <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
-              <TournamentHP current={myHp} max={gs.max_hp} label="Toi" />
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] text-[var(--color-text-muted)]">Tour {gs.turn_number}</span>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  isMyTurn
-                    ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]'
-                    : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)]'
-                }`}>
-                  {isMyTurn ? 'Ton tour' : `Tour de ${partnerName}`}
-                </span>
-              </div>
-              <TournamentHP current={theirHp} max={gs.max_hp} label={partnerName} />
-            </div>
+            <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={gs.max_hp} nameP1="Toi" nameP2={partnerName} />
           </div>
 
           <TournamentQuestion
@@ -459,7 +478,9 @@ function PlayingPhase({
             isCorrect={wasCorrect}
             correctAnswer={question.options[question.correct_index]}
             myHp={myHp}
+            theirHp={theirHp}
             maxHp={gs.max_hp}
+            partnerName={partnerName}
             filmTitle={question.source_film.title}
           />
           <div className="px-4 pt-2 pb-2">
@@ -486,7 +507,7 @@ function PlayingPhase({
           {currentNode?.type === 'bonus_hp' ? '💚' : '💔'}
         </span>
         <p className="text-xl font-bold text-[var(--color-text)]">{tileLabel}</p>
-        <TournamentHP current={myHp} max={gs.max_hp} label="Tes PV" />
+        <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={gs.max_hp} nameP1="Toi" nameP2={partnerName} />
         <button
           onClick={() => setConfirmQuit(true)}
           className="text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
@@ -515,19 +536,15 @@ function PlayingPhase({
 
       {/* HP Header */}
       <div className="px-4 mb-2">
-        <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
-          <TournamentHP current={myHp} max={gs.max_hp} label="Toi" />
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[10px] text-[var(--color-text-muted)]">Tour {gs.turn_number}</span>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              isMyTurn
-                ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]'
-                : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)]'
-            }`}>
-              {isMyTurn ? 'Avance !' : `Tour de ${partnerName}`}
-            </span>
-          </div>
-          <TournamentHP current={theirHp} max={gs.max_hp} label={partnerName} />
+        <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={gs.max_hp} nameP1="Toi" nameP2={partnerName} />
+        <div className="flex justify-center mt-1">
+          <span className={`text-[10px] font-medium px-2.5 py-0.5 rounded-full ${
+            isMyTurn
+              ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]'
+              : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)]'
+          }`}>
+            {isMyTurn ? 'Avance !' : `Tour de ${partnerName}`}
+          </span>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { TournamentBoard, TournamentGameState } from '../lib/tournament-board'
+import type { TournamentBoard, TournamentGameState, GameLength } from '../lib/tournament-board'
 import type { QuizDifficulty } from '../lib/discover'
 
 export interface TournamentSession {
@@ -9,6 +9,7 @@ export interface TournamentSession {
   created_by: string
   status: 'waiting' | 'generating' | 'playing' | 'center_fight' | 'done'
   difficulty: QuizDifficulty | null
+  game_length: GameLength | null
   board: TournamentBoard
   game_state: TournamentGameState
   winner_user_id: string | null
@@ -96,7 +97,7 @@ export function useTournament(coupleId: string | null, userId: string | null) {
   }, [coupleId, fetchSession])
 
   // Create a new tournament session
-  const create = useCallback(async (difficulty: QuizDifficulty = 'normal') => {
+  const create = useCallback(async (difficulty: QuizDifficulty = 'normal', gameLength: GameLength = 'short') => {
     if (!coupleId || !userId) return
 
     // Clean old sessions
@@ -115,6 +116,7 @@ export function useTournament(coupleId: string | null, userId: string | null) {
         created_by: userId,
         status: 'waiting',
         difficulty,
+        game_length: gameLength,
       })
       .select()
       .single()

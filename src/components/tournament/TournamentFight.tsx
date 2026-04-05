@@ -105,9 +105,9 @@ export function TournamentFight({
   return (
     <div className="px-4 space-y-3">
       {/* Header: HP + Round */}
-      <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
-        <TournamentHP current={myHp} max={maxHp} label="Toi" />
-        <div className="flex flex-col items-center gap-0.5">
+      <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={maxHp} nameP1="Toi" nameP2={partnerName} />
+      <div className="flex justify-center">
+        <div className="flex items-center gap-2">
           <span className="text-[10px] text-[var(--color-text-muted)]">
             Round {fight.round}/{fight.max_rounds}
           </span>
@@ -115,7 +115,6 @@ export function TournamentFight({
             {seconds}s
           </span>
         </div>
-        <TournamentHP current={theirHp} max={maxHp} label={partnerName} />
       </div>
 
       {/* Energy bar */}

@@ -5,11 +5,13 @@ interface Props {
   isCorrect: boolean
   correctAnswer: string
   myHp: number
+  theirHp: number
   maxHp: number
+  partnerName: string
   filmTitle: string
 }
 
-export function TournamentAnswerReveal({ isCorrect, correctAnswer, myHp, maxHp, filmTitle }: Props) {
+export function TournamentAnswerReveal({ isCorrect, correctAnswer, myHp, theirHp, maxHp, partnerName, filmTitle }: Props) {
   const [show, setShow] = useState(false)
   useEffect(() => {
     requestAnimationFrame(() => setShow(true))
@@ -30,7 +32,7 @@ export function TournamentAnswerReveal({ isCorrect, correctAnswer, myHp, maxHp, 
         <p className="text-xs text-[var(--color-text-muted)]">
           🎬 {filmTitle}
         </p>
-        <TournamentHP current={myHp} max={maxHp} label="Tes PV" />
+        <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={maxHp} nameP1="Toi" nameP2={partnerName} />
         {/* Sparkle particles */}
         <div className="oscar-particles" aria-hidden="true">
           {Array.from({ length: 12 }).map((_, i) => (

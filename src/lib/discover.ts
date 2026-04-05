@@ -1,7 +1,7 @@
 import { tmdb } from './tmdb'
 import type { TmdbMovie } from './tmdb'
 
-export type DiscoverTheme = 'actor' | 'director' | 'country' | 'decade' | 'poster' | 'general'
+export type DiscoverTheme = 'actor' | 'director' | 'country' | 'decade' | 'poster' | 'general' | 'genre'
 
 export type QuizDifficulty = 'easy' | 'normal' | 'hard'
 
@@ -108,6 +108,13 @@ export async function discoverMoviesByTheme(
         'primary_release_date.lte': `${decade.end}-12-31`,
         'vote_count.gte': voteGte(200),
       }, 3, offset(8))
+    }
+    case 'genre': {
+      if (!themeValue) return []
+      return fetchRandomPages({
+        with_genres: themeValue, // TMDB genre ID
+        'vote_count.gte': voteGte(150),
+      }, 3, offset(10))
     }
     case 'poster':
     case 'general':

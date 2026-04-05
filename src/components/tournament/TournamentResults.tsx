@@ -31,14 +31,8 @@ export function TournamentResults({ gameState, isUser1, partnerName, onDismiss }
         </p>
       )}
 
-      <div className="flex justify-center gap-8 py-2">
-        <div className="text-center">
-          <TournamentHP current={myHp} max={gameState.max_hp} label="Toi" />
-        </div>
-        <div className="text-[var(--color-text-muted)] self-center text-lg">vs</div>
-        <div className="text-center">
-          <TournamentHP current={theirHp} max={gameState.max_hp} label={partnerName} />
-        </div>
+      <div className="py-2">
+        <TournamentHP hpP1={myHp} hpP2={theirHp} maxHp={gameState.max_hp} nameP1="Toi" nameP2={partnerName} />
       </div>
 
       <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3 text-xs text-[var(--color-text-muted)] space-y-1">

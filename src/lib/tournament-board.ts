@@ -16,7 +16,7 @@ export type TileType =
   | 'bonus_watchlist'
   | 'center_fight'
 
-export type StreetThemeKind = 'actor' | 'director' | 'country' | 'decade' | 'poster' | 'general'
+export type StreetThemeKind = 'actor' | 'director' | 'country' | 'decade' | 'poster' | 'general' | 'genre'
 
 export interface StreetTheme {
   kind: StreetThemeKind
@@ -96,52 +96,84 @@ export interface TournamentGameState {
 // ── Constants ──
 
 const STARTING_HP = 5
-const INTRO_TILES = 2       // general question tiles before first crossroad
-const TILES_PER_STREET = 4  // question tiles per themed street (including specials)
 const BRANCH_COUNT = 2      // branches per crossroad
 const FIGHT_QUESTIONS = 10  // pre-generated fight questions (5 rounds + sudden death buffer)
 const CENTER_BONUS_MAX = 2  // max PV bonus from waiting at center
 
 export { STARTING_HP, CENTER_BONUS_MAX }
 
+export type GameLength = 'short' | 'long'
+
+export const GAME_LENGTH_CONFIG: Record<GameLength, {
+  introTiles: number
+  tilesPerStreet: number
+  forksPerSide: number
+  label: string
+  emoji: string
+  desc: string
+}> = {
+  short: { introTiles: 1, tilesPerStreet: 3, forksPerSide: 1, label: 'Courte', emoji: '⚡', desc: '~10 min' },
+  long:  { introTiles: 2, tilesPerStreet: 4, forksPerSide: 2, label: 'Longue', emoji: '🎬', desc: '~25 min' },
+}
+
 // ── Board Generation ──
+
+// TMDB genre IDs for themed alleys
+const GENRE_ALLEYS: { id: string; label: string }[] = [
+  { id: '27', label: 'Horreur' },
+  { id: '878', label: 'Sci-Fi' },
+  { id: '16', label: 'Animation' },
+  { id: '35', label: 'Comédie' },
+  { id: '10749', label: 'Romance' },
+  { id: '53', label: 'Thriller' },
+  { id: '10752', label: 'Guerre' },
+  { id: '37', label: 'Western' },
+  { id: '99', label: 'Documentaire' },
+  { id: '14', label: 'Fantastique' },
+]
 
 /** Pick unique street themes for the board */
 function pickStreetThemes(count: number): StreetTheme[] {
   const themes: StreetTheme[] = []
 
-  // Build a pool of possible themed streets
+  // Build a pool of possible themed alleys
   const pool: StreetTheme[] = []
 
-  // Actor streets (pick 4 famous actors)
+  // Actor alleys (pick 4 famous actors)
   const actors = pickRandom(DECOY_ACTORS, 4)
   for (const name of actors) {
-    pool.push({ kind: 'actor', label: `Rue ${name.split(' ').pop()}`, value: name })
+    pool.push({ kind: 'actor', label: `Allée ${name.split(' ').pop()}`, value: name })
   }
 
-  // Director streets (pick 4)
+  // Director alleys (pick 4)
   const directors = pickRandom(DECOY_DIRECTORS, 4)
   for (const name of directors) {
-    pool.push({ kind: 'director', label: `Rue ${name.split(' ').pop()}`, value: name })
+    pool.push({ kind: 'director', label: `Allée ${name.split(' ').pop()}`, value: name })
   }
 
-  // Country streets (pick 3)
+  // Country alleys (pick 3)
   const countries = pickRandom([...DECOY_COUNTRIES], 3)
   for (const c of countries) {
-    pool.push({ kind: 'country', label: `Rue ${c.name}`, value: c.code })
+    pool.push({ kind: 'country', label: `Allée ${c.name}`, value: c.code })
   }
 
-  // Decade streets (pick 3)
+  // Decade alleys (pick 3)
   const decades = pickRandom([...DECADES], 3)
   for (const d of decades) {
-    pool.push({ kind: 'decade', label: `Rue ${d.label}`, value: d.label })
+    pool.push({ kind: 'decade', label: `Allée ${d.label}`, value: d.label })
   }
 
-  // Poster street
-  pool.push({ kind: 'poster', label: 'Rue Affiches', value: null })
+  // Genre alleys (pick 3)
+  const genres = pickRandom([...GENRE_ALLEYS], 3)
+  for (const g of genres) {
+    pool.push({ kind: 'genre', label: `Allée ${g.label}`, value: g.id })
+  }
 
-  // General street
-  pool.push({ kind: 'general', label: 'Rue Classique', value: null })
+  // Poster alley
+  pool.push({ kind: 'poster', label: 'Allée Affiches', value: null })
+
+  // General alley
+  pool.push({ kind: 'general', label: 'Allée Classique', value: null })
 
   const shuffled = shuffle(pool)
   for (let i = 0; i < count && i < shuffled.length; i++) {
@@ -169,32 +201,19 @@ function createNode(
   }
 }
 
-/** Generate one side of the board (from start to center) */
-function generateSide(
-  side: 'p1' | 'p2',
+/** Generate a fork (crossroad + branches + merge) */
+function generateFork(
+  prefix: string,
+  forkIdx: number,
+  prevId: string,
   streets: Street[],
   streetThemes: StreetTheme[],
   nodes: Record<string, BoardNode>,
   questionCounter: { value: number },
-): { startId: string; convergenceId: string } {
-  const prefix = side
-
-  // Start node
-  const startId = `${prefix}_start`
-  nodes[startId] = createNode(startId, side === 'p1' ? 'start_p1' : 'start_p2')
-
-  // Intro tiles (general questions)
-  let prevId = startId
-  for (let i = 0; i < INTRO_TILES; i++) {
-    const tileId = `${prefix}_intro_${i}`
-    const qi = questionCounter.value++
-    nodes[tileId] = createNode(tileId, 'question', null, qi)
-    nodes[prevId].edges.push(tileId)
-    prevId = tileId
-  }
-
+  tilesPerStreet: number,
+): string /* mergeId */ {
   // Crossroad
-  const crossroadId = `${prefix}_cross`
+  const crossroadId = `${prefix}_cross_${forkIdx}`
   nodes[crossroadId] = createNode(crossroadId, 'crossroad')
   nodes[prevId].edges.push(crossroadId)
 
@@ -204,16 +223,16 @@ function generateSide(
 
   for (let b = 0; b < sideThemes.length; b++) {
     const theme = sideThemes[b]
-    const streetId = `${prefix}_street_${b}`
+    const streetId = `${prefix}_street_${forkIdx}_${b}`
     const street: Street = { id: streetId, theme, node_ids: [] }
 
     // Decide where to place the special tile (bonus/malus)
-    const specialPos = 1 + Math.floor(Math.random() * (TILES_PER_STREET - 1))
+    const specialPos = 1 + Math.floor(Math.random() * (tilesPerStreet - 1))
     const isBonus = Math.random() < 0.6
 
     let branchPrev = crossroadId
-    for (let t = 0; t < TILES_PER_STREET; t++) {
-      const tileId = `${prefix}_s${b}_t${t}`
+    for (let t = 0; t < tilesPerStreet; t++) {
+      const tileId = `${prefix}_f${forkIdx}_s${b}_t${t}`
       let type: TileType = 'question'
       let qi: number | null = questionCounter.value++
 
@@ -222,12 +241,11 @@ function generateSide(
         const specialRoll = Math.random()
         if (specialRoll < 0.15) {
           type = 'bonus_collection'
-          // collection tile still has a question
         } else if (specialRoll < 0.3) {
           type = 'bonus_watchlist'
         } else {
           type = isBonus ? 'bonus_hp' : 'malus_hp'
-          qi = null // pure bonus/malus — no question
+          qi = null
         }
       }
 
@@ -241,41 +259,87 @@ function generateSide(
     streets.push(street)
   }
 
-  // Convergence node (merges branches before center)
-  const convergenceId = `${prefix}_merge`
-  nodes[convergenceId] = createNode(convergenceId, 'question', null, questionCounter.value++)
+  // Convergence node (merges branches)
+  const mergeId = `${prefix}_merge_${forkIdx}`
+  nodes[mergeId] = createNode(mergeId, 'question', null, questionCounter.value++)
   for (const endId of branchEndIds) {
-    nodes[endId].edges.push(convergenceId)
+    nodes[endId].edges.push(mergeId)
   }
 
-  return { startId, convergenceId }
+  return mergeId
+}
+
+/** Generate one side of the board (from start to center) */
+function generateSide(
+  side: 'p1' | 'p2',
+  streets: Street[],
+  streetThemes: StreetTheme[],
+  nodes: Record<string, BoardNode>,
+  questionCounter: { value: number },
+  config: typeof GAME_LENGTH_CONFIG['short'],
+): { startId: string; lastNodeId: string } {
+  const prefix = side
+
+  // Start node
+  const startId = `${prefix}_start`
+  nodes[startId] = createNode(startId, side === 'p1' ? 'start_p1' : 'start_p2')
+
+  // Intro tiles (general questions)
+  let prevId = startId
+  for (let i = 0; i < config.introTiles; i++) {
+    const tileId = `${prefix}_intro_${i}`
+    const qi = questionCounter.value++
+    nodes[tileId] = createNode(tileId, 'question', null, qi)
+    nodes[prevId].edges.push(tileId)
+    prevId = tileId
+  }
+
+  // Generate forks
+  for (let f = 0; f < config.forksPerSide; f++) {
+    prevId = generateFork(
+      prefix, f, prevId, streets, streetThemes, nodes, questionCounter, config.tilesPerStreet,
+    )
+
+    // Between forks in long mode: add 1 general intro tile
+    if (f < config.forksPerSide - 1) {
+      const tileId = `${prefix}_bridge_${f}`
+      const qi = questionCounter.value++
+      nodes[tileId] = createNode(tileId, 'question', null, qi)
+      nodes[prevId].edges.push(tileId)
+      prevId = tileId
+    }
+  }
+
+  return { startId, lastNodeId: prevId }
 }
 
 /** Generate a complete tournament board (no questions yet — just structure) */
-export function generateBoardStructure(): {
+export function generateBoardStructure(gameLength: GameLength = 'short'): {
   board: Omit<TournamentBoard, 'questions' | 'fight_questions'>
   questionSlotCount: number
   streetThemes: StreetTheme[]
 } {
+  const config = GAME_LENGTH_CONFIG[gameLength]
   const nodes: Record<string, BoardNode> = {}
   const streets: Street[] = []
   const questionCounter = { value: 0 }
 
-  // Pick themes for all streets (BRANCH_COUNT per side = 4 total)
-  const allThemes = pickStreetThemes(BRANCH_COUNT * 2)
+  // Pick themes for all streets (BRANCH_COUNT per fork per side)
+  const totalStreets = BRANCH_COUNT * config.forksPerSide * 2
+  const allThemes = pickStreetThemes(totalStreets)
   const themesCopy = [...allThemes]
 
   // Generate P1 side (top → center)
-  const p1 = generateSide('p1', streets, themesCopy, nodes, questionCounter)
+  const p1 = generateSide('p1', streets, themesCopy, nodes, questionCounter, config)
 
   // Generate P2 side (bottom → center)
-  const p2 = generateSide('p2', streets, themesCopy, nodes, questionCounter)
+  const p2 = generateSide('p2', streets, themesCopy, nodes, questionCounter, config)
 
   // Center fight node
   const centerId = 'center'
   nodes[centerId] = createNode(centerId, 'center_fight')
-  nodes[p1.convergenceId].edges.push(centerId)
-  nodes[p2.convergenceId].edges.push(centerId)
+  nodes[p1.lastNodeId].edges.push(centerId)
+  nodes[p2.lastNodeId].edges.push(centerId)
 
   return {
     board: {

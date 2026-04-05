@@ -296,3 +296,13 @@
   90% { opacity: 0.5; }
   100% { opacity: 0; transform: translateY(160px); }
 }
+
+/* Tournament board — surprise tile pulsation */
+.tournament-surprise-pulse {
+  animation: surprise-glow 2s ease-in-out infinite;
+}
+
+@keyframes surprise-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(250, 204, 21, 0.2); }
+  50% { box-shadow: 0 0 14px rgba(250, 204, 21, 0.5), 0 0 4px rgba(250, 204, 21, 0.3); }
+}

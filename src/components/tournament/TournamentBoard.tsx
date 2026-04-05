@@ -11,9 +11,8 @@ interface Props {
 }
 
 /**
- * Vertical scrollable board visualization.
+ * Vertical scrollable board visualization — festival cinema theme.
  * P1 starts at top, P2 at bottom, center in the middle.
- * Renders the board as rows of tiles connected by lines.
  */
 export function TournamentBoardView({
   board,
@@ -32,62 +31,100 @@ export function TournamentBoardView({
     }
   }, [gameState.position_p1, gameState.position_p2, gameState.current_turn])
 
-  // Build rows for the board layout
   const rows = buildBoardRows(board)
   const myPosition = isUser1 ? gameState.position_p1 : gameState.position_p2
 
   return (
     <div
       ref={scrollRef}
-      className="overflow-y-auto max-h-[280px] px-4 py-3 scrollbar-hide"
+      className="overflow-y-auto max-h-[320px] px-4 py-4 scrollbar-hide relative"
+      style={{
+        background: 'linear-gradient(180deg, rgba(60,10,20,0.3) 0%, rgba(20,8,15,0.5) 50%, rgba(15,25,60,0.3) 100%)',
+        borderRadius: '16px',
+        border: '1px solid rgba(234,179,8,0.15)',
+      }}
     >
-      <div className="flex flex-col items-center gap-1">
+      {/* Subtle vignette overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(10,5,8,0.6) 100%)',
+        }}
+      />
+
+      <div className="flex flex-col items-center gap-1 relative z-10">
         {rows.map((row, rowIdx) => {
           const isActiveRow = row.nodeIds.includes(myPosition)
 
           return (
             <div key={rowIdx} ref={isActiveRow ? activeRef : undefined}>
-              {/* Street label */}
-              {row.streetLabel && (
-                <div className="text-center mb-1">
-                  <span className="text-[10px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-2)] px-2 py-0.5 rounded-full">
-                    {row.streetLabel}
-                  </span>
+              {/* Fork: street labels + "ou" bubble */}
+              {row.type === 'branch_start' && row.streetLabel && (
+                <div className="flex items-center justify-center gap-2 my-2">
+                  {row.streetLabel.split('  •  ').map((label, i, arr) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span
+                        className="text-[10px] font-semibold px-2.5 py-1 rounded-full italic"
+                        style={{
+                          color: 'rgba(234,179,8,0.9)',
+                          background: 'rgba(234,179,8,0.08)',
+                          border: '1px solid rgba(234,179,8,0.2)',
+                        }}
+                      >
+                        {label}
+                      </span>
+                      {i < arr.length - 1 && (
+                        <span
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{
+                            color: 'rgba(234,179,8,0.7)',
+                            background: 'rgba(234,179,8,0.05)',
+                            border: '1px solid rgba(234,179,8,0.15)',
+                          }}
+                        >
+                          ou
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Connector line above */}
+              {/* Golden connector line */}
               {rowIdx > 0 && row.type !== 'branch_start' && (
                 <div className="flex justify-center">
-                  <div className="w-px h-3 bg-[var(--color-border)]" />
+                  <div
+                    className="w-px h-4"
+                    style={{ background: 'linear-gradient(180deg, rgba(234,179,8,0.1), rgba(234,179,8,0.3), rgba(234,179,8,0.1))' }}
+                  />
                 </div>
               )}
 
-              {/* Branch fork indicator */}
+              {/* Branch fork lines */}
               {row.type === 'branch_start' && (
-                <div className="flex justify-center my-1">
-                  <div className="flex items-center gap-6">
-                    <div className="w-8 h-px bg-[var(--color-border)]" />
-                    <span className="text-[10px] text-[var(--color-text-muted)]">↙ ↘</span>
-                    <div className="w-8 h-px bg-[var(--color-border)]" />
+                <div className="flex justify-center my-0.5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-6 h-px" style={{ background: 'rgba(234,179,8,0.25)' }} />
+                    <span className="text-[10px]" style={{ color: 'rgba(234,179,8,0.4)' }}>↙ ↘</span>
+                    <div className="w-6 h-px" style={{ background: 'rgba(234,179,8,0.25)' }} />
                   </div>
                 </div>
               )}
 
-              {/* Branch merge indicator */}
+              {/* Branch merge lines */}
               {row.type === 'branch_end' && (
-                <div className="flex justify-center my-1">
-                  <div className="flex items-center gap-6">
-                    <div className="w-8 h-px bg-[var(--color-border)]" />
-                    <span className="text-[10px] text-[var(--color-text-muted)]">↗ ↘</span>
-                    <div className="w-8 h-px bg-[var(--color-border)]" />
+                <div className="flex justify-center my-0.5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-6 h-px" style={{ background: 'rgba(234,179,8,0.25)' }} />
+                    <span className="text-[10px]" style={{ color: 'rgba(234,179,8,0.4)' }}>↗ ↘</span>
+                    <div className="w-6 h-px" style={{ background: 'rgba(234,179,8,0.25)' }} />
                   </div>
                 </div>
               )}
 
               {/* Tile(s) */}
               <div className={`flex justify-center ${
-                row.nodeIds.length > 1 ? 'gap-8' : ''
+                row.nodeIds.length > 1 ? 'gap-10' : ''
               }`}>
                 {row.nodeIds.map(nodeId => {
                   const node = board.nodes[nodeId]
@@ -152,42 +189,55 @@ function buildSideRows(board: TBoard, side: 'p1' | 'p2', rows: BoardRow[]) {
   // Start
   rows.push({ nodeIds: [startId], type: 'single' })
 
-  // Walk intro tiles
+  // Walk the graph iteratively, handling multiple forks
   let current = startId
+  const visited = new Set<string>([startId])
+
   while (true) {
     const node = board.nodes[current]
     if (!node) break
-    const nextIds = node.edges
+    const nextIds = node.edges.filter(id => !visited.has(id))
     if (nextIds.length === 0) break
 
-    // Single path (intro tiles)
     if (nextIds.length === 1) {
       const next = board.nodes[nextIds[0]]
       if (!next) break
+      visited.add(nextIds[0])
 
       if (next.type === 'crossroad') {
-        // Found crossroad — handle branching
         rows.push({ nodeIds: [nextIds[0]], type: 'single' })
-        buildBranches(board, nextIds[0], rows)
+        const mergeId = buildBranches(board, nextIds[0], rows)
+        if (mergeId) {
+          visited.add(mergeId)
+          current = mergeId
+          continue
+        }
         return
       }
 
+      if (next.type === 'center_fight') break // stop before center
       rows.push({ nodeIds: [nextIds[0]], type: 'single' })
       current = nextIds[0]
     } else {
-      // Multiple edges = this is already a crossroad
-      buildBranches(board, current, rows)
+      // Multiple edges = this is a crossroad node
+      const mergeId = buildBranches(board, current, rows)
+      if (mergeId) {
+        visited.add(mergeId)
+        current = mergeId
+        continue
+      }
       return
     }
   }
 }
 
-function buildBranches(board: TBoard, crossroadId: string, rows: BoardRow[]) {
+/** Build rows for a fork (crossroad + branches + merge). Returns mergeId or null. */
+function buildBranches(board: TBoard, crossroadId: string, rows: BoardRow[]): string | null {
   const crossNode = board.nodes[crossroadId]
-  if (!crossNode) return
+  if (!crossNode) return null
 
   const branchIds = crossNode.edges
-  if (branchIds.length < 2) return
+  if (branchIds.length < 2) return null
 
   // Collect street labels for the branches
   const streetLabels: string[] = []
@@ -240,6 +290,9 @@ function buildBranches(board: TBoard, crossroadId: string, rows: BoardRow[]) {
     })
     if (mergeId) {
       rows.push({ nodeIds: [mergeId], type: 'branch_end' })
+      return mergeId
     }
   }
+
+  return null
 }
