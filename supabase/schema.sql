@@ -169,9 +169,9 @@ create table public.collection (
   movie_id       uuid not null references public.movies(id) on delete cascade,
   couple_id      uuid not null references public.couples(id) on delete cascade,
   watched_at     timestamptz not null default now(),
-  -- Notes individuelles (1-5 étoiles)
-  rating_user1   smallint check (rating_user1 between 1 and 5),
-  rating_user2   smallint check (rating_user2 between 1 and 5),
+  -- Notes individuelles (1-10 étoiles)
+  rating_user1   smallint check (rating_user1 between 1 and 10),
+  rating_user2   smallint check (rating_user2 between 1 and 10),
   -- Avis textuels
   note_user1     text,
   note_user2     text,
