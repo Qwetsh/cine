@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { tmdb } from '../../lib/tmdb'
+import { useSettings, KINEPOLIS_CINEMAS } from '../../hooks/useSettings'
 import type { WatchProviderCountry } from '../../lib/tmdb'
 
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w92'
-
-// Kinepolis — universal links open the app if installed on mobile
-const KINEPOLIS_URL = 'https://kinepolis.fr/search/movies/'
 
 interface Props {
   tmdbId: number
@@ -31,17 +29,20 @@ function getCinemaStatus(releaseDate?: string): 'in_theaters' | 'upcoming' | nul
   const now = new Date()
   const diffDays = Math.ceil((release.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-  // Upcoming: within 60 days in the future
   if (diffDays > 0 && diffDays <= 60) return 'upcoming'
-  // In theaters: released within the last 60 days
   if (diffDays <= 0 && diffDays >= -60) return 'in_theaters'
   return null
+}
+
+function getCinemaUrl(slug: string): string {
+  return `https://kinepolis.fr/cinemas/${slug}/aujourdhui`
 }
 
 export function WatchProviders({ tmdbId, releaseDate }: Props) {
   const [providers, setProviders] = useState<WatchProviderCountry | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const { settings } = useSettings()
 
   useEffect(() => {
     setLoading(true)
@@ -60,13 +61,16 @@ export function WatchProviders({ tmdbId, releaseDate }: Props) {
   }
 
   const cinemaStatus = getCinemaStatus(releaseDate)
+  const selectedCinemas = KINEPOLIS_CINEMAS.filter(c => settings.cinemas.includes(c.slug))
+  const showCinema = cinemaStatus && selectedCinemas.length > 0
   const hasProviders = providers && GROUPS.some(g => providers[g.key]?.length)
-  const hasAny = hasProviders || cinemaStatus
+  const hasAny = hasProviders || showCinema
 
   // Count total providers for badge
-  const count = hasProviders
-    ? GROUPS.reduce((sum, g) => sum + (providers![g.key]?.length ?? 0), 0) + (cinemaStatus ? 1 : 0)
-    : cinemaStatus ? 1 : 0
+  const providerCount = hasProviders
+    ? GROUPS.reduce((sum, g) => sum + (providers![g.key]?.length ?? 0), 0)
+    : 0
+  const count = providerCount + (showCinema ? selectedCinemas.length : 0)
 
   return (
     <div className="mt-5">
@@ -93,38 +97,59 @@ export function WatchProviders({ tmdbId, releaseDate }: Props) {
       {/* Accordion content */}
       <div
         className="overflow-hidden transition-all duration-200 ease-out"
-        style={{ maxHeight: open ? '600px' : '0px', opacity: open ? 1 : 0 }}
+        style={{ maxHeight: open ? '800px' : '0px', opacity: open ? 1 : 0 }}
       >
         <div className="pt-3 space-y-3">
-          {/* Cinema section */}
-          {cinemaStatus && (
+          {/* Cinema section — only if user has selected cinemas */}
+          {showCinema && (
             <div>
               <p className="text-xs text-[var(--color-text-muted)] mb-1.5">
                 🎟️ {cinemaStatus === 'in_theaters' ? 'Au cinéma' : 'Prochainement au cinéma'}
               </p>
-              <a
-                href={KINEPOLIS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] px-3 py-2.5 hover:bg-[var(--color-surface-2)] transition-colors group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-[#e30613] flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-xs font-bold">K</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[var(--color-text)] font-medium">Kinepolis</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)]">
-                    {cinemaStatus === 'in_theaters' ? 'En salle maintenant' : `Sortie le ${formatDate(releaseDate!)}`}
-                  </p>
-                </div>
-                <span className="text-xs text-[var(--color-accent)] group-hover:text-[var(--color-accent-hover)] font-medium flex-shrink-0">
-                  Réserver →
-                </span>
-              </a>
+              <div className="space-y-2">
+                {selectedCinemas.map(cinema => (
+                  <a
+                    key={cinema.slug}
+                    href={getCinemaUrl(cinema.slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] px-3 py-2.5 hover:bg-[var(--color-surface-2)] transition-colors group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-[#e30613] flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">K</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[var(--color-text)] font-medium">
+                        Kinepolis {cinema.name}
+                      </p>
+                      <p className="text-[10px] text-[var(--color-text-muted)]">
+                        {cinemaStatus === 'in_theaters'
+                          ? 'En salle — voir les séances'
+                          : `Sortie le ${formatDate(releaseDate!)}`}
+                      </p>
+                    </div>
+                    <span className="text-xs text-[var(--color-accent)] group-hover:text-[var(--color-accent-hover)] font-medium flex-shrink-0">
+                      Séances →
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
           )}
 
-          {!hasProviders && !cinemaStatus ? (
+          {/* Cinema hint if no cinemas selected but movie is in theaters */}
+          {cinemaStatus && selectedCinemas.length === 0 && (
+            <div className="bg-yellow-500/5 rounded-xl border border-yellow-500/20 px-3 py-2.5">
+              <p className="text-xs text-yellow-400">
+                🎟️ {cinemaStatus === 'in_theaters' ? 'Ce film est au cinéma !' : 'Ce film sort bientôt au cinéma'}
+              </p>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                Ajoute tes cinés dans Paramètres pour voir les séances
+              </p>
+            </div>
+          )}
+
+          {!hasProviders && !showCinema && !cinemaStatus ? (
             <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 text-center">
               <p className="text-sm text-[var(--color-text-muted)]">
                 Non disponible en streaming en France

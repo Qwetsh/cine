@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSettings, STREAMING_PROVIDERS, BATTLE_COLORS } from '../../hooks/useSettings'
+import { useSettings, STREAMING_PROVIDERS, BATTLE_COLORS, KINEPOLIS_CINEMAS } from '../../hooks/useSettings'
 
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w92'
@@ -11,7 +11,7 @@ interface ProviderLogo {
 }
 
 export function SettingsSection() {
-  const { settings, update, toggleProvider } = useSettings()
+  const { settings, update, toggleProvider, toggleCinema } = useSettings()
   const [logos, setLogos] = useState<Record<number, string>>({})
 
   // Fetch provider logos from TMDB
@@ -100,6 +100,35 @@ export function SettingsSection() {
             </div>
           </>
         )}
+      </div>
+
+      {/* Mes cinés */}
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-3">
+        <div>
+          <p className="font-medium text-sm text-[var(--color-text)]">🎟️ Mes cinés</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+            Sélectionne tes Kinepolis pour voir les films à l'affiche
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {KINEPOLIS_CINEMAS.map(c => {
+            const selected = settings.cinemas.includes(c.slug)
+            return (
+              <button
+                key={c.slug}
+                onClick={() => toggleCinema(c.slug)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  selected
+                    ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40 text-[var(--color-text)]'
+                    : 'bg-[var(--color-surface-2)] border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border)]'
+                }`}
+              >
+                {selected && <span className="mr-1">✓</span>}
+                {c.name}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Battle color */}
