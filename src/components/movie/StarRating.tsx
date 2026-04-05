@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface StarRatingProps {
   value: number | null
@@ -23,7 +23,15 @@ export function StarRating({
 }: StarRatingProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dragValue, setDragValue] = useState<number | null>(null)
+  const [committedValue, setCommittedValue] = useState<number | null>(null)
   const draggingRef = useRef(false)
+
+  // Clear committedValue once the prop catches up
+  useEffect(() => {
+    if (committedValue !== null && value === committedValue) {
+      setCommittedValue(null)
+    }
+  }, [value, committedValue])
 
   const getStarFromX = useCallback((clientX: number) => {
     const el = containerRef.current
@@ -36,6 +44,7 @@ export function StarRating({
 
   function handleTouchStart(e: React.TouchEvent) {
     if (readOnly || !onChange) return
+    e.stopPropagation()
     draggingRef.current = true
     const star = getStarFromX(e.touches[0].clientX)
     if (star) setDragValue(star)
@@ -43,21 +52,25 @@ export function StarRating({
 
   function handleTouchMove(e: React.TouchEvent) {
     if (!draggingRef.current) return
+    e.stopPropagation()
     e.preventDefault()
     const star = getStarFromX(e.touches[0].clientX)
     if (star) setDragValue(star)
   }
 
-  function handleTouchEnd() {
+  function handleTouchEnd(e: React.TouchEvent) {
     if (!draggingRef.current) return
+    e.stopPropagation()
     draggingRef.current = false
     if (dragValue != null) {
+      setCommittedValue(dragValue)
       onChange?.(dragValue)
     }
     setDragValue(null)
   }
 
-  const displayValue = dragValue ?? value
+  // Show: drag in progress > committed waiting for prop > actual prop
+  const displayValue = dragValue ?? committedValue ?? value
 
   return (
     <div
@@ -78,7 +91,10 @@ export function StarRating({
             key={i}
             type="button"
             disabled={readOnly}
-            onClick={() => onChange?.(starValue)}
+            onClick={() => {
+              setCommittedValue(starValue)
+              onChange?.(starValue)
+            }}
             className={[
               SIZE_CLASSES[size],
               'leading-none transition-transform',
