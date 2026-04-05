@@ -81,7 +81,7 @@ export function SearchPage() {
           </span>
           <input
             ref={inputRef}
-            type="search"
+            type="text"
             value={query}
             onChange={e => handleQueryChange(e.target.value)}
             placeholder={PLACEHOLDERS[filters.mode]}
