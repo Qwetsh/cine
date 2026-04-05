@@ -217,7 +217,7 @@ export const tmdb = {
     tmdbFetch<TmdbSearchResult>('/movie/top_rated', { page: String(page) }),
 
   getUpcoming: (page = 1) =>
-    tmdbFetch<TmdbSearchResult>('/movie/upcoming', { page: String(page) }),
+    tmdbFetch<TmdbSearchResult>('/movie/upcoming', { page: String(page), region: 'FR' }),
 
   getSimilar: (id: number) =>
     tmdbFetch<TmdbSearchResult>(`/movie/${id}/similar`),

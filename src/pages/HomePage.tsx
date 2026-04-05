@@ -18,15 +18,17 @@ export function HomePage() {
       .catch(console.error)
       .finally(() => setLoadingTrending(false))
 
-    tmdb.getUpcoming()
-      .then(data => {
-        // Filter to movies with a future or very recent release date and a poster
-        const now = new Date()
-        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-        const filtered = data.results
-          .filter(m => m.poster_path && m.release_date && new Date(m.release_date) >= twoWeeksAgo)
+    // Fetch 2 pages to get enough results
+    Promise.all([tmdb.getUpcoming(1), tmdb.getUpcoming(2)])
+      .then(([p1, p2]) => {
+        const all = [...p1.results, ...p2.results]
+        // Keep movies with poster, sorted by release date
+        const filtered = all
+          .filter(m => m.poster_path && m.release_date)
           .sort((a, b) => new Date(a.release_date).getTime() - new Date(b.release_date).getTime())
-          .slice(0, 10)
+          // Deduplicate by id
+          .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+          .slice(0, 15)
         setUpcoming(filtered)
       })
       .catch(console.error)
