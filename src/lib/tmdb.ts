@@ -132,6 +132,16 @@ export interface TmdbPersonDetail extends TmdbPerson {
   homepage: string | null
 }
 
+export interface TmdbExternalIds {
+  imdb_id: string | null
+  facebook_id: string | null
+  instagram_id: string | null
+  twitter_id: string | null
+  tiktok_id: string | null
+  youtube_id: string | null
+  wikidata_id: string | null
+}
+
 export interface TmdbPersonSearchResult {
   page: number
   results: TmdbPerson[]
@@ -239,6 +249,12 @@ export const tmdb = {
 
   getPerson: (id: number) =>
     tmdbFetch<TmdbPersonDetail>(`/person/${id}`),
+
+  getPersonEn: (id: number) =>
+    tmdbFetch<TmdbPersonDetail>(`/person/${id}`, { language: 'en-US' }),
+
+  getPersonExternalIds: (id: number) =>
+    tmdbFetch<TmdbExternalIds>(`/person/${id}/external_ids`),
 
   getWatchProviders: (id: number) =>
     tmdbFetch<WatchProviderResult>(`/movie/${id}/watch/providers`),
