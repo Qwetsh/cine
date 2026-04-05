@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Component, useState } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
@@ -85,7 +86,9 @@ export function MovieNightPage() {
             Soirée Ciné
           </button>
         </div>
-        <QuizMode />
+        <GameErrorBoundary onReset={() => setShowQuiz(false)}>
+          <QuizMode />
+        </GameErrorBoundary>
       </div>
     )
   }
@@ -105,7 +108,9 @@ export function MovieNightPage() {
             Soirée Ciné
           </button>
         </div>
-        <TournamentMode />
+        <GameErrorBoundary onReset={() => setShowTournament(false)}>
+          <TournamentMode />
+        </GameErrorBoundary>
       </div>
     )
   }
@@ -275,4 +280,44 @@ export function MovieNightPage() {
       </div>
     </div>
   )
+}
+
+// Error boundary to catch crashes in game modes and return to Soirée Ciné
+class GameErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Game mode crashed:', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="px-4 text-center py-12 space-y-4">
+          <span className="text-5xl block">💥</span>
+          <p className="text-[var(--color-text)] font-medium">Oups, quelque chose a planté</p>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Le mode de jeu a rencontré une erreur.
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false })
+              this.props.onReset()
+            }}
+            className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
+          >
+            Retour à Soirée Ciné
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }

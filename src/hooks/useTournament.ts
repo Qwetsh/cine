@@ -17,6 +17,8 @@ export function useTournament(coupleId: string | null, userId: string | null) {
   const [session, setSession] = useState<TournamentSession | null>(null)
   const [loading, setLoading] = useState(true)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  // Cache the board locally — realtime payloads may truncate large JSONB columns
+  const boardCacheRef = useRef<TournamentBoard | null>(null)
 
   const fetchSession = useCallback(async () => {
     if (!coupleId) {
@@ -34,7 +36,17 @@ export function useTournament(coupleId: string | null, userId: string | null) {
       .limit(1)
       .maybeSingle()
 
-    setSession(data as TournamentSession | null)
+    if (data) {
+      const s = data as TournamentSession
+      // Cache the board if present
+      if (s.board && s.board.nodes) {
+        boardCacheRef.current = s.board
+      }
+      setSession(s)
+    } else {
+      boardCacheRef.current = null
+      setSession(null)
+    }
     setLoading(false)
   }, [coupleId])
 
@@ -56,9 +68,18 @@ export function useTournament(coupleId: string | null, userId: string | null) {
         },
         (payload) => {
           if (payload.eventType === 'DELETE') {
+            boardCacheRef.current = null
             setSession(null)
           } else {
-            setSession(payload.new as TournamentSession)
+            const incoming = payload.new as TournamentSession
+            // Realtime may not include the full board (payload size limit).
+            // Use cached board if the incoming one is missing/empty.
+            if (incoming.board && incoming.board.nodes) {
+              boardCacheRef.current = incoming.board
+            } else if (boardCacheRef.current) {
+              incoming.board = boardCacheRef.current
+            }
+            setSession(incoming)
           }
         }
       )
@@ -82,6 +103,8 @@ export function useTournament(coupleId: string | null, userId: string | null) {
       .delete()
       .eq('couple_id', coupleId)
       .in('status', ['waiting', 'generating', 'playing', 'center_fight'])
+
+    boardCacheRef.current = null
 
     const { data, error } = await supabase
       .from('tournament_sessions')
@@ -113,6 +136,8 @@ export function useTournament(coupleId: string | null, userId: string | null) {
     gameState: TournamentGameState,
   ) => {
     if (!session) return
+    // Cache immediately
+    boardCacheRef.current = board
     await supabase
       .from('tournament_sessions')
       .update({
@@ -154,6 +179,7 @@ export function useTournament(coupleId: string | null, userId: string | null) {
       .from('tournament_sessions')
       .delete()
       .eq('id', session.id)
+    boardCacheRef.current = null
     setSession(null)
   }, [session])
 
@@ -164,6 +190,7 @@ export function useTournament(coupleId: string | null, userId: string | null) {
       .from('tournament_sessions')
       .delete()
       .eq('id', session.id)
+    boardCacheRef.current = null
     setSession(null)
   }, [session])
 

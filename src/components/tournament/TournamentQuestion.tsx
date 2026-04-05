@@ -23,6 +23,10 @@ export function TournamentQuestion({
   const startRef = useRef(0)
   const answeredRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const onAnswerRef = useRef(onAnswer)
+  const isMyTurnRef = useRef(isMyTurn)
+  onAnswerRef.current = onAnswer
+  isMyTurnRef.current = isMyTurn
 
   // Reset on new question
   useEffect(() => {
@@ -42,27 +46,27 @@ export function TournamentQuestion({
 
       if (remaining <= 0) {
         clearInterval(timerRef.current)
-        if (!answeredRef.current && isMyTurn) {
+        if (!answeredRef.current && isMyTurnRef.current) {
           answeredRef.current = true
           setMyAnswer(-1)
           setShowResult(true)
-          onAnswer(-1, QUESTION_TIMEOUT)
+          onAnswerRef.current(-1, QUESTION_TIMEOUT)
         }
       }
     }, 100)
 
     return () => clearInterval(timerRef.current)
-  }, [question.id, questionStartedAt, isMyTurn, onAnswer])
+  }, [question.id, questionStartedAt])
 
   const handleAnswer = useCallback((idx: number) => {
-    if (answeredRef.current || !isMyTurn) return
+    if (answeredRef.current || !isMyTurnRef.current) return
     answeredRef.current = true
     const timeMs = Date.now() - startRef.current
     setMyAnswer(idx)
     setShowResult(true)
     if (timerRef.current) clearInterval(timerRef.current)
-    onAnswer(idx, timeMs)
-  }, [isMyTurn, onAnswer])
+    onAnswerRef.current(idx, timeMs)
+  }, [])
 
   const seconds = Math.ceil(timeLeft / 1000)
   const isLow = seconds <= 5

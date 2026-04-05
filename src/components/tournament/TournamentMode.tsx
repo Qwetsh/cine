@@ -251,10 +251,37 @@ function PlayingPhase({
   if (!session) return null
 
   const { board, game_state: gs } = session
+
+  // Safety: if board is missing/incomplete (realtime truncation), show loading
+  if (!board?.nodes || !board?.questions) {
+    return (
+      <div className="px-4 text-center py-12 space-y-4">
+        <span className="text-5xl block animate-pulse">🗺️</span>
+        <p className="text-sm text-[var(--color-text-muted)]">Chargement du plateau…</p>
+        <button
+          onClick={() => setConfirmQuit(true)}
+          className="text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
+        >
+          Quitter le tournoi
+        </button>
+      </div>
+    )
+  }
+
   const isMyTurn = (isUser1 && gs.current_turn === 'p1') || (!isUser1 && gs.current_turn === 'p2')
   const myHp = isUser1 ? gs.hp_p1 : gs.hp_p2
   const theirHp = isUser1 ? gs.hp_p2 : gs.hp_p1
   const myPosition = isUser1 ? gs.position_p1 : gs.position_p2
+
+  // Auto-recover from stale reveal/bonus phases (e.g. page refresh killed the setTimeout)
+  useEffect(() => {
+    if ((gs.phase === 'reveal' || gs.phase === 'bonus') && isMyTurn) {
+      const staleTimer = setTimeout(() => {
+        advanceTurn(tournament, gs, board, isUser1)
+      }, 4000) // 4s grace period then auto-advance
+      return () => clearTimeout(staleTimer)
+    }
+  }, [gs.phase, gs.turn_number, isMyTurn, tournament, gs, board, isUser1])
 
   // Quit confirmation
   if (confirmQuit) {
@@ -340,6 +367,12 @@ function PlayingPhase({
             </p>
           </>
         )}
+        <button
+          onClick={() => setConfirmQuit(true)}
+          className="text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
+        >
+          Quitter le tournoi
+        </button>
       </div>
     )
   }
@@ -406,6 +439,14 @@ function PlayingPhase({
             onAnswer={() => {}}
             questionStartedAt={null}
           />
+          <div className="px-4 pt-4 pb-2">
+            <button
+              onClick={() => setConfirmQuit(true)}
+              className="w-full text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
+            >
+              Quitter
+            </button>
+          </div>
         </div>
       )
     }
@@ -423,6 +464,12 @@ function PlayingPhase({
         </span>
         <p className="text-xl font-bold text-[var(--color-text)]">{tileLabel}</p>
         <TournamentHP current={myHp} max={gs.max_hp} label="Tes PV" />
+        <button
+          onClick={() => setConfirmQuit(true)}
+          className="text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
+        >
+          Quitter
+        </button>
       </div>
     )
   }

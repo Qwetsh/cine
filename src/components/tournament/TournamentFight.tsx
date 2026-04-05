@@ -36,10 +36,14 @@ export function TournamentFight({
   const startRef = useRef(0)
   const answeredRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const onAnswerRef = useRef(onAnswer)
+  onAnswerRef.current = onAnswer
 
   const question = fight.question_index != null ? questions[fight.question_index] : null
   const isMyTurn = (isUser1 && fight.current_answerer === 'p1') ||
                    (!isUser1 && fight.current_answerer === 'p2')
+  const isMyTurnRef = useRef(isMyTurn)
+  isMyTurnRef.current = isMyTurn
 
   const myHp = isUser1 ? hpP1 : hpP2
   const theirHp = isUser1 ? hpP2 : hpP1
@@ -64,27 +68,27 @@ export function TournamentFight({
 
       if (remaining <= 0) {
         clearInterval(timerRef.current)
-        if (!answeredRef.current && isMyTurn) {
+        if (!answeredRef.current && isMyTurnRef.current) {
           answeredRef.current = true
           setMyAnswer(-1)
           setShowResult(true)
-          onAnswer(-1, FIGHT_TIMEOUT)
+          onAnswerRef.current(-1, FIGHT_TIMEOUT)
         }
       }
     }, 100)
 
     return () => clearInterval(timerRef.current)
-  }, [fight.round, fight.current_answerer, question?.id, isMyTurn, onAnswer])
+  }, [fight.round, fight.current_answerer, question?.id])
 
   const handleAnswer = useCallback((idx: number) => {
-    if (answeredRef.current || !isMyTurn) return
+    if (answeredRef.current || !isMyTurnRef.current) return
     answeredRef.current = true
     const timeMs = Date.now() - startRef.current
     setMyAnswer(idx)
     setShowResult(true)
     if (timerRef.current) clearInterval(timerRef.current)
-    onAnswer(idx, timeMs)
-  }, [isMyTurn, onAnswer])
+    onAnswerRef.current(idx, timeMs)
+  }, [])
 
   if (!question) {
     return (
