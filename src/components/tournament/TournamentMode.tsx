@@ -16,6 +16,7 @@ import { TournamentBoardView } from './TournamentBoard'
 import { TournamentHP } from './TournamentHP'
 import { TournamentQuestion } from './TournamentQuestion'
 import { TournamentFight } from './TournamentFight'
+import { TournamentAnswerReveal } from './TournamentAnswerReveal'
 import { TournamentResults } from './TournamentResults'
 
 const REVEAL_DELAY = 2500 // ms to show answer before advancing
@@ -341,40 +342,30 @@ function PlayingPhase({
     const iAmAtCenter = myPosition === board.center
     const myBonus = isUser1 ? gs.center_bonus_p1 : gs.center_bonus_p2
 
-    return (
-      <div className="px-4 text-center py-8 space-y-4">
-        {iAmAtCenter ? (
-          <>
-            <span className="text-5xl block">⚔️</span>
-            <p className="text-[var(--color-text)] font-medium">Tu es au centre !</p>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              En attente de {partnerName}…
+    // Player at center sees a waiting screen
+    if (iAmAtCenter) {
+      return (
+        <div className="px-4 text-center py-8 space-y-4">
+          <span className="text-5xl block">⚔️</span>
+          <p className="text-[var(--color-text)] font-medium">Tu es au centre !</p>
+          <p className="text-sm text-[var(--color-text-muted)]">
+            En attente de {partnerName}…
+          </p>
+          {myBonus < CENTER_BONUS_MAX && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Questions bonus : +{myBonus}/{CENTER_BONUS_MAX} PV gagnés
             </p>
-            {myBonus < CENTER_BONUS_MAX && (
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Questions bonus : +{myBonus}/{CENTER_BONUS_MAX} PV gagnés
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <span className="text-5xl block animate-pulse">⏳</span>
-            <p className="text-[var(--color-text)] font-medium">
-              {partnerName} est au centre !
-            </p>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Continue d'avancer pour le rejoindre
-            </p>
-          </>
-        )}
-        <button
-          onClick={() => setConfirmQuit(true)}
-          className="text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
-        >
-          Quitter le tournoi
-        </button>
-      </div>
-    )
+          )}
+          <button
+            onClick={() => setConfirmQuit(true)}
+            className="text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
+          >
+            Quitter le tournoi
+          </button>
+        </div>
+      )
+    }
+    // Player NOT at center falls through to the normal move/question phases below
   }
 
   // ── Question Phase ──
@@ -420,26 +411,21 @@ function PlayingPhase({
     }
   }
 
-  // ── Reveal Phase (show result briefly) ──
+  // ── Reveal Phase (victory/defeat splash) ──
   if (gs.phase === 'reveal' && gs.active_question_index != null) {
     const question = board.questions[gs.active_question_index]
     if (question) {
+      const wasCorrect = gs.answer === question.correct_index
       return (
         <div>
-          <div className="px-4 mb-3">
-            <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
-              <TournamentHP current={myHp} max={gs.max_hp} label="Toi" />
-              <span className="text-xs text-[var(--color-text-muted)]">Résultat…</span>
-              <TournamentHP current={theirHp} max={gs.max_hp} label={partnerName} />
-            </div>
-          </div>
-          <TournamentQuestion
-            question={question}
-            isMyTurn={false}
-            onAnswer={() => {}}
-            questionStartedAt={null}
+          <TournamentAnswerReveal
+            isCorrect={wasCorrect}
+            correctAnswer={question.options[question.correct_index]}
+            myHp={myHp}
+            maxHp={gs.max_hp}
+            filmTitle={question.source_film.title}
           />
-          <div className="px-4 pt-4 pb-2">
+          <div className="px-4 pt-2 pb-2">
             <button
               onClick={() => setConfirmQuit(true)}
               className="w-full text-sm text-[var(--color-text-muted)] hover:text-red-400 py-2 transition-colors"
@@ -476,9 +462,20 @@ function PlayingPhase({
 
   // ── Move Phase → Board + move selection ──
   const selectableMoves = isMyTurn ? getNextMoves(board, myPosition) : []
+  const iAmAtCenter = myPosition === board.center
+  const partnerAtCenter = gs.phase === 'center_wait' && !iAmAtCenter
 
   return (
     <div>
+      {/* Partner at center banner */}
+      {partnerAtCenter && (
+        <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-center">
+          <p className="text-xs text-yellow-400 font-medium">
+            ⚔️ {partnerName} t'attend au centre — rejoins-le !
+          </p>
+        </div>
+      )}
+
       {/* HP Header */}
       <div className="px-4 mb-2">
         <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
@@ -636,9 +633,10 @@ async function handleMove(
     }
 
     case 'crossroad': {
-      // Crossroad: player already chose a branch (targetNodeId is the crossroad,
-      // but we should auto-advance to show branch choices)
-      newGs.phase = 'move'
+      // Crossroad: stay on same player's turn to pick a branch
+      // Keep center_wait phase if applicable
+      const someoneAtCenter = newGs.position_p1 === board.center || newGs.position_p2 === board.center
+      newGs.phase = someoneAtCenter ? 'center_wait' : 'move'
       newGs.turn_number++
       await tournament.updateGameState(newGs)
       break
@@ -694,17 +692,37 @@ async function handleBoardAnswer(
 function advanceTurn(
   tournament: ReturnType<typeof useTournament>,
   gs: TournamentGameState,
-  _board: TournamentBoard,
-  _isUser1: boolean,
+  board: TournamentBoard,
+  isUser1: boolean,
 ) {
   const newGs = { ...gs }
-  newGs.phase = 'move'
-  newGs.current_turn = gs.current_turn === 'p1' ? 'p2' : 'p1'
   newGs.turn_number++
   newGs.active_question_index = null
   newGs.question_started_at = null
   newGs.answer = null
   newGs.answer_time_ms = null
+
+  // Check if either player is at center (center_wait scenario)
+  const p1AtCenter = newGs.position_p1 === board.center
+  const p2AtCenter = newGs.position_p2 === board.center
+
+  if (p1AtCenter && p2AtCenter) {
+    // Both at center → start fight
+    startFight(tournament, newGs, board)
+    return
+  }
+
+  if (p1AtCenter || p2AtCenter) {
+    // One player at center — the OTHER keeps playing (no turn switch)
+    newGs.phase = 'center_wait'
+    // The player NOT at center continues
+    newGs.current_turn = p1AtCenter ? 'p2' : 'p1'
+  } else {
+    // Normal: switch turns
+    newGs.phase = 'move'
+    newGs.current_turn = gs.current_turn === 'p1' ? 'p2' : 'p1'
+  }
+
   tournament.updateGameState(newGs)
 }
 

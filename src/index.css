@@ -188,3 +188,111 @@
     transform: rotate(var(--spark-angle, 0deg)) scaleY(1.2);
   }
 }
+
+/* ── Tournament Answer Reveal: Oscar Victory ── */
+
+.oscar-glow {
+  position: absolute;
+  inset: -30px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 197, 24, 0.4) 0%, transparent 70%);
+  animation: oscar-pulse 1.5s ease-in-out infinite;
+  z-index: 0;
+}
+
+.oscar-trophy {
+  animation: oscar-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: drop-shadow(0 0 20px rgba(245, 197, 24, 0.6));
+}
+
+.oscar-shimmer {
+  background: linear-gradient(90deg, #f5c518 0%, #fff7a8 40%, #f5c518 60%, #d4a017 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2s linear infinite;
+}
+
+.oscar-particles {
+  position: relative;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.oscar-particle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  box-shadow: 0 0 6px rgba(245, 197, 24, 0.8);
+  animation: particle-fly 1.2s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation-delay: var(--delay);
+  opacity: 0;
+}
+
+@keyframes oscar-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes oscar-bounce {
+  0% { transform: scale(0) rotate(-15deg); }
+  60% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes particle-fly {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--rotation)) scale(0); }
+}
+
+/* ── Tournament Answer Reveal: Defeat ── */
+
+.defeat-shake {
+  animation: defeat-shake 0.5s ease-in-out;
+}
+
+.defeat-rain {
+  position: relative;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.rain-drop {
+  position: absolute;
+  left: var(--x);
+  top: -80px;
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(100, 140, 200, 0.5));
+  animation: rain-fall var(--duration) linear infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes defeat-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-8px) rotate(-3deg); }
+  30% { transform: translateX(6px) rotate(2deg); }
+  45% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-1px); }
+}
+
+@keyframes rain-fall {
+  0% { opacity: 0; transform: translateY(0); }
+  10% { opacity: 0.7; }
+  90% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(160px); }
+}
