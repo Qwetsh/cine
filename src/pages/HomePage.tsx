@@ -3,37 +3,60 @@ import { useNavigate } from 'react-router-dom'
 import { tmdb } from '../lib/tmdb'
 import { getPosterUrl } from '../lib/tmdb'
 import { MovieGrid } from '../components/movie/MovieGrid'
+import { useSettings } from '../hooks/useSettings'
+import { useGenres } from '../hooks/useGenres'
+import { useCollection } from '../hooks/useCollection'
+import { useWatchlist } from '../hooks/useWatchlist'
+import { useRecommendations } from '../hooks/useRecommendations'
+import { useCoupleContext } from '../contexts/CoupleContext'
 import type { TmdbMovie } from '../lib/tmdb'
 
 export function HomePage() {
+  const { settings } = useSettings()
+  const isForYou = settings.homeMode === 'forYou'
+
   const [trending, setTrending] = useState<TmdbMovie[]>([])
   const [upcoming, setUpcoming] = useState<TmdbMovie[]>([])
   const [loadingTrending, setLoadingTrending] = useState(true)
   const [loadingUpcoming, setLoadingUpcoming] = useState(true)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    tmdb.getTrending('week')
-      .then(data => setTrending(data.results.slice(0, 9)))
-      .catch(console.error)
-      .finally(() => setLoadingTrending(false))
+  // For "Pour vous" mode
+  const { coupleId } = useCoupleContext()
+  const { genres } = useGenres()
+  const { entries: collection } = useCollection(coupleId)
+  const { entries: watchlist } = useWatchlist(coupleId)
+  const { results: recommended, loading: loadingReco, refresh: refreshReco } = useRecommendations(
+    collection, watchlist, genres, isForYou,
+  )
 
-    // Fetch 2 pages to get enough results
+  useEffect(() => {
+    // Always fetch upcoming
     Promise.all([tmdb.getUpcoming(1), tmdb.getUpcoming(2)])
       .then(([p1, p2]) => {
         const all = [...p1.results, ...p2.results]
-        // Keep movies with poster, sorted by release date
         const filtered = all
           .filter(m => m.poster_path && m.release_date)
           .sort((a, b) => new Date(a.release_date).getTime() - new Date(b.release_date).getTime())
-          // Deduplicate by id
           .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
           .slice(0, 15)
         setUpcoming(filtered)
       })
       .catch(console.error)
       .finally(() => setLoadingUpcoming(false))
-  }, [])
+
+    // Only fetch trending if in trending mode
+    if (!isForYou) {
+      tmdb.getTrending('week')
+        .then(data => setTrending(data.results.slice(0, 9)))
+        .catch(console.error)
+        .finally(() => setLoadingTrending(false))
+    } else {
+      setLoadingTrending(false)
+    }
+  }, [isForYou])
+
+  const hasData = collection.length > 0 || watchlist.length > 0
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -80,7 +103,6 @@ export function HomePage() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-2xl">🎬</div>
                   )}
-                  {/* Release date badge */}
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
                     <span className="text-[10px] text-white/90 font-medium">
                       {formatReleaseDate(movie.release_date)}
@@ -96,22 +118,53 @@ export function HomePage() {
         )}
       </div>
 
-      {/* Tendances */}
+      {/* Main section: Tendances OR Pour vous */}
       <div>
         <div className="flex items-center justify-between px-4 mb-3">
-          <h2 className="font-bold text-[var(--color-text)]">Tendances cette semaine</h2>
-          <button
-            onClick={() => navigate('/search')}
-            className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
-          >
-            Voir plus →
-          </button>
+          <h2 className="font-bold text-[var(--color-text)]">
+            {isForYou ? 'Pour vous' : 'Tendances cette semaine'}
+          </h2>
+          {isForYou ? (
+            <button
+              onClick={refreshReco}
+              disabled={loadingReco}
+              className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] disabled:opacity-50"
+            >
+              {loadingReco ? '...' : 'Rafraichir →'}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/search')}
+              className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
+            >
+              Voir plus →
+            </button>
+          )}
         </div>
-        <MovieGrid
-          movies={trending}
-          loading={loadingTrending}
-          onMovieClick={movie => navigate(`/movie/${movie.id}`)}
-        />
+
+        {isForYou && !hasData && (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Ajoutez des films a votre collection ou liste a voir pour obtenir des recommandations personnalisees.
+            </p>
+          </div>
+        )}
+
+        {isForYou && hasData && (
+          <MovieGrid
+            movies={recommended}
+            loading={loadingReco}
+            onMovieClick={movie => navigate(`/movie/${movie.id}`)}
+          />
+        )}
+
+        {!isForYou && (
+          <MovieGrid
+            movies={trending}
+            loading={loadingTrending}
+            onMovieClick={movie => navigate(`/movie/${movie.id}`)}
+          />
+        )}
       </div>
     </div>
   )

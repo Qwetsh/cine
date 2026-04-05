@@ -44,6 +44,8 @@ export const BATTLE_COLORS: { id: BattleColor; label: string; gradient: string; 
   { id: 'orange', label: 'Orange', gradient: 'linear-gradient(90deg, #f97316, #fb923c, #fdba74)', glow: '#fb923c88' },
 ]
 
+export type HomeMode = 'trending' | 'forYou'
+
 export interface Settings {
   // Streaming filters
   filterByStreaming: boolean
@@ -53,6 +55,8 @@ export interface Settings {
   cinemas: string[] // Kinepolis slugs
   // Battle
   battleColor: BattleColor
+  // Home display
+  homeMode: HomeMode
 }
 
 const STORAGE_KEY = 'cine_settings'
@@ -63,6 +67,7 @@ const defaultSettings: Settings = {
   hideRentals: false,
   cinemas: [],
   battleColor: 'blue',
+  homeMode: 'trending',
 }
 
 // Cached snapshot — useSyncExternalStore requires referential stability

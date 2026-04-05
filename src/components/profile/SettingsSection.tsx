@@ -131,6 +131,48 @@ export function SettingsSection() {
         </div>
       </div>
 
+      {/* Home mode */}
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-3">
+        <div>
+          <p className="font-medium text-sm text-[var(--color-text)]">Accueil</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+            Choisis ce qui s'affiche sur ta page d'accueil
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => update({ homeMode: 'trending' })}
+            className={`flex-1 rounded-xl border p-3 text-center transition-colors ${
+              settings.homeMode !== 'forYou'
+                ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
+                : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
+            }`}
+          >
+            <span className="text-lg block mb-1">🔥</span>
+            <span className={`text-xs font-medium ${
+              settings.homeMode !== 'forYou' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
+            }`}>
+              Tendances
+            </span>
+          </button>
+          <button
+            onClick={() => update({ homeMode: 'forYou' })}
+            className={`flex-1 rounded-xl border p-3 text-center transition-colors ${
+              settings.homeMode === 'forYou'
+                ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
+                : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
+            }`}
+          >
+            <span className="text-lg block mb-1">✨</span>
+            <span className={`text-xs font-medium ${
+              settings.homeMode === 'forYou' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
+            }`}>
+              Pour vous
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* Battle color */}
       <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-3">
         <p className="font-medium text-sm text-[var(--color-text)]">Couleur de combat</p>
