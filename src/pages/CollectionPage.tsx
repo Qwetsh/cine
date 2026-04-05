@@ -8,6 +8,7 @@ import { useLocalFilter } from '../hooks/useLocalFilter'
 import { getPosterUrl } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
+import { SwipeToDelete } from '../components/ui/SwipeToDelete'
 import type { CollectionMovieEntry, PersonalCollectionEntry } from '../types'
 
 type Tab = 'couple' | 'perso'
@@ -217,54 +218,58 @@ export function CollectionPage() {
         /* --- COUPLE LIST --- */
         <ul className="px-4 space-y-4 pb-4">
           {coupleEntries.map(entry => (
-            <li key={entry.id} className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
-              <div className="flex gap-3 p-3">
-                <button
-                  onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-                  className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-                >
-                  <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
-                    <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.movie.title}</p>
-                  </button>
-                  <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
-                    Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <p className="text-[var(--color-text-muted)] text-xs mb-1">Ta note</p>
-                      <StarRating value={getMyRating(entry)} onChange={r => handleCoupleRating(entry, r)} size="sm" />
-                      {editingNote === entry.id ? (
-                        <div className="flex gap-2 mt-1">
-                          <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ton avis…" autoFocus
-                            className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)]" />
-                          <button onClick={() => saveCoupleNote(entry.id)} className="text-xs text-[var(--color-accent)] font-medium px-2">OK</button>
-                          <button onClick={() => setEditingNote(null)} className="text-xs text-[var(--color-text-muted)] px-1">✕</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => startEditCoupleNote(entry)} className="text-left mt-1">
-                          {getMyNote(entry) ? (
-                            <p className="text-[var(--color-text-muted)] text-xs italic hover:text-[var(--color-text)] transition-colors">"{getMyNote(entry)}" ✏️</p>
+            <li key={entry.id}>
+              <SwipeToDelete onDelete={() => couple.removeFromCollection(entry.id)}>
+                <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    <button
+                      onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
+                      className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                    >
+                      <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
+                        <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.movie.title}</p>
+                      </button>
+                      <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
+                        Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        <div>
+                          <p className="text-[var(--color-text-muted)] text-xs mb-1">Ta note</p>
+                          <StarRating value={getMyRating(entry)} onChange={r => handleCoupleRating(entry, r)} size="sm" />
+                          {editingNote === entry.id ? (
+                            <div className="flex gap-2 mt-1">
+                              <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ton avis…" autoFocus
+                                className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)]" />
+                              <button onClick={() => saveCoupleNote(entry.id)} className="text-xs text-[var(--color-accent)] font-medium px-2">OK</button>
+                              <button onClick={() => setEditingNote(null)} className="text-xs text-[var(--color-text-muted)] px-1">✕</button>
+                            </div>
                           ) : (
-                            <p className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-accent)] transition-colors">+ Ajouter un avis</p>
+                            <button onClick={() => startEditCoupleNote(entry)} className="text-left mt-1">
+                              {getMyNote(entry) ? (
+                                <p className="text-[var(--color-text-muted)] text-xs italic hover:text-[var(--color-text)] transition-colors">"{getMyNote(entry)}" ✏️</p>
+                              ) : (
+                                <p className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-accent)] transition-colors">+ Ajouter un avis</p>
+                              )}
+                            </button>
                           )}
-                        </button>
-                      )}
-                    </div>
-                    {partner && (
-                      <div>
-                        <p className="text-[var(--color-text-muted)] text-xs mb-1">{partner.display_name}</p>
-                        <StarRating value={getPartnerRating(entry)} readOnly size="sm" />
-                        {getPartnerNote(entry) && (
-                          <p className="text-[var(--color-text-muted)] text-xs italic mt-1">"{getPartnerNote(entry)}"</p>
+                        </div>
+                        {partner && (
+                          <div>
+                            <p className="text-[var(--color-text-muted)] text-xs mb-1">{partner.display_name}</p>
+                            <StarRating value={getPartnerRating(entry)} readOnly size="sm" />
+                            {getPartnerNote(entry) && (
+                              <p className="text-[var(--color-text-muted)] text-xs italic mt-1">"{getPartnerNote(entry)}"</p>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </SwipeToDelete>
             </li>
           ))}
         </ul>
@@ -272,43 +277,47 @@ export function CollectionPage() {
         /* --- PERSONAL LIST --- */
         <ul className="px-4 space-y-4 pb-4">
           {personalEntries.map(entry => (
-            <li key={entry.id} className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
-              <div className="flex gap-3 p-3">
-                <button
-                  onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-                  className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-                >
-                  <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
-                    <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.movie.title}</p>
-                  </button>
-                  <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
-                    Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                  <div className="mt-3">
-                    <p className="text-[var(--color-text-muted)] text-xs mb-1">Ma note</p>
-                    <StarRating value={entry.rating} onChange={r => handlePersonalRating(entry, r)} size="sm" />
-                    {editingNote === entry.id ? (
-                      <div className="flex gap-2 mt-1">
-                        <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Mon avis…" autoFocus
-                          className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)]" />
-                        <button onClick={() => savePersonalNote(entry.id)} className="text-xs text-[var(--color-accent)] font-medium px-2">OK</button>
-                        <button onClick={() => setEditingNote(null)} className="text-xs text-[var(--color-text-muted)] px-1">✕</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => startEditPersonalNote(entry)} className="text-left mt-1">
-                        {entry.note ? (
-                          <p className="text-[var(--color-text-muted)] text-xs italic hover:text-[var(--color-text)] transition-colors">"{entry.note}" ✏️</p>
-                        ) : (
-                          <p className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-accent)] transition-colors">+ Ajouter un avis</p>
-                        )}
+            <li key={entry.id}>
+              <SwipeToDelete onDelete={() => personal.removeFromPersonalCollection(entry.id)}>
+                <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    <button
+                      onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
+                      className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                    >
+                      <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
+                        <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.movie.title}</p>
                       </button>
-                    )}
+                      <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
+                        Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                      <div className="mt-3">
+                        <p className="text-[var(--color-text-muted)] text-xs mb-1">Ma note</p>
+                        <StarRating value={entry.rating} onChange={r => handlePersonalRating(entry, r)} size="sm" />
+                        {editingNote === entry.id ? (
+                          <div className="flex gap-2 mt-1">
+                            <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Mon avis…" autoFocus
+                              className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)]" />
+                            <button onClick={() => savePersonalNote(entry.id)} className="text-xs text-[var(--color-accent)] font-medium px-2">OK</button>
+                            <button onClick={() => setEditingNote(null)} className="text-xs text-[var(--color-text-muted)] px-1">✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => startEditPersonalNote(entry)} className="text-left mt-1">
+                            {entry.note ? (
+                              <p className="text-[var(--color-text-muted)] text-xs italic hover:text-[var(--color-text)] transition-colors">"{entry.note}" ✏️</p>
+                            ) : (
+                              <p className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-accent)] transition-colors">+ Ajouter un avis</p>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </SwipeToDelete>
             </li>
           ))}
         </ul>

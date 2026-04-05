@@ -53,6 +53,12 @@ export function useCollection(coupleId: string | null) {
     return { error: error?.message ?? null }
   }
 
+  async function removeFromCollection(entryId: string) {
+    const { error } = await supabase.from('collection').delete().eq('id', entryId)
+    if (!error) await fetchCollection()
+    return { error: error?.message ?? null }
+  }
+
   async function isInCollection(movieDbId: string): Promise<boolean> {
     if (!coupleId) return false
     const { data } = await supabase
@@ -64,5 +70,5 @@ export function useCollection(coupleId: string | null) {
     return !!data
   }
 
-  return { entries, loading, error, addToCollection, updateRating, isInCollection, refetch: fetchCollection }
+  return { entries, loading, error, addToCollection, updateRating, removeFromCollection, isInCollection, refetch: fetchCollection }
 }
