@@ -305,7 +305,7 @@ export function MovieDetailPage() {
         )}
 
         {/* Où regarder */}
-        <WatchProviders tmdbId={movie.id} />
+        <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
 
         {/* Actions */}
         <div className="space-y-3 mt-6">
