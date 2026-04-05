@@ -48,14 +48,28 @@ export function useCollection(coupleId: string | null) {
       ? { rating_user1: rating, note_user1: note ?? null }
       : { rating_user2: rating, note_user2: note ?? null }
 
+    // Optimistic update — apply locally first, no refetch
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId) return e
+      return { ...e, ...updates }
+    }))
+
     const { error } = await supabase.from('collection').update(updates).eq('id', entryId)
-    if (!error) await fetchCollection()
+    if (error) {
+      // Revert on failure
+      await fetchCollection()
+    }
     return { error: error?.message ?? null }
   }
 
   async function removeFromCollection(entryId: string) {
+    // Optimistic remove
+    setEntries(prev => prev.filter(e => e.id !== entryId))
+
     const { error } = await supabase.from('collection').delete().eq('id', entryId)
-    if (!error) await fetchCollection()
+    if (error) {
+      await fetchCollection()
+    }
     return { error: error?.message ?? null }
   }
 

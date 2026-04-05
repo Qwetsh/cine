@@ -44,17 +44,26 @@ export function usePersonalCollection(userId: string | null) {
   }
 
   async function updateRating(entryId: string, rating: number, note?: string) {
+    // Optimistic update
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId) return e
+      return { ...e, rating, note: note ?? e.note }
+    }))
+
     const { error } = await supabase
       .from('personal_collection')
       .update({ rating, note: note ?? null })
       .eq('id', entryId)
-    if (!error) await fetchCollection()
+    if (error) await fetchCollection()
     return { error: error?.message ?? null }
   }
 
   async function removeFromPersonalCollection(entryId: string) {
+    // Optimistic remove
+    setEntries(prev => prev.filter(e => e.id !== entryId))
+
     const { error } = await supabase.from('personal_collection').delete().eq('id', entryId)
-    if (!error) await fetchCollection()
+    if (error) await fetchCollection()
     return { error: error?.message ?? null }
   }
 
