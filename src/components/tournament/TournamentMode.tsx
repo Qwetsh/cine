@@ -693,7 +693,7 @@ function advanceTurn(
   tournament: ReturnType<typeof useTournament>,
   gs: TournamentGameState,
   board: TournamentBoard,
-  isUser1: boolean,
+  _isUser1: boolean,
 ) {
   const newGs = { ...gs }
   newGs.turn_number++
