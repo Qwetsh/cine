@@ -1,0 +1,181 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import type { TournamentBoard, TournamentGameState } from '../lib/tournament-board'
+
+export interface TournamentSession {
+  id: string
+  couple_id: string
+  created_by: string
+  status: 'waiting' | 'generating' | 'playing' | 'center_fight' | 'done'
+  board: TournamentBoard
+  game_state: TournamentGameState
+  winner_user_id: string | null
+  created_at: string
+}
+
+export function useTournament(coupleId: string | null, userId: string | null) {
+  const [session, setSession] = useState<TournamentSession | null>(null)
+  const [loading, setLoading] = useState(true)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  const fetchSession = useCallback(async () => {
+    if (!coupleId) {
+      setSession(null)
+      setLoading(false)
+      return
+    }
+
+    const { data } = await supabase
+      .from('tournament_sessions')
+      .select('*')
+      .eq('couple_id', coupleId)
+      .in('status', ['waiting', 'generating', 'playing', 'center_fight', 'done'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    setSession(data as TournamentSession | null)
+    setLoading(false)
+  }, [coupleId])
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!coupleId) return
+
+    fetchSession()
+
+    const channel = supabase
+      .channel(`tournament:${coupleId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tournament_sessions',
+          filter: `couple_id=eq.${coupleId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setSession(null)
+          } else {
+            setSession(payload.new as TournamentSession)
+          }
+        }
+      )
+      .subscribe()
+
+    channelRef.current = channel
+
+    return () => {
+      supabase.removeChannel(channel)
+      channelRef.current = null
+    }
+  }, [coupleId, fetchSession])
+
+  // Create a new tournament session
+  const create = useCallback(async () => {
+    if (!coupleId || !userId) return
+
+    // Clean old sessions
+    await supabase
+      .from('tournament_sessions')
+      .delete()
+      .eq('couple_id', coupleId)
+      .in('status', ['waiting', 'generating', 'playing', 'center_fight'])
+
+    const { data, error } = await supabase
+      .from('tournament_sessions')
+      .insert({
+        couple_id: coupleId,
+        created_by: userId,
+        status: 'waiting',
+      })
+      .select()
+      .single()
+
+    if (!error && data) {
+      setSession(data as TournamentSession)
+    }
+  }, [coupleId, userId])
+
+  // Update session status
+  const updateStatus = useCallback(async (status: TournamentSession['status']) => {
+    if (!session) return
+    await supabase
+      .from('tournament_sessions')
+      .update({ status })
+      .eq('id', session.id)
+  }, [session])
+
+  // Set the board and initial game state (host only, after generation)
+  const setBoard = useCallback(async (
+    board: TournamentBoard,
+    gameState: TournamentGameState,
+  ) => {
+    if (!session) return
+    await supabase
+      .from('tournament_sessions')
+      .update({
+        board,
+        game_state: gameState,
+        status: 'playing',
+      })
+      .eq('id', session.id)
+  }, [session])
+
+  // Update game state (any mutation during gameplay)
+  const updateGameState = useCallback(async (gameState: TournamentGameState) => {
+    if (!session) return
+    await supabase
+      .from('tournament_sessions')
+      .update({ game_state: gameState })
+      .eq('id', session.id)
+  }, [session])
+
+  // Update game state + status together (e.g., entering center_fight or done)
+  const updateGameStateAndStatus = useCallback(async (
+    gameState: TournamentGameState,
+    status: TournamentSession['status'],
+    winnerUserId?: string,
+  ) => {
+    if (!session) return
+    const updates: Record<string, unknown> = { game_state: gameState, status }
+    if (winnerUserId) updates.winner_user_id = winnerUserId
+    await supabase
+      .from('tournament_sessions')
+      .update(updates)
+      .eq('id', session.id)
+  }, [session])
+
+  // Cancel / delete
+  const cancel = useCallback(async () => {
+    if (!session) return
+    await supabase
+      .from('tournament_sessions')
+      .delete()
+      .eq('id', session.id)
+    setSession(null)
+  }, [session])
+
+  // Dismiss finished session
+  const dismiss = useCallback(async () => {
+    if (!session) return
+    await supabase
+      .from('tournament_sessions')
+      .delete()
+      .eq('id', session.id)
+    setSession(null)
+  }, [session])
+
+  return {
+    session,
+    loading,
+    create,
+    updateStatus,
+    setBoard,
+    updateGameState,
+    updateGameStateAndStatus,
+    cancel,
+    dismiss,
+  }
+}

@@ -43,9 +43,9 @@ export interface QuizData {
   phase: 'generating' | 'countdown' | 'question' | 'reveal' | 'results'
 }
 
-// ── Helpers ──
+// ── Helpers (exported for reuse by tournament) ──
 
-function shuffle<T>(arr: T[]): T[] {
+export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -54,11 +54,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-function pickRandom<T>(arr: T[], count: number): T[] {
+export function pickRandom<T>(arr: T[], count: number): T[] {
   return shuffle(arr).slice(0, count)
 }
 
-function makeId(): string {
+export function makeId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
