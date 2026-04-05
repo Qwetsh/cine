@@ -90,7 +90,8 @@ export function useRecommendations(
 ) {
   const [results, setResults] = useState<TmdbMovie[]>([])
   const [loading, setLoading] = useState(false)
-  const fetchedRef = useRef(false)
+  const didFetchRef = useRef(false)
+  const dataKeyRef = useRef('')
 
   const refresh = useCallback(async () => {
     if (genres.length === 0) return
@@ -197,11 +198,14 @@ export function useRecommendations(
     }
   }, [collection, watchlist, genres])
 
-  // Auto-fetch on mount when enabled
+  // Auto-fetch once when data is ready (re-fetch if collection/watchlist size changes)
   useEffect(() => {
-    if (!enabled || fetchedRef.current) return
+    if (!enabled) return
     if (genres.length === 0 || (collection.length === 0 && watchlist.length === 0)) return
-    fetchedRef.current = true
+    const key = `${collection.length}-${watchlist.length}`
+    if (didFetchRef.current && dataKeyRef.current === key) return
+    didFetchRef.current = true
+    dataKeyRef.current = key
     refresh()
   }, [enabled, genres.length, collection.length, watchlist.length, refresh])
 
