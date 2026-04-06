@@ -129,7 +129,6 @@ export function SearchPage() {
             onChange={e => handleQueryChange(e.target.value)}
             placeholder={isTvMode ? 'Rechercher une série…' : PLACEHOLDERS[filters.mode]}
             className="w-full bg-[var(--color-surface)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] pl-10 pr-10 py-3 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] text-sm"
-            autoFocus
           />
           {query && (
             <button
