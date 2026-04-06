@@ -229,7 +229,7 @@ export function useTmdbSearch(showSeries = false) {
 
   const setMediaType = useCallback((mediaType: MediaType) => {
     setFilters(prev => {
-      const next = { ...prev, mediaType, mode: 'title' as SearchMode }
+      const next = { ...prev, mediaType, mode: 'title' as SearchMode, genres: [], yearRange: null, country: null }
       personIdRef.current = null
       setMatchedPerson(null)
       executeSearch(queryRef.current, next, 1, false)
