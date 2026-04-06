@@ -27,6 +27,7 @@ export function StarRating({
   const draggingRef = useRef(false)
   const startYRef = useRef(0)
   const lockedRef = useRef<'horizontal' | 'vertical' | null>(null)
+  const touchHandledRef = useRef(false)
 
   useEffect(() => {
     if (committedValue !== null && value === committedValue) {
@@ -40,7 +41,6 @@ export function StarRating({
     const rect = el.getBoundingClientRect()
     const x = clientX - rect.left
     const ratio = Math.max(0, Math.min(1, x / rect.width))
-    // Snap to nearest 0.5
     const raw = ratio * max
     return Math.max(0.5, Math.round(raw * 2) / 2)
   }, [max])
@@ -51,6 +51,7 @@ export function StarRating({
     startYRef.current = e.touches[0].clientY
     lockedRef.current = null
     draggingRef.current = true
+    touchHandledRef.current = false
   }
 
   function handleTouchMove(e: React.TouchEvent) {
@@ -86,23 +87,35 @@ export function StarRating({
     e.stopPropagation()
     draggingRef.current = false
     lockedRef.current = null
+
     if (dragValue != null) {
+      touchHandledRef.current = true
       setCommittedValue(dragValue)
       onChange?.(dragValue)
+    } else {
+      // Simple tap — let click handle it with half-star detection
+      const val = getValueFromX(e.changedTouches[0].clientX)
+      if (val) {
+        touchHandledRef.current = true
+        setCommittedValue(val)
+        onChange?.(val)
+      }
     }
     setDragValue(null)
   }
 
-  function handleStarClick(starIndex: number, e: React.MouseEvent) {
+  function handleClick(e: React.MouseEvent) {
     if (readOnly || !onChange) return
-    // Detect left/right half of the star
-    const target = e.currentTarget as HTMLElement
-    const rect = target.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const isLeftHalf = x < rect.width / 2
-    const val = isLeftHalf ? starIndex + 0.5 : starIndex + 1
-    setCommittedValue(val)
-    onChange(val)
+    // Skip if touch already handled this interaction
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false
+      return
+    }
+    const val = getValueFromX(e.clientX)
+    if (val) {
+      setCommittedValue(val)
+      onChange(val)
+    }
   }
 
   const displayValue = dragValue ?? committedValue ?? value
@@ -116,6 +129,7 @@ export function StarRating({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onClick={handleClick}
     >
       {Array.from({ length: max }).map((_, i) => {
         const fullVal = i + 1
@@ -124,11 +138,8 @@ export function StarRating({
         const isHalf = !isFull && displayValue !== null && displayValue >= halfVal
 
         return (
-          <button
+          <span
             key={i}
-            type="button"
-            disabled={readOnly}
-            onClick={(e) => handleStarClick(i, e)}
             className={[
               SIZE_CLASSES[size],
               'leading-none transition-transform relative',
@@ -136,22 +147,14 @@ export function StarRating({
             ].join(' ')}
             aria-label={`${fullVal} étoile${fullVal > 1 ? 's' : ''}`}
           >
-            {/* Empty star (background) */}
             <span className="text-[var(--color-border)]">★</span>
-            {/* Half star overlay */}
-            {isHalf && (
-              <span
-                className="absolute inset-0 overflow-hidden text-[var(--color-gold)]"
-                style={{ width: '50%' }}
-              >
-                ★
-              </span>
-            )}
-            {/* Full star overlay */}
-            {isFull && (
-              <span className="absolute inset-0 text-[var(--color-gold)]">★</span>
-            )}
-          </button>
+            <span
+              className="absolute inset-0 overflow-hidden text-[var(--color-gold)]"
+              style={{ width: isHalf ? '50%' : isFull ? '100%' : '0%' }}
+            >
+              ★
+            </span>
+          </span>
         )
       })}
     </div>
