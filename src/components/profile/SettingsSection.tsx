@@ -14,6 +14,7 @@ export function SettingsSection() {
   const { settings, update, toggleProvider, toggleCinema } = useSettings()
   const [logos, setLogos] = useState<Record<number, string>>({})
   const [logoError, setLogoError] = useState(false)
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
 
   // Fetch provider logos from TMDB
   useEffect(() => {
@@ -31,17 +32,61 @@ export function SettingsSection() {
       .catch(() => setLogoError(true))
   }, [settings.filterByStreaming])
 
+  function toggleGroup(id: string) {
+    setOpenGroup(prev => prev === id ? null : id)
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-[var(--color-text)]">Paramètres</h2>
 
-      {/* TV series toggle */}
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4">
-        <div className="flex items-center justify-between">
+      {/* ── Contenu ── */}
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+        <SectionHeader label="Contenu" icon="📺" subtitle="Ce qui s'affiche dans l'app" />
+
+        {/* Accueil */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">Page d'accueil</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => update({ homeMode: 'trending' })}
+              className={`flex-1 rounded-xl border p-2.5 text-center transition-colors ${
+                settings.homeMode !== 'forYou'
+                  ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
+                  : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
+              }`}
+            >
+              <span className="text-base block mb-0.5">🔥</span>
+              <span className={`text-xs font-medium ${
+                settings.homeMode !== 'forYou' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
+              }`}>
+                Tendances
+              </span>
+            </button>
+            <button
+              onClick={() => update({ homeMode: 'forYou' })}
+              className={`flex-1 rounded-xl border p-2.5 text-center transition-colors ${
+                settings.homeMode === 'forYou'
+                  ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
+                  : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
+              }`}
+            >
+              <span className="text-base block mb-0.5">✨</span>
+              <span className={`text-xs font-medium ${
+                settings.homeMode === 'forYou' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
+              }`}>
+                Pour vous
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Séries TV */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
           <div className="flex-1 min-w-0 pr-3">
             <p className="font-medium text-sm text-[var(--color-text)]">Séries TV</p>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Afficher les séries dans la recherche, l'accueil et la collection
+              Recherche, accueil et collection
             </p>
           </div>
           <Toggle
@@ -51,170 +96,152 @@ export function SettingsSection() {
         </div>
       </div>
 
-      {/* Streaming filter */}
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0 pr-3">
-            <p className="font-medium text-sm text-[var(--color-text)]">Filtrer par streaming</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Ne me proposer que des films dispos sur :
-            </p>
-          </div>
-          <Toggle
-            checked={settings.filterByStreaming}
-            onChange={(v) => update({ filterByStreaming: v })}
-          />
-        </div>
+      {/* ── Où regarder ── */}
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+        <SectionHeader label="Où regarder" icon="🍿" subtitle="Streaming et cinéma" />
 
-        {settings.filterByStreaming && (
-          <>
-            {logoError && (
-              <p className="text-xs text-red-400">Impossible de charger les logos des plateformes</p>
-            )}
-            <div className="space-y-2">
-              {STREAMING_PROVIDERS.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => toggleProvider(p.id)}
-                  className={`flex items-center gap-3 w-full rounded-xl px-3 py-2.5 transition-colors border ${
-                    settings.enabledProviders.includes(p.id)
-                      ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
-                      : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
-                  }`}
-                >
-                  {logos[p.id] ? (
-                    <img
-                      src={`${TMDB_IMG}${logos[p.id]}`}
-                      alt={p.name}
-                      className="w-8 h-8 rounded-lg"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-xs text-[var(--color-text-muted)]">
-                      {p.name.charAt(0)}
-                    </div>
-                  )}
-                  <span className={`text-sm font-medium ${
-                    settings.enabledProviders.includes(p.id)
-                      ? 'text-[var(--color-text)]'
-                      : 'text-[var(--color-text-muted)]'
-                  }`}>
-                    {p.name}
-                  </span>
-                  {settings.enabledProviders.includes(p.id) && (
-                    <span className="ml-auto text-[var(--color-accent)] text-sm">✓</span>
-                  )}
-                </button>
-              ))}
+        {/* Streaming toggle */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)]">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="font-medium text-sm text-[var(--color-text)]">Filtrer par streaming</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                Ne proposer que les films dispos sur mes plateformes
+              </p>
             </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
-              <div className="flex-1 min-w-0 pr-3">
-                <p className="font-medium text-sm text-[var(--color-text)]">Masquer les locations</p>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  Ne voir que ce qui est inclus dans l'abonnement
-                </p>
-              </div>
-              <Toggle
-                checked={settings.hideRentals}
-                onChange={(v) => update({ hideRentals: v })}
-              />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Mes cinés */}
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-3">
-        <div>
-          <p className="font-medium text-sm text-[var(--color-text)]">🎟️ Mes cinés</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            Sélectionne tes Kinepolis pour voir les films à l'affiche
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {KINEPOLIS_CINEMAS.map(c => {
-            const selected = settings.cinemas.includes(c.slug)
-            return (
-              <button
-                key={c.slug}
-                onClick={() => toggleCinema(c.slug)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                  selected
-                    ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40 text-[var(--color-text)]'
-                    : 'bg-[var(--color-surface-2)] border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border)]'
-                }`}
-              >
-                {selected && <span className="mr-1">✓</span>}
-                {c.name}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Home mode */}
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-3">
-        <div>
-          <p className="font-medium text-sm text-[var(--color-text)]">Accueil</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            Choisis ce qui s'affiche sur ta page d'accueil
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => update({ homeMode: 'trending' })}
-            className={`flex-1 rounded-xl border p-3 text-center transition-colors ${
-              settings.homeMode !== 'forYou'
-                ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
-                : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
-            }`}
-          >
-            <span className="text-lg block mb-1">🔥</span>
-            <span className={`text-xs font-medium ${
-              settings.homeMode !== 'forYou' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
-            }`}>
-              Tendances
-            </span>
-          </button>
-          <button
-            onClick={() => update({ homeMode: 'forYou' })}
-            className={`flex-1 rounded-xl border p-3 text-center transition-colors ${
-              settings.homeMode === 'forYou'
-                ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
-                : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
-            }`}
-          >
-            <span className="text-lg block mb-1">✨</span>
-            <span className={`text-xs font-medium ${
-              settings.homeMode === 'forYou' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
-            }`}>
-              Pour vous
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Battle color */}
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-3">
-        <p className="font-medium text-sm text-[var(--color-text)]">Couleur de combat</p>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          Ta couleur dans la barre d'énergie du duel
-        </p>
-        <div className="flex gap-2">
-          {BATTLE_COLORS.map(c => (
-            <button
-              key={c.id}
-              onClick={() => update({ battleColor: c.id })}
-              className={`flex-1 h-10 rounded-xl border-2 transition-all ${
-                settings.battleColor === c.id
-                  ? 'border-white scale-105 shadow-lg'
-                  : 'border-transparent opacity-60 hover:opacity-100'
-              }`}
-              style={{ background: c.gradient }}
-              title={c.label}
+            <Toggle
+              checked={settings.filterByStreaming}
+              onChange={(v) => update({ filterByStreaming: v })}
             />
-          ))}
+          </div>
+
+          {settings.filterByStreaming && (
+            <div className="mt-3 space-y-2">
+              {logoError && (
+                <p className="text-xs text-red-400">Impossible de charger les logos</p>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                {STREAMING_PROVIDERS.map(p => {
+                  const active = settings.enabledProviders.includes(p.id)
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => toggleProvider(p.id)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl px-2 py-2.5 transition-colors border ${
+                        active
+                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40'
+                          : 'bg-[var(--color-surface-2)] border-transparent hover:border-[var(--color-border)]'
+                      }`}
+                    >
+                      {logos[p.id] ? (
+                        <img
+                          src={`${TMDB_IMG}${logos[p.id]}`}
+                          alt={p.name}
+                          className="w-8 h-8 rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-xs text-[var(--color-text-muted)]">
+                          {p.name.charAt(0)}
+                        </div>
+                      )}
+                      <span className={`text-[10px] font-medium leading-tight text-center ${
+                        active ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'
+                      }`}>
+                        {p.name}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
+                <div className="flex-1 min-w-0 pr-3">
+                  <p className="text-sm text-[var(--color-text)]">Masquer les locations</p>
+                </div>
+                <Toggle
+                  checked={settings.hideRentals}
+                  onChange={(v) => update({ hideRentals: v })}
+                />
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Cinémas */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)]">
+          <button
+            onClick={() => toggleGroup('cinemas')}
+            className="flex items-center justify-between w-full"
+          >
+            <div>
+              <p className="font-medium text-sm text-[var(--color-text)] text-left">Mes cinés</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5 text-left">
+                {settings.cinemas.length === 0
+                  ? 'Aucun sélectionné'
+                  : `${settings.cinemas.length} cinéma${settings.cinemas.length > 1 ? 's' : ''}`}
+              </p>
+            </div>
+            <span className={`text-[var(--color-text-muted)] text-sm transition-transform ${openGroup === 'cinemas' ? 'rotate-90' : ''}`}>›</span>
+          </button>
+
+          {openGroup === 'cinemas' && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {KINEPOLIS_CINEMAS.map(c => {
+                const selected = settings.cinemas.includes(c.slug)
+                return (
+                  <button
+                    key={c.slug}
+                    onClick={() => toggleCinema(c.slug)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                      selected
+                        ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40 text-[var(--color-text)]'
+                        : 'bg-[var(--color-surface-2)] border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border)]'
+                    }`}
+                  >
+                    {selected && <span className="mr-1">✓</span>}
+                    {c.name}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Apparence ── */}
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+        <SectionHeader label="Apparence" icon="🎨" subtitle="Personnalisation visuelle" />
+
+        <div className="px-4 py-3 border-t border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">Couleur de combat</p>
+          <div className="flex gap-2">
+            {BATTLE_COLORS.map(c => (
+              <button
+                key={c.id}
+                onClick={() => update({ battleColor: c.id })}
+                className={`flex-1 h-10 rounded-xl border-2 transition-all ${
+                  settings.battleColor === c.id
+                    ? 'border-white scale-105 shadow-lg'
+                    : 'border-transparent opacity-60 hover:opacity-100'
+                }`}
+                style={{ background: c.gradient }}
+                title={c.label}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SectionHeader({ label, icon, subtitle }: { label: string; icon: string; subtitle: string }) {
+  return (
+    <div className="px-4 py-3 flex items-center gap-3">
+      <span className="text-lg">{icon}</span>
+      <div>
+        <p className="font-semibold text-sm text-[var(--color-text)]">{label}</p>
+        <p className="text-[10px] text-[var(--color-text-muted)]">{subtitle}</p>
       </div>
     </div>
   )
