@@ -49,6 +49,7 @@ export function StarRating({
 
   function handleTouchStart(e: React.TouchEvent) {
     if (readOnly || !onChange) return
+    e.stopPropagation()
     startYRef.current = e.touches[0].clientY
     lockedRef.current = null
     draggingRef.current = true
@@ -56,6 +57,7 @@ export function StarRating({
 
   function handleTouchMove(e: React.TouchEvent) {
     if (!draggingRef.current) return
+    e.stopPropagation()
 
     const dx = Math.abs(e.touches[0].clientX - (containerRef.current?.getBoundingClientRect().left ?? 0))
     const dy = Math.abs(e.touches[0].clientY - startYRef.current)
@@ -80,8 +82,9 @@ export function StarRating({
     if (star) setDragValue(star)
   }
 
-  function handleTouchEnd() {
+  function handleTouchEnd(e: React.TouchEvent) {
     if (!draggingRef.current) return
+    e.stopPropagation()
     draggingRef.current = false
     lockedRef.current = null
     if (dragValue != null) {
