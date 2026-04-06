@@ -27,6 +27,7 @@ export function StarRating({
   const draggingRef = useRef(false)
   const startYRef = useRef(0)
   const lockedRef = useRef<'horizontal' | 'vertical' | null>(null)
+  const touchCommittedRef = useRef(0)
 
   // Clear committedValue once the prop catches up
   useEffect(() => {
@@ -91,8 +92,8 @@ export function StarRating({
     draggingRef.current = false
     lockedRef.current = null
     if (dragValue != null) {
-      // Prevent the synthetic click that would overwrite the half-star
-      e.preventDefault()
+      // Mark that touch just committed a value — blocks the synthetic click
+      touchCommittedRef.current = Date.now()
       setCommittedValue(dragValue)
       onChange?.(dragValue)
     }
@@ -124,9 +125,10 @@ export function StarRating({
             type="button"
             disabled={readOnly}
             onClick={() => {
-              const starValue = fullVal
-              setCommittedValue(starValue)
-              onChange?.(starValue)
+              // Ignore synthetic click fired right after a touch drag
+              if (Date.now() - touchCommittedRef.current < 400) return
+              setCommittedValue(fullVal)
+              onChange?.(fullVal)
             }}
             className={[
               SIZE_CLASSES[size],
