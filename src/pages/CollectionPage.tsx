@@ -17,6 +17,7 @@ import { TvProviderLogos } from '../components/movie/TvProviderLogos'
 import type { CollectionMovieEntry, PersonalCollectionEntry } from '../types'
 
 type Tab = 'couple' | 'perso'
+type MediaFilter = 'all' | 'film' | 'serie'
 type SortKey = 'date' | 'rating' | 'title'
 
 export function CollectionPage() {
@@ -30,6 +31,7 @@ export function CollectionPage() {
   const tvRatings = useTvCollectionRatings(settings.showSeries ? coupleId : null)
   const tvPerso = useTvPersonalCollection(settings.showSeries ? user?.id ?? null : null)
   const [tab, setTab] = useState<Tab>(coupleId ? 'couple' : 'perso')
+  const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortKey>('date')
   const [editingNote, setEditingNote] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')
@@ -110,9 +112,16 @@ export function CollectionPage() {
     return 0
   })
 
-  const entries = tab === 'couple' ? coupleEntries : personalEntries
+  const showFilms = mediaFilter !== 'serie'
+  const showSeries = settings.showSeries && mediaFilter !== 'film'
+
+  const movieEntries = tab === 'couple' ? coupleEntries : personalEntries
+  const tvEntries = tab === 'couple' ? tvCol.entries : tvPerso.entries
+  const entries = showFilms ? movieEntries : []
   const loading = tab === 'couple' ? couple.loading : personal.loading
-  const totalCount = tab === 'couple' ? couple.entries.length : personal.entries.length
+  const totalMovies = tab === 'couple' ? couple.entries.length : personal.entries.length
+  const totalTv = showSeries ? tvEntries.length : 0
+  const totalCount = (mediaFilter !== 'serie' ? totalMovies : 0) + totalTv
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -146,14 +155,33 @@ export function CollectionPage() {
         </button>
       </div>
 
+      {/* Media filter: Films / Séries */}
+      {settings.showSeries && (
+        <div className="flex mx-4 mb-2 rounded-xl bg-[var(--color-surface-2)] p-1">
+          {(['all', 'film', 'serie'] as MediaFilter[]).map(key => (
+            <button
+              key={key}
+              onClick={() => setMediaFilter(key)}
+              className={[
+                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+                mediaFilter === key
+                  ? 'bg-[var(--color-accent)] text-white'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+              ].join(' ')}
+            >
+              {key === 'all' ? 'Tout' : key === 'film' ? 'Films' : 'Séries'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Subtitle */}
       <div className="px-4 pb-2">
         {!loading && (
           <p className="text-sm text-[var(--color-text-muted)]">
-            {tab === 'couple'
-              ? `${couple.entries.length} film${couple.entries.length !== 1 ? 's' : ''} vus ensemble`
-              : `${personal.entries.length} film${personal.entries.length !== 1 ? 's' : ''} vus en solo`}
-            {currentFilter.activeCount > 0 && ` · ${entries.length} affiché${entries.length !== 1 ? 's' : ''}`}
+            {totalCount} {mediaFilter === 'serie' ? 'série' : mediaFilter === 'film' ? 'film' : 'titre'}{totalCount !== 1 ? 's' : ''}{' '}
+            {tab === 'couple' ? 'vus ensemble' : 'vus en solo'}
+            {currentFilter.activeCount > 0 && ` · ${entries.length + (showSeries ? tvEntries.length : 0)} affiché${(entries.length + (showSeries ? tvEntries.length : 0)) !== 1 ? 's' : ''}`}
           </p>
         )}
       </div>
@@ -216,9 +244,9 @@ export function CollectionPage() {
             </button>
           )}
         </div>
-      ) : entries.length === 0 ? (
+      ) : entries.length === 0 && (!showSeries || tvEntries.length === 0) ? (
         <div className="flex flex-col items-center py-16 text-[var(--color-text-muted)]">
-          <p className="text-sm">Aucun film ne correspond aux filtres</p>
+          <p className="text-sm">Aucun résultat ne correspond aux filtres</p>
           <button onClick={currentFilter.clearAll} className="mt-2 text-xs text-[var(--color-accent)] hover:underline">
             Effacer les filtres
           </button>
@@ -227,7 +255,7 @@ export function CollectionPage() {
         /* --- COUPLE LIST --- */
         <ul className="px-4 space-y-4 pb-4">
           {/* TV series entries */}
-          {tvCol.entries.map(entry => {
+          {showSeries && tvCol.entries.map(entry => {
             const avg = tvRatings.getShowAvg(entry.tv_show.id)
             const myAvg = isUser1 ? avg.user1 : avg.user2
             const partnerAvg = isUser1 ? avg.user2 : avg.user1
@@ -282,7 +310,7 @@ export function CollectionPage() {
             )
           })}
 
-          {coupleEntries.map(entry => (
+          {showFilms && coupleEntries.map(entry => (
             <li key={entry.id}>
               <SwipeToDelete onDelete={() => couple.removeFromCollection(entry.id)}>
                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
@@ -342,7 +370,7 @@ export function CollectionPage() {
         /* --- PERSONAL LIST --- */
         <ul className="px-4 space-y-4 pb-4">
           {/* TV series perso */}
-          {tvPerso.entries.map(entry => {
+          {showSeries && tvPerso.entries.map(entry => {
             const avg = tvRatings.getShowAvg(entry.tv_show.id)
             const myAvg = isUser1 ? avg.user1 : avg.user2
 
@@ -383,7 +411,7 @@ export function CollectionPage() {
             )
           })}
 
-          {personalEntries.map(entry => (
+          {showFilms && personalEntries.map(entry => (
             <li key={entry.id}>
               <SwipeToDelete onDelete={() => personal.removeFromPersonalCollection(entry.id)}>
                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">

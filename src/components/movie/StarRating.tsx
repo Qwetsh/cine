@@ -91,6 +91,8 @@ export function StarRating({
     draggingRef.current = false
     lockedRef.current = null
     if (dragValue != null) {
+      // Prevent the synthetic click that would overwrite the half-star
+      e.preventDefault()
       setCommittedValue(dragValue)
       onChange?.(dragValue)
     }
