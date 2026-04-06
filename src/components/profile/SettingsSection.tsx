@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSettings, STREAMING_PROVIDERS, BATTLE_COLORS, KINEPOLIS_CINEMAS } from '../../hooks/useSettings'
+
+const APP_URL = 'https://qwetsh.github.io/cine/'
 
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w92'
@@ -230,6 +232,54 @@ export function SettingsSection() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Partager ── */}
+      <ShareAppCard />
+    </div>
+  )
+}
+
+function ShareAppCard() {
+  const [copied, setCopied] = useState(false)
+
+  const handleShare = useCallback(async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Ciné',
+          text: 'Rejoins-moi sur Ciné pour noter nos films et séries !',
+          url: APP_URL,
+        })
+        return
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(APP_URL)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard not available
+    }
+  }, [])
+
+  return (
+    <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+      <div className="px-4 py-4 flex items-center gap-3">
+        <span className="text-lg">🔗</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm text-[var(--color-text)]">Partager l'app</p>
+          <p className="text-[10px] text-[var(--color-text-muted)]">Invite tes amis sur Ciné</p>
+        </div>
+        <button
+          onClick={handleShare}
+          className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors flex-shrink-0"
+        >
+          {copied ? '✓ Copié' : 'Partager'}
+        </button>
       </div>
     </div>
   )
