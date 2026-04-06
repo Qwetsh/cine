@@ -140,10 +140,8 @@ export function SearchPage() {
             </button>
           )}
         </div>
-      </div>
 
-      {/* Filters — scrolls with content */}
-      <div className="px-4 space-y-3 pt-2">
+        {/* Filters */}
         <GenreChips
           genres={isTvMode ? tvGenres : genres}
           selected={filters.genres}
@@ -157,15 +155,17 @@ export function SearchPage() {
           selected={filters.country}
           onSelect={setCountry}
         />
-        <ActiveFilters
-          filters={filters}
-          genres={isTvMode ? tvGenres : genres}
-          onRemoveGenre={toggleGenre}
-          onRemoveYearRange={() => setYearRange(null)}
-          onRemoveCountry={() => setCountry(null)}
-          onClearAll={clearFilters}
-        />
       </div>
+
+      {/* Active filter pills */}
+      <ActiveFilters
+        filters={filters}
+        genres={isTvMode ? tvGenres : genres}
+        onRemoveGenre={toggleGenre}
+        onRemoveYearRange={() => setYearRange(null)}
+        onRemoveCountry={() => setCountry(null)}
+        onClearAll={clearFilters}
+      />
 
       {/* Person info card */}
       {matchedPerson && !isTvMode && (
