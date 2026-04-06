@@ -40,7 +40,6 @@ export function SearchPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const navigate = useNavigate()
   const isTvMode = filters.mediaType === 'tv'
-  const hasTvResults = isTvMode && tvResults.length > 0
 
   const hasFilters = filters.genres.length > 0 || filters.yearRange !== null || filters.country !== null
 
