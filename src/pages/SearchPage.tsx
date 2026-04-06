@@ -35,7 +35,7 @@ export function SearchPage() {
     results, tvResults, loading, hasMore, filters, matchedPerson,
     search, loadMore, setMode, setMediaType, toggleGenre, setYearRange, setCountry, clearFilters, clear, saveState,
   } = useTmdbSearch(settings.showSeries)
-  const { genres } = useGenres()
+  const { genres, tvGenres } = useGenres()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const navigate = useNavigate()
@@ -69,6 +69,7 @@ export function SearchPage() {
   function getSectionTitle() {
     if (isTvMode) {
       if (query.trim()) return `Séries pour "${query}"`
+      if (hasFilters) return 'Séries filtrées'
       return 'Séries tendances'
     }
     if (query.trim() && filters.mode === 'title') return `Résultats pour "${query}"`
@@ -82,7 +83,7 @@ export function SearchPage() {
   return (
     <div className="max-w-2xl mx-auto">
       {/* Sticky search header — compact: toggles + input only */}
-      <div className="sticky top-14 z-10 bg-[var(--color-bg)]/90 backdrop-blur px-4 pt-1 pb-2 space-y-2">
+      <div className="sticky top-14 z-10 bg-[var(--color-bg)]/90 backdrop-blur px-4 pt-0 pb-2 space-y-2">
         {/* Media type toggle — Films / Séries */}
         {settings.showSeries && (
           <div className="flex rounded-xl bg-[var(--color-surface-2)] p-1">
@@ -141,32 +142,30 @@ export function SearchPage() {
         </div>
       </div>
 
-      {/* Filters — scrolls with content, not sticky */}
-      {!isTvMode && (
-        <div className="px-4 space-y-3 pt-2">
-          <GenreChips
-            genres={genres}
-            selected={filters.genres}
-            onToggle={toggleGenre}
-          />
-          <YearFilter
-            value={filters.yearRange}
-            onChange={setYearRange}
-          />
-          <CountryChips
-            selected={filters.country}
-            onSelect={setCountry}
-          />
-          <ActiveFilters
-            filters={filters}
-            genres={genres}
-            onRemoveGenre={toggleGenre}
-            onRemoveYearRange={() => setYearRange(null)}
-            onRemoveCountry={() => setCountry(null)}
-            onClearAll={clearFilters}
-          />
-        </div>
-      )}
+      {/* Filters — scrolls with content */}
+      <div className="px-4 space-y-3 pt-2">
+        <GenreChips
+          genres={isTvMode ? tvGenres : genres}
+          selected={filters.genres}
+          onToggle={toggleGenre}
+        />
+        <YearFilter
+          value={filters.yearRange}
+          onChange={setYearRange}
+        />
+        <CountryChips
+          selected={filters.country}
+          onSelect={setCountry}
+        />
+        <ActiveFilters
+          filters={filters}
+          genres={isTvMode ? tvGenres : genres}
+          onRemoveGenre={toggleGenre}
+          onRemoveYearRange={() => setYearRange(null)}
+          onRemoveCountry={() => setCountry(null)}
+          onClearAll={clearFilters}
+        />
+      </div>
 
       {/* Person info card */}
       {matchedPerson && !isTvMode && (

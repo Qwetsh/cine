@@ -2,22 +2,41 @@ import { useEffect, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
 import type { TmdbGenre } from '../lib/tmdb'
 
-let cachedGenres: TmdbGenre[] | null = null
+let cachedMovieGenres: TmdbGenre[] | null = null
+let cachedTvGenres: TmdbGenre[] | null = null
 
 export function useGenres() {
-  const [genres, setGenres] = useState<TmdbGenre[]>(cachedGenres ?? [])
-  const [loading, setLoading] = useState(!cachedGenres)
+  const [genres, setGenres] = useState<TmdbGenre[]>(cachedMovieGenres ?? [])
+  const [tvGenres, setTvGenres] = useState<TmdbGenre[]>(cachedTvGenres ?? [])
+  const [loading, setLoading] = useState(!cachedMovieGenres)
 
   useEffect(() => {
-    if (cachedGenres) return
-    tmdb.getGenres()
-      .then(data => {
-        cachedGenres = data.genres
-        setGenres(data.genres)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+    const promises: Promise<void>[] = []
+
+    if (!cachedMovieGenres) {
+      promises.push(
+        tmdb.getGenres().then(data => {
+          cachedMovieGenres = data.genres
+          setGenres(data.genres)
+        })
+      )
+    }
+
+    if (!cachedTvGenres) {
+      promises.push(
+        tmdb.getTvGenres().then(data => {
+          cachedTvGenres = data.genres
+          setTvGenres(data.genres)
+        })
+      )
+    }
+
+    if (promises.length > 0) {
+      Promise.all(promises)
+        .catch(console.error)
+        .finally(() => setLoading(false))
+    }
   }, [])
 
-  return { genres, loading }
+  return { genres, tvGenres, loading }
 }

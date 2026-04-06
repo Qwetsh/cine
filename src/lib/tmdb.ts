@@ -338,6 +338,14 @@ export const tmdb = {
     return tmdbFetch<TmdbSearchResult>('/discover/movie', stringParams)
   },
 
+  discoverTv: (params: DiscoverParams) => {
+    const stringParams: Record<string, string> = {}
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) stringParams[key] = String(value)
+    }
+    return tmdbFetch<TmdbTvSearchResult>('/discover/tv', stringParams)
+  },
+
   // --- TV ---
 
   searchTv: (query: string, page = 1) =>

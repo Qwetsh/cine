@@ -73,8 +73,32 @@ export function useTmdbSearch(showSeries = false) {
       // --- TV-only search ---
       if (isTv) {
         let tvData: { results: TmdbTvShow[]; total_pages: number }
-        if (hasQuery) {
+
+        if (hasQuery && !hasAnyFilter) {
           tvData = await tmdb.searchTv(trimmed, page)
+        } else if (hasAnyFilter || !hasQuery) {
+          const tvDiscoverParams: Record<string, string | number | undefined> = {}
+          if (hasGenres) tvDiscoverParams.with_genres = searchFilters.genres.join(',')
+          if (hasYear) {
+            tvDiscoverParams['first_air_date.gte'] = `${searchFilters.yearRange![0]}-01-01`
+            tvDiscoverParams['first_air_date.lte'] = `${searchFilters.yearRange![1]}-12-31`
+          }
+          if (hasCountry) tvDiscoverParams.with_origin_country = searchFilters.country!
+          tvDiscoverParams['vote_count.gte'] = '10'
+          tvDiscoverParams.sort_by = 'popularity.desc'
+          tvDiscoverParams.page = page
+          tvData = await tmdb.discoverTv(tvDiscoverParams)
+          // Client-side title filter if query present
+          if (hasQuery) {
+            const lower = trimmed.toLowerCase()
+            tvData = {
+              results: tvData.results.filter(s =>
+                s.name.toLowerCase().includes(lower) ||
+                s.original_name.toLowerCase().includes(lower)
+              ),
+              total_pages: tvData.total_pages,
+            }
+          }
         } else {
           tvData = await tmdb.getTrendingTv('week')
         }
