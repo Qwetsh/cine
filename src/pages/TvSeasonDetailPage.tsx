@@ -51,6 +51,7 @@ export function TvSeasonDetailPage() {
         .maybeSingle()
       if (tvRow) {
         setDbId(tvRow.id)
+        let found = false
         if (coupleId) {
           const { data } = await supabase
             .from('tv_collection')
@@ -58,11 +59,21 @@ export function TvSeasonDetailPage() {
             .eq('couple_id', coupleId)
             .eq('tv_show_id', tvRow.id)
             .maybeSingle()
-          setInCollection(!!data)
+          if (data) found = true
         }
+        if (!found && user) {
+          const { data } = await supabase
+            .from('tv_personal_collection')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('tv_show_id', tvRow.id)
+            .maybeSingle()
+          if (data) found = true
+        }
+        setInCollection(found)
       }
     })()
-  }, [show, coupleId])
+  }, [show, coupleId, user])
 
   async function handleAddToWatchlist() {
     if (!user || !coupleId || !show) return

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
+import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
 import { StarRating } from '../components/movie/StarRating'
@@ -19,6 +20,7 @@ export function TvEpisodeDetailPage() {
   const [dbId, setDbId] = useState<string | null>(null)
   const [inCollection, setInCollection] = useState(false)
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { coupleId, isUser1, partner } = useCoupleContext()
 
   const sn = Number(seasonNumber)
@@ -50,6 +52,7 @@ export function TvEpisodeDetailPage() {
         .maybeSingle()
       if (tvRow) {
         setDbId(tvRow.id)
+        let found = false
         if (coupleId) {
           const { data } = await supabase
             .from('tv_collection')
@@ -57,11 +60,21 @@ export function TvEpisodeDetailPage() {
             .eq('couple_id', coupleId)
             .eq('tv_show_id', tvRow.id)
             .maybeSingle()
-          setInCollection(!!data)
+          if (data) found = true
         }
+        if (!found && user) {
+          const { data } = await supabase
+            .from('tv_personal_collection')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('tv_show_id', tvRow.id)
+            .maybeSingle()
+          if (data) found = true
+        }
+        setInCollection(found)
       }
     })()
-  }, [show, coupleId])
+  }, [show, coupleId, user])
 
   function goBack() {
     if (window.history.length > 1) navigate(-1)
