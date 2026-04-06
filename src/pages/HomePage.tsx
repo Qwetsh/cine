@@ -9,13 +9,14 @@ import { useCollection } from '../hooks/useCollection'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useRecommendations } from '../hooks/useRecommendations'
 import { useCoupleContext } from '../contexts/CoupleContext'
-import type { TmdbMovie } from '../lib/tmdb'
+import type { TmdbMovie, TmdbTvShow } from '../lib/tmdb'
 
 export function HomePage() {
   const { settings } = useSettings()
   const isForYou = settings.homeMode === 'forYou'
 
   const [trending, setTrending] = useState<TmdbMovie[]>([])
+  const [trendingTv, setTrendingTv] = useState<TmdbTvShow[]>([])
   const [upcoming, setUpcoming] = useState<TmdbMovie[]>([])
   const [loadingTrending, setLoadingTrending] = useState(true)
   const [loadingUpcoming, setLoadingUpcoming] = useState(true)
@@ -54,7 +55,14 @@ export function HomePage() {
     } else {
       setLoadingTrending(false)
     }
-  }, [isForYou])
+
+    // Fetch trending TV if series enabled
+    if (settings.showSeries) {
+      tmdb.getTrendingTv('week')
+        .then(data => setTrendingTv(data.results.slice(0, 10)))
+        .catch(console.error)
+    }
+  }, [isForYou, settings.showSeries])
 
   const hasData = collection.length > 0 || watchlist.length > 0
 
@@ -117,6 +125,43 @@ export function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Trending TV — horizontal scroll */}
+      {settings.showSeries && trendingTv.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between px-4 mb-3">
+            <h2 className="font-bold text-[var(--color-text)]">Séries tendances</h2>
+          </div>
+          <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
+            {trendingTv.map(show => (
+              <button
+                key={show.id}
+                onClick={() => navigate(`/tv/${show.id}`)}
+                className="flex-shrink-0 w-28 text-left group"
+              >
+                <div className="relative w-28 aspect-[2/3] rounded-xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
+                  {show.poster_path ? (
+                    <img
+                      src={getPosterUrl(show.poster_path, 'small')}
+                      alt={show.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl">📺</div>
+                  )}
+                  <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                    Série
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--color-text)] mt-1.5 line-clamp-2 leading-tight">
+                  {show.name}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main section: Tendances OR Pour vous */}
       <div>

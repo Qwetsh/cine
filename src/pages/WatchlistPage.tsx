@@ -4,17 +4,23 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useCollection } from '../hooks/useCollection'
+import { useTvWatchlist } from '../hooks/useTvWatchlist'
+import { useTvCollection } from '../hooks/useTvCollection'
 import { useLocalFilter } from '../hooks/useLocalFilter'
+import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
-import type { WatchlistMovieEntry } from '../types'
+import type { WatchlistMovieEntry, TvWatchlistEntry } from '../types'
 
 export function WatchlistPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId, partner } = useCoupleContext()
+  const { settings } = useSettings()
   const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId)
   const { addToCollection } = useCollection(coupleId)
+  const tvWatchlist = useTvWatchlist(settings.showSeries ? coupleId : null)
+  const tvCollection = useTvCollection(settings.showSeries ? coupleId : null)
   const [actionId, setActionId] = useState<string | null>(null)
 
   const {
@@ -34,6 +40,19 @@ export function WatchlistPage() {
   async function handleRemove(entryId: string) {
     setActionId(entryId)
     await removeFromWatchlist(entryId)
+    setActionId(null)
+  }
+
+  async function handleTvMarkWatched(entry: TvWatchlistEntry) {
+    setActionId(entry.id)
+    await tvCollection.addToTvCollection(entry.tv_show.id)
+    await tvWatchlist.removeFromTvWatchlist(entry.id)
+    setActionId(null)
+  }
+
+  async function handleTvRemove(entryId: string) {
+    setActionId(entryId)
+    await tvWatchlist.removeFromTvWatchlist(entryId)
     setActionId(null)
   }
 
@@ -66,7 +85,7 @@ export function WatchlistPage() {
         <h1 className="text-xl font-bold text-[var(--color-text)]">À regarder ensemble</h1>
         {!loading && (
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            {entries.length} film{entries.length !== 1 ? 's' : ''} dans la liste
+            {entries.length + tvWatchlist.entries.length} élément{(entries.length + tvWatchlist.entries.length) !== 1 ? 's' : ''} dans la liste
             {activeCount > 0 && ` · ${filtered.length} affiché${filtered.length !== 1 ? 's' : ''}`}
           </p>
         )}
@@ -77,7 +96,7 @@ export function WatchlistPage() {
           onClick={() => navigate('/search')}
           className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
         >
-          + Ajouter un film
+          + Ajouter {settings.showSeries ? 'un film ou une série' : 'un film'}
         </button>
       </div>
 
@@ -177,6 +196,70 @@ export function WatchlistPage() {
                   </button>
                   <button
                     onClick={() => handleRemove(entry.id)}
+                    disabled={actionId === entry.id}
+                    className="text-[var(--color-text-muted)] hover:text-red-400 text-xl transition-colors disabled:opacity-40"
+                    title="Retirer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+
+          {/* TV watchlist entries */}
+          {tvWatchlist.entries.map(entry => (
+            <li
+              key={`tv-${entry.id}`}
+              className="bg-[var(--color-surface)] rounded-xl overflow-hidden border border-[var(--color-border)]"
+            >
+              <div className="flex gap-3 p-3">
+                <button
+                  onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)}
+                  className="relative w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                >
+                  <img
+                    src={getPosterUrl(entry.tv_show.poster_path, 'small')}
+                    alt={`Affiche ${entry.tv_show.name}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute top-1 right-1 bg-purple-600/90 text-white text-[8px] font-bold px-1 py-0.5 rounded">
+                    Série
+                  </div>
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  <button
+                    onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)}
+                    className="text-left"
+                  >
+                    <p className="font-semibold text-[var(--color-text)] leading-tight hover:text-[var(--color-accent)] transition-colors">
+                      {entry.tv_show.name}
+                    </p>
+                  </button>
+                  <p className="text-purple-400 text-xs mt-0.5 font-medium">
+                    Saison {entry.season_number}
+                  </p>
+                  <p className="text-[var(--color-text-muted)] text-xs mt-2">
+                    Ajouté par{' '}
+                    <span className="text-[var(--color-text)]">
+                      {getAddedByLabel(entry.added_by)}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 justify-start pt-1">
+                  <button
+                    onClick={() => handleTvMarkWatched(entry)}
+                    disabled={actionId === entry.id}
+                    className="text-[var(--color-text-muted)] hover:text-green-400 text-xl transition-colors disabled:opacity-40"
+                    title="On l'a vu !"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    onClick={() => handleTvRemove(entry.id)}
                     disabled={actionId === entry.id}
                     className="text-[var(--color-text-muted)] hover:text-red-400 text-xl transition-colors disabled:opacity-40"
                     title="Retirer"

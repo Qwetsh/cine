@@ -33,6 +33,22 @@ export function SettingsSection() {
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-[var(--color-text)]">Paramètres</h2>
 
+      {/* TV series toggle */}
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="font-medium text-sm text-[var(--color-text)]">Séries TV</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Afficher les séries dans la recherche, l'accueil et la collection
+            </p>
+          </div>
+          <Toggle
+            checked={settings.showSeries}
+            onChange={(v) => update({ showSeries: v })}
+          />
+        </div>
+      </div>
+
       {/* Streaming filter */}
       <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 space-y-4">
         <div className="flex items-center justify-between">

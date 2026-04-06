@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
-import type { TmdbMovie, TmdbPersonDetail, SearchMode, SearchFilters } from '../lib/tmdb'
+import type { TmdbMovie, TmdbTvShow, TmdbPersonDetail, SearchMode, SearchFilters } from '../lib/tmdb'
 
 const DEFAULT_FILTERS: SearchFilters = {
   mode: 'title',
@@ -32,16 +32,19 @@ function loadSavedState(): { query: string; filters: SearchFilters } | null {
   } catch { return null }
 }
 
-export function useTmdbSearch() {
+export function useTmdbSearch(showSeries = false) {
   const saved = loadSavedState()
 
   const [results, setResults] = useState<TmdbMovie[]>([])
+  const [tvResults, setTvResults] = useState<TmdbTvShow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState<SearchFilters>(saved?.filters ?? DEFAULT_FILTERS)
   const [matchedPerson, setMatchedPerson] = useState<TmdbPersonDetail | null>(null)
+  const showSeriesRef = useRef(showSeries)
+  showSeriesRef.current = showSeries
 
   const queryRef = useRef(saved?.query ?? '')
   const personIdRef = useRef<number | null>(null)
@@ -144,6 +147,25 @@ export function useTmdbSearch() {
       setResults(prev => append ? [...prev, ...data.results] : data.results)
       setTotalPages(data.total_pages)
       setCurrentPage(page)
+
+      // Parallel TV search when series enabled (title mode only)
+      if (showSeriesRef.current && searchFilters.mode === 'title') {
+        if (hasQuery) {
+          tmdb.searchTv(trimmed, page).then(tvData => {
+            if (reqId !== requestIdRef.current) return
+            setTvResults(prev => append ? [...prev, ...tvData.results] : tvData.results)
+          }).catch(() => {})
+        } else if (!hasAnyFilter) {
+          tmdb.getTrendingTv('week').then(tvData => {
+            if (reqId !== requestIdRef.current) return
+            setTvResults(prev => append ? [...prev, ...tvData.results] : tvData.results)
+          }).catch(() => {})
+        } else {
+          setTvResults([])
+        }
+      } else {
+        setTvResults([])
+      }
     } catch (err) {
       if (reqId !== requestIdRef.current) return
       setError(err instanceof Error ? err.message : 'Erreur lors de la recherche')
@@ -226,6 +248,7 @@ export function useTmdbSearch() {
     personIdRef.current = null
     setMatchedPerson(null)
     setResults([])
+    setTvResults([])
     setTotalPages(0)
     setCurrentPage(1)
     sessionStorage.removeItem(STORAGE_KEY)
@@ -241,6 +264,7 @@ export function useTmdbSearch() {
 
   return {
     results,
+    tvResults,
     loading,
     error,
     hasMore: currentPage < totalPages,

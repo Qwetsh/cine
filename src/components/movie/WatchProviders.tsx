@@ -8,6 +8,7 @@ const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w92'
 interface Props {
   tmdbId: number
   releaseDate?: string // ISO date string from movie data
+  isTv?: boolean
 }
 
 interface ProviderGroup {
@@ -38,7 +39,7 @@ function getCinemaUrl(slug: string): string {
   return `https://kinepolis.fr/cinemas/${slug}`
 }
 
-export function WatchProviders({ tmdbId, releaseDate }: Props) {
+export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
   const [providers, setProviders] = useState<WatchProviderCountry | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -46,11 +47,12 @@ export function WatchProviders({ tmdbId, releaseDate }: Props) {
 
   useEffect(() => {
     setLoading(true)
-    tmdb.getWatchProviders(tmdbId)
+    const fetchProviders = isTv ? tmdb.getTvWatchProviders(tmdbId) : tmdb.getWatchProviders(tmdbId)
+    fetchProviders
       .then(data => setProviders(data.results?.FR ?? null))
       .catch(() => setProviders(null))
       .finally(() => setLoading(false))
-  }, [tmdbId])
+  }, [tmdbId, isTv])
 
   if (loading) {
     return (

@@ -13,6 +13,9 @@ import { MovieDetailPage } from './pages/MovieDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { MovieNightPage } from './pages/MovieNightPage'
 import { PersonPage } from './pages/PersonPage'
+import { TvDetailPage } from './pages/TvDetailPage'
+import { TvSeasonDetailPage } from './pages/TvSeasonDetailPage'
+import { TvEpisodeDetailPage } from './pages/TvEpisodeDetailPage'
 
 export function App() {
   return (
@@ -34,6 +37,9 @@ export function App() {
                 <Route path="pick" element={<MovieNightPage />} />
                 <Route path="movie/:id" element={<MovieDetailPage />} />
                 <Route path="person/:id" element={<PersonPage />} />
+                <Route path="tv/:id" element={<TvDetailPage />} />
+                <Route path="tv/:id/season/:seasonNumber" element={<TvSeasonDetailPage />} />
+                <Route path="tv/:id/season/:seasonNumber/episode/:episodeNumber" element={<TvEpisodeDetailPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>

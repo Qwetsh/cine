@@ -57,6 +57,8 @@ export interface Settings {
   battleColor: BattleColor
   // Home display
   homeMode: HomeMode
+  // TV series
+  showSeries: boolean
 }
 
 const STORAGE_KEY = 'cine_settings'
@@ -68,6 +70,7 @@ const defaultSettings: Settings = {
   cinemas: [],
   battleColor: 'blue',
   homeMode: 'trending',
+  showSeries: false,
 }
 
 // Cached snapshot — useSyncExternalStore requires referential stability

@@ -191,6 +191,74 @@ export interface SearchFilters {
   country: string | null
 }
 
+// --- Types TV ---
+
+export interface TmdbTvShow {
+  id: number
+  name: string
+  original_name: string
+  overview: string
+  poster_path: string | null
+  backdrop_path: string | null
+  first_air_date: string
+  vote_average: number
+  vote_count: number
+  genre_ids: number[]
+  popularity: number
+  origin_country: string[]
+}
+
+export interface TmdbSeasonSummary {
+  season_number: number
+  name: string
+  overview: string
+  poster_path: string | null
+  air_date: string | null
+  episode_count: number
+}
+
+export interface TmdbTvShowDetail extends TmdbTvShow {
+  genres: { id: number; name: string }[]
+  number_of_seasons: number
+  number_of_episodes: number
+  status: string
+  seasons: TmdbSeasonSummary[]
+  created_by: { id: number; name: string; profile_path: string | null }[]
+  credits?: {
+    cast: TmdbCastMember[]
+    crew: TmdbCrewMember[]
+  }
+}
+
+export interface TmdbSeasonDetail {
+  season_number: number
+  name: string
+  overview: string
+  poster_path: string | null
+  air_date: string | null
+  episodes: TmdbEpisode[]
+}
+
+export interface TmdbEpisode {
+  id: number
+  episode_number: number
+  name: string
+  overview: string
+  still_path: string | null
+  air_date: string | null
+  vote_average: number
+  runtime: number | null
+  guest_stars?: TmdbCastMember[]
+  crew?: TmdbCrewMember[]
+}
+
+export interface TmdbTvSearchResult {
+  page: number
+  results: TmdbTvShow[]
+  total_pages: number
+  total_results: number
+}
+
 // Common origin countries for film filtering
 export const COUNTRIES = [
   { code: 'FR', name: 'France' },
@@ -266,4 +334,27 @@ export const tmdb = {
     }
     return tmdbFetch<TmdbSearchResult>('/discover/movie', stringParams)
   },
+
+  // --- TV ---
+
+  searchTv: (query: string, page = 1) =>
+    tmdbFetch<TmdbTvSearchResult>('/search/tv', { query, page: String(page) }),
+
+  getTvShow: (id: number) =>
+    tmdbFetch<TmdbTvShowDetail>(`/tv/${id}`, { append_to_response: 'credits' }),
+
+  getTvSeason: (tvId: number, seasonNumber: number) =>
+    tmdbFetch<TmdbSeasonDetail>(`/tv/${tvId}/season/${seasonNumber}`),
+
+  getTvEpisode: (tvId: number, seasonNumber: number, episodeNumber: number) =>
+    tmdbFetch<TmdbEpisode>(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`),
+
+  getTrendingTv: (timeWindow: 'day' | 'week' = 'week') =>
+    tmdbFetch<TmdbTvSearchResult>(`/trending/tv/${timeWindow}`),
+
+  getTvGenres: () =>
+    tmdbFetch<{ genres: TmdbGenre[] }>('/genre/tv/list'),
+
+  getTvWatchProviders: (id: number) =>
+    tmdbFetch<WatchProviderResult>(`/tv/${id}/watch/providers`),
 }

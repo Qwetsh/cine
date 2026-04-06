@@ -3,15 +3,36 @@ import { useNavigate } from 'react-router-dom'
 import { PersonCard } from '../components/search/PersonCard'
 import { useTmdbSearch } from '../hooks/useTmdbSearch'
 import { useGenres } from '../hooks/useGenres'
+import { useSettings } from '../hooks/useSettings'
+import { MovieCard } from '../components/movie/MovieCard'
+import { TvCard } from '../components/movie/TvCard'
 import { MovieGrid } from '../components/movie/MovieGrid'
 import { SegmentedControl } from '../components/search/SegmentedControl'
 import { GenreChips } from '../components/search/GenreChips'
 import { YearFilter } from '../components/search/YearFilter'
 import { CountryChips } from '../components/search/CountryChips'
 import { ActiveFilters } from '../components/search/ActiveFilters'
+import type { TmdbMovie, TmdbTvShow } from '../lib/tmdb'
+
+type MixedResult = { type: 'movie'; item: TmdbMovie } | { type: 'tv'; item: TmdbTvShow }
+
+function mergeMixed(movies: TmdbMovie[], tvShows: TmdbTvShow[]): MixedResult[] {
+  const movieItems: MixedResult[] = movies.map(m => ({ type: 'movie', item: m }))
+  const tvItems: MixedResult[] = tvShows.map(s => ({ type: 'tv', item: s }))
+  // Interleave by popularity
+  const all = [...movieItems, ...tvItems]
+  all.sort((a, b) => b.item.popularity - a.item.popularity)
+  return all
+}
 
 const PLACEHOLDERS: Record<string, string> = {
   title: 'Rechercher un film…',
+  actor: 'Nom de l\'acteur…',
+  director: 'Nom du réalisateur…',
+}
+
+const PLACEHOLDERS_TV: Record<string, string> = {
+  title: 'Rechercher un film ou une série…',
   actor: 'Nom de l\'acteur…',
   director: 'Nom du réalisateur…',
 }
@@ -26,14 +47,16 @@ function getSavedQuery(): string {
 
 export function SearchPage() {
   const [query, setQuery] = useState(getSavedQuery)
+  const { settings } = useSettings()
   const {
-    results, loading, hasMore, filters, matchedPerson,
+    results, tvResults, loading, hasMore, filters, matchedPerson,
     search, loadMore, setMode, toggleGenre, setYearRange, setCountry, clearFilters, clear, saveState,
-  } = useTmdbSearch()
+  } = useTmdbSearch(settings.showSeries)
   const { genres } = useGenres()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const navigate = useNavigate()
+  const hasTvResults = settings.showSeries && tvResults.length > 0
 
   const hasFilters = filters.genres.length > 0 || filters.yearRange !== null || filters.country !== null
 
@@ -85,7 +108,7 @@ export function SearchPage() {
             type="text"
             value={query}
             onChange={e => handleQueryChange(e.target.value)}
-            placeholder={PLACEHOLDERS[filters.mode]}
+            placeholder={(settings.showSeries ? PLACEHOLDERS_TV : PLACEHOLDERS)[filters.mode]}
             className="w-full bg-[var(--color-surface)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] pl-10 pr-10 py-3 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] text-sm"
             autoFocus
           />
@@ -142,11 +165,21 @@ export function SearchPage() {
       </div>
 
       {/* Results grid */}
-      <MovieGrid
-        movies={results}
-        loading={loading}
-        onMovieClick={movie => { saveState(); navigate(`/movie/${movie.id}`) }}
-      />
+      {hasTvResults ? (
+        <MixedGrid
+          movies={results}
+          tvShows={tvResults}
+          loading={loading}
+          onMovieClick={movie => { saveState(); navigate(`/movie/${movie.id}`) }}
+          onTvClick={show => { saveState(); navigate(`/tv/${show.id}`) }}
+        />
+      ) : (
+        <MovieGrid
+          movies={results}
+          loading={loading}
+          onMovieClick={movie => { saveState(); navigate(`/movie/${movie.id}`) }}
+        />
+      )}
 
       {/* Load more */}
       {hasMore && !loading && (
@@ -158,6 +191,61 @@ export function SearchPage() {
             Voir plus
           </button>
         </div>
+      )}
+    </div>
+  )
+}
+
+function MixedGrid({
+  movies,
+  tvShows,
+  loading,
+  onMovieClick,
+  onTvClick,
+}: {
+  movies: TmdbMovie[]
+  tvShows: TmdbTvShow[]
+  loading: boolean
+  onMovieClick: (m: TmdbMovie) => void
+  onTvClick: (s: TmdbTvShow) => void
+}) {
+  const mixed = mergeMixed(movies, tvShows)
+
+  if (loading && mixed.length === 0) {
+    return (
+      <div className="grid grid-cols-3 gap-3 p-4">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} className="aspect-[2/3] bg-[var(--color-surface-2)] rounded-lg animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  if (!loading && mixed.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-muted)]">
+        <span className="text-4xl mb-3">🎬</span>
+        <p>Aucun résultat trouvé</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-3 p-4">
+      {mixed.map(item =>
+        item.type === 'movie' ? (
+          <MovieCard
+            key={`m-${item.item.id}`}
+            movie={item.item}
+            onClick={() => onMovieClick(item.item)}
+          />
+        ) : (
+          <TvCard
+            key={`tv-${item.item.id}`}
+            show={item.item}
+            onClick={() => onTvClick(item.item)}
+          />
+        )
       )}
     </div>
   )

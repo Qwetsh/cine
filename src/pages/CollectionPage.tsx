@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
+import { useTvCollection } from '../hooks/useTvCollection'
 import { useLocalFilter } from '../hooks/useLocalFilter'
+import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
@@ -18,8 +20,10 @@ export function CollectionPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId, partner, isUser1 } = useCoupleContext()
+  const { settings } = useSettings()
   const couple = useCollection(coupleId)
   const personal = usePersonalCollection(user?.id ?? null)
+  const tvCol = useTvCollection(settings.showSeries ? coupleId : null)
   const [tab, setTab] = useState<Tab>(coupleId ? 'couple' : 'perso')
   const [sort, setSort] = useState<SortKey>('date')
   const [editingNote, setEditingNote] = useState<string | null>(null)
@@ -217,6 +221,34 @@ export function CollectionPage() {
       ) : tab === 'couple' ? (
         /* --- COUPLE LIST --- */
         <ul className="px-4 space-y-4 pb-4">
+          {/* TV series entries */}
+          {tvCol.entries.map(entry => (
+            <li key={`tv-${entry.id}`}>
+              <SwipeToDelete onDelete={() => tvCol.removeFromTvCollection(entry.id)}>
+                <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    <button
+                      onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)}
+                      className="relative w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                    >
+                      <img src={getPosterUrl(entry.tv_show.poster_path, 'small')} alt={entry.tv_show.name} className="w-full h-full object-cover" loading="lazy" />
+                      <div className="absolute top-1 right-1 bg-purple-600/90 text-white text-[8px] font-bold px-1 py-0.5 rounded">Série</div>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <button onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)} className="text-left">
+                        <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.tv_show.name}</p>
+                      </button>
+                      <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
+                        {entry.tv_show.number_of_seasons} saison{(entry.tv_show.number_of_seasons ?? 0) > 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-purple-400 mt-1">Voir les détails pour noter les épisodes</p>
+                    </div>
+                  </div>
+                </div>
+              </SwipeToDelete>
+            </li>
+          ))}
+
           {coupleEntries.map(entry => (
             <li key={entry.id}>
               <SwipeToDelete onDelete={() => couple.removeFromCollection(entry.id)}>
