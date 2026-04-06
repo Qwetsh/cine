@@ -53,6 +53,10 @@ export function MovieDetailPage() {
         ])
         setOnWatchlist(!!wl.data)
         setInCollection(!!col.data)
+      } else if (user) {
+        // Solo watchlist check
+        const { data: wl } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieRow.id).maybeSingle()
+        setOnWatchlist(!!wl)
       }
 
       if (user) {
@@ -65,7 +69,7 @@ export function MovieDetailPage() {
   }, [movie, coupleId, user])
 
   async function handleAddToWatchlist() {
-    if (!user || !coupleId) { navigate('/profile'); return }
+    if (!user) { navigate('/login'); return }
     if (!movie || actionLoading) return
     setActionLoading('watchlist')
     try {
@@ -73,7 +77,7 @@ export function MovieDetailPage() {
       const { error } = await supabase.from('watchlist').insert({
         movie_id: movieDbId,
         added_by: user.id,
-        couple_id: coupleId,
+        couple_id: coupleId ?? null,
       })
       if (!error) {
         setOnWatchlist(true)
@@ -303,8 +307,8 @@ export function MovieDetailPage() {
 
         {/* Actions */}
         <div className="space-y-3 mt-6">
-          {/* Couple actions */}
-          {coupleId && (
+          {/* Watchlist + couple actions */}
+          {coupleId ? (
             <div className="flex gap-3">
               {inCollection ? (
                 <div className="flex-1 bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
@@ -333,6 +337,18 @@ export function MovieDetailPage() {
                 </>
               )}
             </div>
+          ) : (
+            <button
+              onClick={handleAddToWatchlist}
+              disabled={onWatchlist || actionLoading !== null}
+              className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
+            >
+              {actionLoading === 'watchlist'
+                ? '…'
+                : onWatchlist
+                ? '✓ Dans la liste'
+                : '+ À regarder'}
+            </button>
           )}
 
           {/* Personal action */}

@@ -97,6 +97,22 @@ export function useCouple(userId: string | null): CoupleState {
     // Mettre à jour partner_id sur les deux profils (via fonction SECURITY DEFINER)
     await supabase.rpc('link_partners', { user_a: userId, user_b: partnerUserId })
 
+    // Récupérer le couple fraîchement créé pour avoir son ID
+    const { data: newCouple } = await supabase
+      .from('couples')
+      .select('id')
+      .or('user1_id.eq.' + userId + ',user2_id.eq.' + userId)
+      .single()
+
+    // Fusionner les watchlists solo des deux partenaires dans la watchlist couple
+    if (newCouple) {
+      await supabase.rpc('merge_watchlists_on_couple', {
+        p_couple_id: newCouple.id,
+        p_user1_id: userId,
+        p_user2_id: partnerUserId,
+      })
+    }
+
     await fetchCouple()
     return { error: null }
   }

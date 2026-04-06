@@ -19,9 +19,9 @@ export function WatchlistPage() {
   const { coupleId, partner } = useCoupleContext()
   const { settings } = useSettings()
   const { recos } = useFriendsContext()
-  const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId)
+  const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId, user?.id)
   const { addToCollection } = useCollection(coupleId)
-  const tvWatchlist = useTvWatchlist(settings.showSeries ? coupleId : null)
+  const tvWatchlist = useTvWatchlist(settings.showSeries ? coupleId : null, settings.showSeries ? user?.id : null)
   const tvCollection = useTvCollection(settings.showSeries ? coupleId : null)
   const [actionId, setActionId] = useState<string | null>(null)
 
@@ -63,28 +63,10 @@ export function WatchlistPage() {
     return partner?.display_name ?? 'Partenaire'
   }
 
-  if (!coupleId) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 pt-16 text-center">
-        <div className="text-5xl mb-4">💑</div>
-        <p className="font-semibold text-[var(--color-text)] mb-2">Invitez votre partenaire d'abord</p>
-        <p className="text-[var(--color-text-muted)] text-sm mb-6">
-          La watchlist est partagée — liez vos comptes depuis votre profil.
-        </p>
-        <button
-          onClick={() => navigate('/profile')}
-          className="bg-[var(--color-accent)] text-white px-6 py-3 rounded-xl text-sm font-medium"
-        >
-          Aller au profil
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="max-w-2xl mx-auto">
       <div className="px-4 pt-6 pb-2">
-        <h1 className="text-xl font-bold text-[var(--color-text)]">À regarder ensemble</h1>
+        <h1 className="text-xl font-bold text-[var(--color-text)]">{coupleId ? 'À regarder ensemble' : 'À regarder'}</h1>
         {!loading && (
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
             {entries.length + tvWatchlist.entries.length} élément{(entries.length + tvWatchlist.entries.length) !== 1 ? 's' : ''} dans la liste
@@ -136,7 +118,7 @@ export function WatchlistPage() {
         <div className="flex flex-col items-center py-20 text-[var(--color-text-muted)]">
           <span className="text-5xl mb-4">📋</span>
           <p className="font-medium">Votre liste est vide</p>
-          <p className="text-sm mt-1">Ajoutez des films que vous voulez voir ensemble</p>
+          <p className="text-sm mt-1">Ajoutez des films que vous voulez voir</p>
           <button
             onClick={() => navigate('/search')}
             className="mt-4 bg-[var(--color-accent)] text-white px-6 py-2 rounded-xl text-sm"
@@ -185,12 +167,14 @@ export function WatchlistPage() {
                       {new Date(entry.movie.release_date).getFullYear()}
                     </p>
                   )}
-                  <p className="text-[var(--color-text-muted)] text-xs mt-2">
-                    Ajouté par{' '}
-                    <span className="text-[var(--color-text)]">
-                      {getAddedByLabel(entry.added_by)}
-                    </span>
-                  </p>
+                  {coupleId && (
+                    <p className="text-[var(--color-text-muted)] text-xs mt-2">
+                      Ajouté par{' '}
+                      <span className="text-[var(--color-text)]">
+                        {getAddedByLabel(entry.added_by)}
+                      </span>
+                    </p>
+                  )}
                   {entry.note && (
                     <p className="text-[var(--color-text-muted)] text-xs mt-1 italic">
                       "{entry.note}"
@@ -254,12 +238,14 @@ export function WatchlistPage() {
                   <p className="text-purple-400 text-xs mt-0.5 font-medium">
                     Saison {entry.season_number}
                   </p>
-                  <p className="text-[var(--color-text-muted)] text-xs mt-2">
-                    Ajouté par{' '}
-                    <span className="text-[var(--color-text)]">
-                      {getAddedByLabel(entry.added_by)}
-                    </span>
-                  </p>
+                  {coupleId && (
+                    <p className="text-[var(--color-text-muted)] text-xs mt-2">
+                      Ajouté par{' '}
+                      <span className="text-[var(--color-text)]">
+                        {getAddedByLabel(entry.added_by)}
+                      </span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2 justify-start pt-1">
