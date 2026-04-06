@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
-import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
 import { StarRating } from '../components/movie/StarRating'
@@ -19,7 +18,6 @@ export function TvEpisodeDetailPage() {
   const [loading, setLoading] = useState(true)
   const [dbId, setDbId] = useState<string | null>(null)
   const navigate = useNavigate()
-  const { user } = useAuth()
   const { coupleId, isUser1, partner } = useCoupleContext()
 
   const sn = Number(seasonNumber)
