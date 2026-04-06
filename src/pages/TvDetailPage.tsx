@@ -90,22 +90,6 @@ export function TvDetailPage() {
     }
   }
 
-  async function handleAddSeasonToWatchlist(seasonNumber: number) {
-    if (!user || !coupleId || !show) return
-    try {
-      const tvShowDbId = await ensureTvShow(show)
-      setDbId(tvShowDbId)
-      const { error } = await supabase.from('tv_watchlist').insert({
-        tv_show_id: tvShowDbId,
-        season_number: seasonNumber,
-        added_by: user.id,
-        couple_id: coupleId,
-      })
-      if (!error) showToast(`Saison ${seasonNumber} ajoutée à voir ✓`)
-    } catch (e) {
-      console.error(e)
-    }
-  }
 
   function goBack() {
     if (window.history.length > 1) navigate(-1)
@@ -345,17 +329,6 @@ export function TvDetailPage() {
                       <span className="text-[var(--color-text-muted)] text-sm">›</span>
                     </button>
 
-                    {/* Add to watchlist button */}
-                    {coupleId && (
-                      <div className="border-t border-[var(--color-border)] px-3 py-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleAddSeasonToWatchlist(season.season_number) }}
-                          className="text-xs text-[var(--color-accent)] hover:underline"
-                        >
-                          + Ajouter saison {season.season_number} à voir
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )
               })}

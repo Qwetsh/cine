@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
+import { ensureTvShow } from '../lib/tvShows'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
@@ -16,6 +17,7 @@ export function TvSeasonDetailPage() {
   const [loading, setLoading] = useState(true)
   const [dbId, setDbId] = useState<string | null>(null)
   const [inCollection, setInCollection] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId, isUser1 } = useCoupleContext()
@@ -62,6 +64,25 @@ export function TvSeasonDetailPage() {
     })()
   }, [show, coupleId])
 
+  async function handleAddToWatchlist() {
+    if (!user || !coupleId || !show) return
+    try {
+      const tvShowDbId = await ensureTvShow(show)
+      const { error } = await supabase.from('tv_watchlist').insert({
+        tv_show_id: tvShowDbId,
+        season_number: sn,
+        added_by: user.id,
+        couple_id: coupleId,
+      })
+      if (!error) {
+        setToast('Saison ajoutée à voir ✓')
+        setTimeout(() => setToast(null), 3000)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   function goBack() {
     if (window.history.length > 1) navigate(-1)
     else navigate(`/tv/${id}`)
@@ -93,6 +114,12 @@ export function TvSeasonDetailPage() {
 
   return (
     <div className="max-w-2xl mx-auto pb-6">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white text-sm px-4 py-2 rounded-full shadow-lg">
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 pt-4">
         <button onClick={goBack} className="text-[var(--color-accent)] text-sm mb-3">
@@ -113,6 +140,14 @@ export function TvSeasonDetailPage() {
               {season.episodes.length} épisode{season.episodes.length > 1 ? 's' : ''}
               {season.air_date && ` · ${new Date(season.air_date).getFullYear()}`}
             </p>
+            {coupleId && (
+              <button
+                onClick={handleAddToWatchlist}
+                className="text-xs text-[var(--color-accent)] hover:underline mt-1"
+              >
+                + Ajouter à voir
+              </button>
+            )}
             {seasonAvg !== null && (
               <p className="text-sm text-[var(--color-gold)] mt-1">★ {seasonAvg}/10</p>
             )}

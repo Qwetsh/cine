@@ -9,7 +9,12 @@ interface Provider {
   logo_path: string
 }
 
-export function TvProviderLogos({ tmdbId }: { tmdbId: number }) {
+interface Props {
+  tmdbId: number
+  overlay?: boolean
+}
+
+export function TvProviderLogos({ tmdbId, overlay }: Props) {
   const [providers, setProviders] = useState<Provider[]>([])
 
   useEffect(() => {
@@ -22,6 +27,22 @@ export function TvProviderLogos({ tmdbId }: { tmdbId: number }) {
   }, [tmdbId])
 
   if (providers.length === 0) return null
+
+  if (overlay) {
+    return (
+      <div className="flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-1.5 py-1">
+        {providers.map(p => (
+          <img
+            key={p.provider_id}
+            src={`${TMDB_IMAGE}${p.logo_path}`}
+            alt={p.provider_name}
+            title={p.provider_name}
+            className="w-4 h-4 rounded-sm"
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center gap-1.5 mt-2">

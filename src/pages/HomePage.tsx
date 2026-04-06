@@ -9,6 +9,7 @@ import { useCollection } from '../hooks/useCollection'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useRecommendations } from '../hooks/useRecommendations'
 import { useCoupleContext } from '../contexts/CoupleContext'
+import { TvProviderLogos } from '../components/movie/TvProviderLogos'
 import type { TmdbMovie, TmdbTvShow } from '../lib/tmdb'
 
 export function HomePage() {
@@ -152,6 +153,9 @@ export function HomePage() {
                   )}
                   <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
                     Série
+                  </div>
+                  <div className="absolute bottom-1.5 left-1.5">
+                    <TvProviderLogos tmdbId={show.id} overlay />
                   </div>
                 </div>
                 <p className="text-xs text-[var(--color-text)] mt-1.5 line-clamp-2 leading-tight">

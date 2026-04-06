@@ -184,8 +184,11 @@ export interface DiscoverParams {
   with_origin_country?: string
 }
 
+export type MediaType = 'movie' | 'tv'
+
 export interface SearchFilters {
   mode: SearchMode
+  mediaType: MediaType
   genres: number[]
   yearRange: [number, number] | null
   country: string | null

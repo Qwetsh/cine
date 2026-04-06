@@ -1,4 +1,5 @@
 import { getPosterUrl } from '../../lib/tmdb'
+import { TvProviderLogos } from './TvProviderLogos'
 import type { TmdbTvShow } from '../../lib/tmdb'
 
 interface TvCardProps {
@@ -30,6 +31,10 @@ export function TvCard({ show, onClick }: TvCardProps) {
         {/* Badge série */}
         <div className="absolute top-2 right-2 bg-purple-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
           Série
+        </div>
+        {/* Provider logos */}
+        <div className="absolute bottom-1.5 left-1.5">
+          <TvProviderLogos tmdbId={show.id} overlay />
         </div>
       </div>
 
