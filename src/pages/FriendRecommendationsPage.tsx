@@ -133,7 +133,7 @@ export function FriendRecommendationsPage() {
               {/* Poster */}
               {item.posterPath ? (
                 <img
-                  src={getPosterUrl(item.posterPath, 'sm')}
+                  src={getPosterUrl(item.posterPath, 'small')}
                   alt={item.title}
                   className="w-12 h-18 rounded-lg object-cover flex-shrink-0"
                 />
