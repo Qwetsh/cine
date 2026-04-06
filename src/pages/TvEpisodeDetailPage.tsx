@@ -17,6 +17,7 @@ export function TvEpisodeDetailPage() {
   const [show, setShow] = useState<TmdbTvShowDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [dbId, setDbId] = useState<string | null>(null)
+  const [inCollection, setInCollection] = useState(false)
   const navigate = useNavigate()
   const { coupleId, isUser1, partner } = useCoupleContext()
 
@@ -38,16 +39,29 @@ export function TvEpisodeDetailPage() {
       .finally(() => setLoading(false))
   }, [id, seasonNumber, episodeNumber, sn, en])
 
-  // Get DB id
+  // Get DB id + check collection
   useEffect(() => {
     if (!show) return
-    supabase
-      .from('tv_shows')
-      .select('id')
-      .eq('tmdb_id', show.id)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setDbId(data.id) })
-  }, [show])
+    ;(async () => {
+      const { data: tvRow } = await supabase
+        .from('tv_shows')
+        .select('id')
+        .eq('tmdb_id', show.id)
+        .maybeSingle()
+      if (tvRow) {
+        setDbId(tvRow.id)
+        if (coupleId) {
+          const { data } = await supabase
+            .from('tv_collection')
+            .select('id')
+            .eq('couple_id', coupleId)
+            .eq('tv_show_id', tvRow.id)
+            .maybeSingle()
+          setInCollection(!!data)
+        }
+      }
+    })()
+  }, [show, coupleId])
 
   function goBack() {
     if (window.history.length > 1) navigate(-1)
@@ -122,24 +136,32 @@ export function TvEpisodeDetailPage() {
           </div>
         )}
 
-        {/* Rating section */}
-        <div className="mt-6 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 space-y-3">
-          <h2 className="font-semibold text-[var(--color-text)]">Ma note</h2>
-          <StarRating
-            value={myRating ?? null}
-            onChange={(r) => rateEpisode(sn, en, isUser1, r)}
-            size="lg"
-          />
+        {/* Rating section — only if in collection */}
+        {inCollection ? (
+          <div className="mt-6 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 space-y-3">
+            <h2 className="font-semibold text-[var(--color-text)]">Ma note</h2>
+            <StarRating
+              value={myRating ?? null}
+              onChange={(r) => rateEpisode(sn, en, isUser1, r)}
+              size="lg"
+            />
 
-          {partnerRating != null && (
-            <div className="pt-2 border-t border-[var(--color-border)]">
-              <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                {partner?.display_name ?? 'Partenaire'}
-              </p>
-              <StarRating value={partnerRating} readOnly size="md" max={10} />
-            </div>
-          )}
-        </div>
+            {partnerRating != null && (
+              <div className="pt-2 border-t border-[var(--color-border)]">
+                <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                  {partner?.display_name ?? 'Partenaire'}
+                </p>
+                <StarRating value={partnerRating} readOnly size="md" max={10} />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-6 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4 text-center">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Ajoutez cette série a la collection pour noter les épisodes
+            </p>
+          </div>
+        )}
 
         {/* Guest stars */}
         {guestStars.length > 0 && (

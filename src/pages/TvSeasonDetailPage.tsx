@@ -15,6 +15,7 @@ export function TvSeasonDetailPage() {
   const [show, setShow] = useState<TmdbTvShowDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [dbId, setDbId] = useState<string | null>(null)
+  const [inCollection, setInCollection] = useState(false)
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId, isUser1 } = useCoupleContext()
@@ -37,16 +38,29 @@ export function TvSeasonDetailPage() {
       .finally(() => setLoading(false))
   }, [id, seasonNumber, sn])
 
-  // Get DB id
+  // Get DB id + check collection
   useEffect(() => {
     if (!show) return
-    supabase
-      .from('tv_shows')
-      .select('id')
-      .eq('tmdb_id', show.id)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setDbId(data.id) })
-  }, [show])
+    ;(async () => {
+      const { data: tvRow } = await supabase
+        .from('tv_shows')
+        .select('id')
+        .eq('tmdb_id', show.id)
+        .maybeSingle()
+      if (tvRow) {
+        setDbId(tvRow.id)
+        if (coupleId) {
+          const { data } = await supabase
+            .from('tv_collection')
+            .select('id')
+            .eq('couple_id', coupleId)
+            .eq('tv_show_id', tvRow.id)
+            .maybeSingle()
+          setInCollection(!!data)
+        }
+      }
+    })()
+  }, [show, coupleId])
 
   function goBack() {
     if (window.history.length > 1) navigate(-1)
@@ -109,8 +123,8 @@ export function TvSeasonDetailPage() {
           <p className="text-[var(--color-text-muted)] text-sm leading-relaxed mt-3">{season.overview}</p>
         )}
 
-        {/* Vu ensemble / solo toggle */}
-        {coupleId && (
+        {/* Vu ensemble / solo toggle — only if in collection */}
+        {coupleId && inCollection && (
           <div className="flex gap-2 mt-4">
             <button
               onClick={() => seasonStatus?.watched_type === 'couple' ? unmarkSeason(sn) : markSeason(sn, 'couple')}
@@ -179,21 +193,23 @@ export function TvSeasonDetailPage() {
                   <span className="text-[var(--color-text-muted)] text-sm mt-1">›</span>
                 </button>
 
-                {/* Inline rating */}
-                <div className="border-t border-[var(--color-border)] px-3 py-2 flex items-center gap-3">
-                  <div className="flex-1">
-                    <StarRating
-                      value={myRating ?? null}
-                      onChange={(r) => rateEpisode(sn, ep.episode_number, isUser1, r)}
-                      size="sm"
-                    />
-                  </div>
-                  {partnerRating != null && (
-                    <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-                      <StarRating value={partnerRating} readOnly size="sm" max={10} />
+                {/* Inline rating — only if in collection */}
+                {inCollection && (
+                  <div className="border-t border-[var(--color-border)] px-3 py-2 flex items-center gap-3">
+                    <div className="flex-1">
+                      <StarRating
+                        value={myRating ?? null}
+                        onChange={(r) => rateEpisode(sn, ep.episode_number, isUser1, r)}
+                        size="sm"
+                      />
                     </div>
-                  )}
-                </div>
+                    {partnerRating != null && (
+                      <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                        <StarRating value={partnerRating} readOnly size="sm" max={10} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
