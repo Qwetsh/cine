@@ -141,20 +141,24 @@ export function SearchPage() {
           )}
         </div>
 
-        {/* Filters */}
-        <GenreChips
-          genres={isTvMode ? tvGenres : genres}
-          selected={filters.genres}
-          onToggle={toggleGenre}
-        />
-        <YearFilter
-          value={filters.yearRange}
-          onChange={setYearRange}
-        />
-        <CountryChips
-          selected={filters.country}
-          onSelect={setCountry}
-        />
+        {/* Filters — only in title/TV mode, not actor/director */}
+        {(isTvMode || filters.mode === 'title') && (
+          <>
+            <GenreChips
+              genres={isTvMode ? tvGenres : genres}
+              selected={filters.genres}
+              onToggle={toggleGenre}
+            />
+            <YearFilter
+              value={filters.yearRange}
+              onChange={setYearRange}
+            />
+            <CountryChips
+              selected={filters.country}
+              onSelect={setCountry}
+            />
+          </>
+        )}
       </div>
 
       {/* Active filter pills */}
