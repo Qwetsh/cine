@@ -49,24 +49,19 @@ export function StarRating({
 
   function handleTouchStart(e: React.TouchEvent) {
     if (readOnly || !onChange) return
-    e.stopPropagation()
     startYRef.current = e.touches[0].clientY
     lockedRef.current = null
     draggingRef.current = true
-    // Don't set dragValue yet — wait for direction lock
   }
 
   function handleTouchMove(e: React.TouchEvent) {
     if (!draggingRef.current) return
-    e.stopPropagation()
 
     const dx = Math.abs(e.touches[0].clientX - (containerRef.current?.getBoundingClientRect().left ?? 0))
     const dy = Math.abs(e.touches[0].clientY - startYRef.current)
 
-    // Lock direction after small movement
     if (!lockedRef.current) {
       if (dy > 8) {
-        // Vertical scroll — abort star drag entirely
         lockedRef.current = 'vertical'
         draggingRef.current = false
         setDragValue(null)
@@ -75,24 +70,21 @@ export function StarRating({
       if (dx > 4) {
         lockedRef.current = 'horizontal'
       } else {
-        return // Wait for enough movement to decide
+        return
       }
     }
 
     if (lockedRef.current !== 'horizontal') return
 
-    e.preventDefault()
     const star = getStarFromX(e.touches[0].clientX)
     if (star) setDragValue(star)
   }
 
-  function handleTouchEnd(e: React.TouchEvent) {
+  function handleTouchEnd() {
     if (!draggingRef.current) return
-    e.stopPropagation()
     draggingRef.current = false
     lockedRef.current = null
     if (dragValue != null) {
-      // Mark that touch just committed a value — blocks the synthetic click
       touchCommittedRef.current = Date.now()
       setCommittedValue(dragValue)
       onChange?.(dragValue)
