@@ -316,7 +316,7 @@ export function TvDetailPage() {
           )}
 
           {/* Recommander à un ami */}
-          <RecommendButton movieId={null} tvShowId={show.id} title={show.name} />
+          <RecommendButton movieId={null} tvShowId={show.id} title={show.name} onBeforeSend={() => ensureTvShow(show).then(() => {})} />
         </div>
 
         {/* Saisons */}

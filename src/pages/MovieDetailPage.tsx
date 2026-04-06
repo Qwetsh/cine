@@ -367,7 +367,7 @@ export function MovieDetailPage() {
           )}
 
           {/* Recommander à un ami */}
-          <RecommendButton movieId={movie.id} tvShowId={null} title={movie.title} />
+          <RecommendButton movieId={movie.id} tvShowId={null} title={movie.title} onBeforeSend={() => ensureMovie(movie).then(() => {})} />
         </div>
       </div>
     </div>

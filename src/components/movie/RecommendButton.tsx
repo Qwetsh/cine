@@ -5,9 +5,10 @@ interface Props {
   movieId: number | null
   tvShowId: number | null
   title: string
+  onBeforeSend?: () => Promise<void>
 }
 
-export function RecommendButton({ movieId, tvShowId, title }: Props) {
+export function RecommendButton({ movieId, tvShowId, title, onBeforeSend }: Props) {
   const { friends, recos } = useFriendsContext()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -43,6 +44,12 @@ export function RecommendButton({ movieId, tvShowId, title }: Props) {
   async function handleSend() {
     if (selected.size === 0) return
     setSending(true)
+    try {
+      if (onBeforeSend) await onBeforeSend()
+    } catch {
+      setSending(false)
+      return
+    }
     const { error } = await recos.sendRecommendation(
       [...selected],
       movieId,
