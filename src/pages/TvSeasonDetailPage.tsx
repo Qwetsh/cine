@@ -160,7 +160,7 @@ export function TvSeasonDetailPage() {
               </button>
             )}
             {seasonAvg !== null && (
-              <p className="text-sm text-[var(--color-gold)] mt-1">★ {seasonAvg}/10</p>
+              <p className="text-sm text-[var(--color-gold)] mt-1">★ {seasonAvg}/5</p>
             )}
           </div>
         </div>
@@ -251,7 +251,7 @@ export function TvSeasonDetailPage() {
                     </div>
                     {partnerRating != null && (
                       <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-                        <StarRating value={partnerRating} readOnly size="sm" max={10} />
+                        <StarRating value={partnerRating} readOnly size="sm" />
                       </div>
                     )}
                   </div>

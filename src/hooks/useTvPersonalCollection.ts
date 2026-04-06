@@ -22,7 +22,7 @@ export function useTvPersonalCollection(userId: string | null) {
 
     if (!error && data) {
       setEntries(
-        ((data as unknown as TvPersonalCollectionEntry[]) ?? []).filter(e => e.tv_show != null)
+        (data as unknown as TvPersonalCollectionEntry[] ?? []).filter(e => e.tv_show != null)
       )
     }
     setLoading(false)

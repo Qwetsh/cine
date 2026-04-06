@@ -25,7 +25,7 @@ export function usePersonalCollection(userId: string | null) {
     if (error) {
       setError(error.message)
     } else {
-      setEntries(((data as unknown as PersonalCollectionEntry[]) ?? []).filter(e => e.movie != null))
+      setEntries((data as unknown as PersonalCollectionEntry[] ?? []).filter(e => e.movie != null))
     }
     setLoading(false)
   }, [userId])

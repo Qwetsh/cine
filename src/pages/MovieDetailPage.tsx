@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { tmdb, getBackdropUrl, getPosterUrl } from '../lib/tmdb'
 import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
+import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
@@ -16,17 +17,17 @@ export function MovieDetailPage() {
   const [inCollection, setInCollection] = useState(false)
   const [inPersonal, setInPersonal] = useState(false)
   const [actionLoading, setActionLoading] = useState<'watchlist' | 'collection' | 'personal' | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
+  const { toast, showToast } = useToast()
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
     tmdb.getMovie(Number(id))
       .then(setMovie)
-      .catch(console.error)
+      .catch(() => setLoading(false))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -61,18 +62,6 @@ export function MovieDetailPage() {
     checkStatus()
   }, [movie, coupleId, user])
 
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  useEffect(() => {
-    return () => { if (toastTimer.current) clearTimeout(toastTimer.current) }
-  }, [])
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg)
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 3000)
-  }, [])
-
   async function handleAddToWatchlist() {
     if (!user || !coupleId) { navigate('/profile'); return }
     if (!movie || actionLoading) return
@@ -88,8 +77,8 @@ export function MovieDetailPage() {
         setOnWatchlist(true)
         showToast('Ajouté à la liste ✓')
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      showToast('Erreur lors de l\'ajout à la liste')
     } finally {
       setActionLoading(null)
     }
@@ -123,8 +112,8 @@ export function MovieDetailPage() {
         setInCollection(true)
         showToast('Ajouté à la collection ✓')
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      showToast('Erreur lors de l\'ajout à la collection')
     } finally {
       setActionLoading(null)
     }
@@ -145,8 +134,8 @@ export function MovieDetailPage() {
         setInPersonal(true)
         showToast('Ajouté à ta collection perso ✓')
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      showToast('Erreur lors de l\'ajout à ta collection perso')
     } finally {
       setActionLoading(null)
     }

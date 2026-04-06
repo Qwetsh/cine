@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { tmdb, getBackdropUrl, getPosterUrl } from '../lib/tmdb'
 import { ensureTvShow } from '../lib/tvShows'
@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
 import { useTvSeasonStatus } from '../hooks/useTvSeasonStatus'
+import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
 import { supabase } from '../lib/supabase'
 import type { TmdbTvShowDetail } from '../lib/tmdb'
@@ -17,11 +18,11 @@ export function TvDetailPage() {
   const [inCollection, setInCollection] = useState(false)
   const [inPersonal, setInPersonal] = useState(false)
   const [actionLoading, setActionLoading] = useState<'collection' | 'personal' | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [dbId, setDbId] = useState<string | null>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
+  const { toast, showToast } = useToast()
 
   const { getSeasonAvg, getSeriesAvg } = useTvEpisodeRatings(dbId, coupleId)
   const { getSeasonStatus } = useTvSeasonStatus(dbId, coupleId, user?.id ?? null)
@@ -31,7 +32,7 @@ export function TvDetailPage() {
     setLoading(true)
     tmdb.getTvShow(Number(id))
       .then(setShow)
-      .catch(console.error)
+      .catch(() => setLoading(false))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -69,15 +70,6 @@ export function TvDetailPage() {
     })()
   }, [show, coupleId, user])
 
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg)
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 3000)
-  }, [])
-
   async function handleAddToCollection() {
     if (!user || !coupleId) { navigate('/profile'); return }
     if (!show || actionLoading) return
@@ -93,8 +85,8 @@ export function TvDetailPage() {
         setInCollection(true)
         showToast('Série ajoutée à la collection ✓')
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      showToast('Erreur lors de l\'ajout à la collection')
     } finally {
       setActionLoading(null)
     }
@@ -116,13 +108,12 @@ export function TvDetailPage() {
         setInPersonal(true)
         showToast('Ajouté à ta collection perso ✓')
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      showToast('Erreur lors de l\'ajout à ta collection perso')
     } finally {
       setActionLoading(null)
     }
   }
-
 
   function goBack() {
     if (window.history.length > 1) navigate(-1)
@@ -210,7 +201,7 @@ export function TvDetailPage() {
                 <span className="text-[var(--color-gold)]">★ {show.vote_average.toFixed(1)}</span>
               )}
               {seriesAvg !== null && (
-                <span className="text-[var(--color-accent)]">Notre note : {seriesAvg}/10</span>
+                <span className="text-[var(--color-accent)]">Notre note : {seriesAvg}/5</span>
               )}
             </div>
           </div>
@@ -357,7 +348,7 @@ export function TvDetailPage() {
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           {seasonAvg !== null && (
-                            <span className="text-xs text-[var(--color-gold)]">★ {seasonAvg}/10</span>
+                            <span className="text-xs text-[var(--color-gold)]">★ {seasonAvg}/5</span>
                           )}
                           {status && (
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${

@@ -164,7 +164,7 @@ export function TvEpisodeDetailPage() {
                 <p className="text-xs text-[var(--color-text-muted)] mb-1">
                   {partner?.display_name ?? 'Partenaire'}
                 </p>
-                <StarRating value={partnerRating} readOnly size="md" max={10} />
+                <StarRating value={partnerRating} readOnly size="md" />
               </div>
             )}
           </div>

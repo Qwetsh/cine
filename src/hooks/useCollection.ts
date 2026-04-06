@@ -25,7 +25,7 @@ export function useCollection(coupleId: string | null) {
     if (error) {
       setError(error.message)
     } else {
-      setEntries(((data as unknown as CollectionMovieEntry[]) ?? []).filter(e => e.movie != null))
+      setEntries((data as unknown as CollectionMovieEntry[] ?? []).filter(e => e.movie != null))
     }
     setLoading(false)
   }, [coupleId])

@@ -26,7 +26,7 @@ export function useTvCollection(coupleId: string | null) {
       setError(error.message)
     } else {
       setEntries(
-        ((data as unknown as TvCollectionEntry[]) ?? []).filter(e => e.tv_show != null)
+        (data as unknown as TvCollectionEntry[] ?? []).filter(e => e.tv_show != null)
       )
     }
     setLoading(false)

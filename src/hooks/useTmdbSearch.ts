@@ -10,6 +10,33 @@ const DEFAULT_FILTERS: SearchFilters = {
   country: null,
 }
 
+type PagedResult<T> = { results: T[]; total_pages: number }
+
+interface SearchContext {
+  trimmed: string
+  hasQuery: boolean
+  hasGenres: boolean
+  hasYear: boolean
+  hasCountry: boolean
+  hasAnyFilter: boolean
+  filters: SearchFilters
+  page: number
+}
+
+function buildContext(query: string, filters: SearchFilters, page: number): SearchContext {
+  const trimmed = query.trim()
+  return {
+    trimmed,
+    hasQuery: trimmed !== '',
+    hasGenres: filters.genres.length > 0,
+    hasYear: filters.yearRange !== null,
+    hasCountry: filters.country !== null,
+    hasAnyFilter: filters.genres.length > 0 || filters.yearRange !== null || filters.country !== null,
+    filters,
+    page,
+  }
+}
+
 function applyClientFilters(movies: TmdbMovie[], filters: SearchFilters): TmdbMovie[] {
   return movies.filter(movie => {
     if (filters.genres.length > 0) {
@@ -21,6 +48,126 @@ function applyClientFilters(movies: TmdbMovie[], filters: SearchFilters): TmdbMo
     }
     return true
   })
+}
+
+async function searchTv(ctx: SearchContext): Promise<PagedResult<TmdbTvShow>> {
+  const { trimmed, hasQuery, hasAnyFilter, filters, page } = ctx
+
+  if (hasQuery && !hasAnyFilter) {
+    return tmdb.searchTv(trimmed, page)
+  }
+
+  if (hasAnyFilter || !hasQuery) {
+    const params: Record<string, string | number | undefined> = {}
+    if (ctx.hasGenres) params.with_genres = filters.genres.join(',')
+    if (ctx.hasYear) {
+      params['first_air_date.gte'] = `${filters.yearRange![0]}-01-01`
+      params['first_air_date.lte'] = `${filters.yearRange![1]}-12-31`
+    }
+    if (ctx.hasCountry) params.with_origin_country = filters.country!
+    params['vote_count.gte'] = '10'
+    params.sort_by = 'popularity.desc'
+    params.page = page
+
+    const data = await tmdb.discoverTv(params)
+    if (!hasQuery) return data
+
+    const lower = trimmed.toLowerCase()
+    return {
+      results: data.results.filter(s =>
+        s.name.toLowerCase().includes(lower) ||
+        s.original_name.toLowerCase().includes(lower)
+      ),
+      total_pages: data.total_pages,
+    }
+  }
+
+  return tmdb.getTrendingTv('week')
+}
+
+async function searchMovies(
+  ctx: SearchContext,
+  personIdRef: React.MutableRefObject<number | null>,
+  setMatchedPerson: (p: TmdbPersonDetail | null) => void,
+  reqId: number,
+  requestIdRef: React.MutableRefObject<number>,
+): Promise<PagedResult<TmdbMovie> | null> {
+  const { trimmed, hasQuery, hasAnyFilter, hasCountry, filters, page } = ctx
+
+  const discoverParams: Record<string, string | number | undefined> = {}
+  if (ctx.hasGenres) discoverParams.with_genres = filters.genres.join(',')
+  if (ctx.hasYear) {
+    discoverParams['primary_release_date.gte'] = `${filters.yearRange![0]}-01-01`
+    discoverParams['primary_release_date.lte'] = `${filters.yearRange![1]}-12-31`
+  }
+  if (hasCountry) discoverParams.with_origin_country = filters.country!
+  discoverParams['vote_count.gte'] = '10'
+  discoverParams.page = page
+
+  // Title search without filters
+  if (filters.mode === 'title' && hasQuery && !hasAnyFilter) {
+    return tmdb.searchMovies(trimmed, page)
+  }
+
+  // Title search with non-country filters (client-side filtering)
+  if (filters.mode === 'title' && hasQuery && hasAnyFilter && !hasCountry) {
+    const raw = await tmdb.searchMovies(trimmed, page)
+    return {
+      results: applyClientFilters(raw.results, filters),
+      total_pages: raw.total_pages,
+    }
+  }
+
+  // Title search with country filter (discover + client title filter)
+  if (filters.mode === 'title' && hasQuery && hasAnyFilter && hasCountry) {
+    discoverParams.sort_by = 'popularity.desc'
+    const data = await tmdb.discoverMovies(discoverParams)
+    const lower = trimmed.toLowerCase()
+    return {
+      results: data.results.filter(m =>
+        m.title.toLowerCase().includes(lower) ||
+        m.original_title.toLowerCase().includes(lower)
+      ),
+      total_pages: data.total_pages,
+    }
+  }
+
+  // Discover with filters, no query
+  if (filters.mode === 'title' && !hasQuery && hasAnyFilter) {
+    return tmdb.discoverMovies(discoverParams)
+  }
+
+  // Person search (actor/director)
+  if ((filters.mode === 'actor' || filters.mode === 'director') && hasQuery) {
+    if (!personIdRef.current) {
+      const personData = await tmdb.searchPerson(trimmed)
+      const dept = filters.mode === 'actor' ? 'Acting' : 'Directing'
+      const person = personData.results.find(p => p.known_for_department === dept)
+        ?? personData.results[0]
+      if (!person) {
+        if (reqId === requestIdRef.current) setMatchedPerson(null)
+        return { results: [], total_pages: 0 }
+      }
+      personIdRef.current = person.id
+      tmdb.getPerson(person.id).then(detail => {
+        if (reqId === requestIdRef.current) setMatchedPerson(detail)
+      }).catch(() => {})
+    }
+
+    if (filters.mode === 'actor') {
+      discoverParams.with_cast = String(personIdRef.current)
+    } else {
+      discoverParams.with_crew = String(personIdRef.current)
+    }
+    return tmdb.discoverMovies(discoverParams)
+  }
+
+  // No query, no filters → popular
+  if (!hasQuery && !hasAnyFilter) {
+    return tmdb.getPopular(page)
+  }
+
+  return { results: [], total_pages: 0 }
 }
 
 const STORAGE_KEY = 'cine_search_state'
@@ -62,47 +209,10 @@ export function useTmdbSearch(showSeries = false) {
     setError(null)
 
     try {
-      const trimmed = query.trim()
-      const hasQuery = trimmed !== ''
-      const hasGenres = searchFilters.genres.length > 0
-      const hasYear = searchFilters.yearRange !== null
-      const hasCountry = searchFilters.country !== null
-      const hasAnyFilter = hasGenres || hasYear || hasCountry
-      const isTv = searchFilters.mediaType === 'tv'
+      const ctx = buildContext(query, searchFilters, page)
 
-      // --- TV-only search ---
-      if (isTv) {
-        let tvData: { results: TmdbTvShow[]; total_pages: number }
-
-        if (hasQuery && !hasAnyFilter) {
-          tvData = await tmdb.searchTv(trimmed, page)
-        } else if (hasAnyFilter || !hasQuery) {
-          const tvDiscoverParams: Record<string, string | number | undefined> = {}
-          if (hasGenres) tvDiscoverParams.with_genres = searchFilters.genres.join(',')
-          if (hasYear) {
-            tvDiscoverParams['first_air_date.gte'] = `${searchFilters.yearRange![0]}-01-01`
-            tvDiscoverParams['first_air_date.lte'] = `${searchFilters.yearRange![1]}-12-31`
-          }
-          if (hasCountry) tvDiscoverParams.with_origin_country = searchFilters.country!
-          tvDiscoverParams['vote_count.gte'] = '10'
-          tvDiscoverParams.sort_by = 'popularity.desc'
-          tvDiscoverParams.page = page
-          tvData = await tmdb.discoverTv(tvDiscoverParams)
-          // Client-side title filter if query present
-          if (hasQuery) {
-            const lower = trimmed.toLowerCase()
-            tvData = {
-              results: tvData.results.filter(s =>
-                s.name.toLowerCase().includes(lower) ||
-                s.original_name.toLowerCase().includes(lower)
-              ),
-              total_pages: tvData.total_pages,
-            }
-          }
-        } else {
-          tvData = await tmdb.getTrendingTv('week')
-        }
-
+      if (searchFilters.mediaType === 'tv') {
+        const tvData = await searchTv(ctx)
         if (reqId !== requestIdRef.current) return
         setResults([])
         setTvResults(prev => append ? [...prev, ...tvData.results] : tvData.results)
@@ -112,74 +222,9 @@ export function useTmdbSearch(showSeries = false) {
         return
       }
 
-      // --- Movie search ---
-      const discoverParams: Record<string, string | number | undefined> = {}
-      if (hasGenres) discoverParams.with_genres = searchFilters.genres.join(',')
-      if (hasYear) {
-        discoverParams['primary_release_date.gte'] = `${searchFilters.yearRange![0]}-01-01`
-        discoverParams['primary_release_date.lte'] = `${searchFilters.yearRange![1]}-12-31`
-      }
-      if (hasCountry) discoverParams.with_origin_country = searchFilters.country!
-      discoverParams['vote_count.gte'] = '10'
-      discoverParams.page = page
-
-      let data: { results: TmdbMovie[]; total_pages: number }
-
-      if (searchFilters.mode === 'title' && hasQuery && !hasAnyFilter) {
-        data = await tmdb.searchMovies(trimmed, page)
-      } else if (searchFilters.mode === 'title' && hasQuery && hasAnyFilter && !hasCountry) {
-        const raw = await tmdb.searchMovies(trimmed, page)
-        data = {
-          results: applyClientFilters(raw.results, searchFilters),
-          total_pages: raw.total_pages,
-        }
-      } else if (searchFilters.mode === 'title' && hasQuery && hasAnyFilter && hasCountry) {
-        discoverParams.sort_by = 'popularity.desc'
-        data = await tmdb.discoverMovies(discoverParams)
-        const lower = trimmed.toLowerCase()
-        data = {
-          results: data.results.filter(m =>
-            m.title.toLowerCase().includes(lower) ||
-            m.original_title.toLowerCase().includes(lower)
-          ),
-          total_pages: data.total_pages,
-        }
-      } else if (searchFilters.mode === 'title' && !hasQuery && hasAnyFilter) {
-        data = await tmdb.discoverMovies(discoverParams)
-      } else if ((searchFilters.mode === 'actor' || searchFilters.mode === 'director') && hasQuery) {
-        if (!append || !personIdRef.current) {
-          const personData = await tmdb.searchPerson(trimmed)
-          const dept = searchFilters.mode === 'actor' ? 'Acting' : 'Directing'
-          const person = personData.results.find(p => p.known_for_department === dept)
-            ?? personData.results[0]
-          if (!person) {
-            if (reqId === requestIdRef.current) {
-              setResults([])
-              setTotalPages(0)
-              setMatchedPerson(null)
-              setLoading(false)
-            }
-            return
-          }
-          personIdRef.current = person.id
-          tmdb.getPerson(person.id).then(detail => {
-            if (reqId === requestIdRef.current) setMatchedPerson(detail)
-          }).catch(() => { /* non-blocking */ })
-        }
-
-        if (searchFilters.mode === 'actor') {
-          discoverParams.with_cast = String(personIdRef.current)
-        } else {
-          discoverParams.with_crew = String(personIdRef.current)
-        }
-        data = await tmdb.discoverMovies(discoverParams)
-      } else if (!hasQuery && !hasAnyFilter) {
-        data = await tmdb.getPopular(page)
-      } else {
-        data = { results: [], total_pages: 0 }
-      }
-
+      const data = await searchMovies(ctx, personIdRef, setMatchedPerson, reqId, requestIdRef)
       if (reqId !== requestIdRef.current) return
+      if (!data) return
 
       setResults(prev => append ? [...prev, ...data.results] : data.results)
       setTvResults([])

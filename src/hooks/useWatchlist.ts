@@ -25,7 +25,7 @@ export function useWatchlist(coupleId: string | null) {
     if (error) {
       setError(error.message)
     } else {
-      setEntries(((data as unknown as WatchlistMovieEntry[]) ?? []).filter(e => e.movie != null))
+      setEntries((data as unknown as WatchlistMovieEntry[] ?? []).filter(e => e.movie != null))
     }
     setLoading(false)
   }, [coupleId])

@@ -17,7 +17,7 @@ const SIZE_CLASSES = {
 export function StarRating({
   value,
   onChange,
-  max = 10,
+  max = 5,
   readOnly = false,
   size = 'md',
 }: StarRatingProps) {
@@ -28,20 +28,21 @@ export function StarRating({
   const startYRef = useRef(0)
   const lockedRef = useRef<'horizontal' | 'vertical' | null>(null)
 
-  // Clear committedValue once the prop catches up
   useEffect(() => {
     if (committedValue !== null && value === committedValue) {
       setCommittedValue(null)
     }
   }, [value, committedValue])
 
-  const getStarFromX = useCallback((clientX: number) => {
+  const getValueFromX = useCallback((clientX: number) => {
     const el = containerRef.current
     if (!el) return null
     const rect = el.getBoundingClientRect()
     const x = clientX - rect.left
     const ratio = Math.max(0, Math.min(1, x / rect.width))
-    return Math.ceil(ratio * max) || 1
+    // Snap to nearest 0.5
+    const raw = ratio * max
+    return Math.max(0.5, Math.round(raw * 2) / 2)
   }, [max])
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -50,7 +51,6 @@ export function StarRating({
     startYRef.current = e.touches[0].clientY
     lockedRef.current = null
     draggingRef.current = true
-    // Don't set dragValue yet — wait for direction lock
   }
 
   function handleTouchMove(e: React.TouchEvent) {
@@ -60,10 +60,8 @@ export function StarRating({
     const dx = Math.abs(e.touches[0].clientX - (containerRef.current?.getBoundingClientRect().left ?? 0))
     const dy = Math.abs(e.touches[0].clientY - startYRef.current)
 
-    // Lock direction after small movement
     if (!lockedRef.current) {
       if (dy > 8) {
-        // Vertical scroll — abort star drag entirely
         lockedRef.current = 'vertical'
         draggingRef.current = false
         setDragValue(null)
@@ -72,15 +70,15 @@ export function StarRating({
       if (dx > 4) {
         lockedRef.current = 'horizontal'
       } else {
-        return // Wait for enough movement to decide
+        return
       }
     }
 
     if (lockedRef.current !== 'horizontal') return
 
     e.preventDefault()
-    const star = getStarFromX(e.touches[0].clientX)
-    if (star) setDragValue(star)
+    const val = getValueFromX(e.touches[0].clientX)
+    if (val) setDragValue(val)
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
@@ -95,13 +93,24 @@ export function StarRating({
     setDragValue(null)
   }
 
-  // Show: drag in progress > committed waiting for prop > actual prop
+  function handleStarClick(starIndex: number, e: React.MouseEvent) {
+    if (readOnly || !onChange) return
+    // Detect left/right half of the star
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const isLeftHalf = x < rect.width / 2
+    const val = isLeftHalf ? starIndex + 0.5 : starIndex + 1
+    setCommittedValue(val)
+    onChange(val)
+  }
+
   const displayValue = dragValue ?? committedValue ?? value
 
   return (
     <div
       ref={containerRef}
-      className={`flex ${max > 5 ? 'gap-0.5' : 'gap-1'} select-none touch-none`}
+      className="flex gap-0.5 select-none touch-none"
       role={readOnly ? undefined : 'group'}
       aria-label="Note"
       onTouchStart={handleTouchStart}
@@ -109,27 +118,39 @@ export function StarRating({
       onTouchEnd={handleTouchEnd}
     >
       {Array.from({ length: max }).map((_, i) => {
-        const starValue = i + 1
-        const filled = displayValue !== null && starValue <= displayValue
+        const fullVal = i + 1
+        const halfVal = i + 0.5
+        const isFull = displayValue !== null && displayValue >= fullVal
+        const isHalf = !isFull && displayValue !== null && displayValue >= halfVal
 
         return (
           <button
             key={i}
             type="button"
             disabled={readOnly}
-            onClick={() => {
-              setCommittedValue(starValue)
-              onChange?.(starValue)
-            }}
+            onClick={(e) => handleStarClick(i, e)}
             className={[
               SIZE_CLASSES[size],
-              'leading-none transition-transform',
+              'leading-none transition-transform relative',
               readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 active:scale-95',
-              filled ? 'text-[var(--color-gold)]' : 'text-[var(--color-border)]',
             ].join(' ')}
-            aria-label={`${starValue} étoile${starValue > 1 ? 's' : ''}`}
+            aria-label={`${fullVal} étoile${fullVal > 1 ? 's' : ''}`}
           >
-            ★
+            {/* Empty star (background) */}
+            <span className="text-[var(--color-border)]">★</span>
+            {/* Half star overlay */}
+            {isHalf && (
+              <span
+                className="absolute inset-0 overflow-hidden text-[var(--color-gold)]"
+                style={{ width: '50%' }}
+              >
+                ★
+              </span>
+            )}
+            {/* Full star overlay */}
+            {isFull && (
+              <span className="absolute inset-0 text-[var(--color-gold)]">★</span>
+            )}
           </button>
         )
       })}

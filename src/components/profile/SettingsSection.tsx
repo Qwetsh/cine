@@ -13,10 +13,12 @@ interface ProviderLogo {
 export function SettingsSection() {
   const { settings, update, toggleProvider, toggleCinema } = useSettings()
   const [logos, setLogos] = useState<Record<number, string>>({})
+  const [logoError, setLogoError] = useState(false)
 
   // Fetch provider logos from TMDB
   useEffect(() => {
     if (!settings.filterByStreaming) return
+    setLogoError(false)
     fetch(`${TMDB_BASE}/watch/providers/movie?api_key=${apiKey}&language=fr-FR&watch_region=FR`)
       .then(r => r.json())
       .then(data => {
@@ -26,7 +28,7 @@ export function SettingsSection() {
         }
         setLogos(map)
       })
-      .catch(() => {})
+      .catch(() => setLogoError(true))
   }, [settings.filterByStreaming])
 
   return (
@@ -66,6 +68,9 @@ export function SettingsSection() {
 
         {settings.filterByStreaming && (
           <>
+            {logoError && (
+              <p className="text-xs text-red-400">Impossible de charger les logos des plateformes</p>
+            )}
             <div className="space-y-2">
               {STREAMING_PROVIDERS.map(p => (
                 <button
