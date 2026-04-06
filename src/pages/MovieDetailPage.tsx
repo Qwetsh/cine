@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
+import { RecommendButton } from '../components/movie/RecommendButton'
+import { FriendsCard } from '../components/movie/FriendsCard'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
 export function MovieDetailPage() {
@@ -296,6 +298,9 @@ export function MovieDetailPage() {
         {/* Où regarder */}
         <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
 
+        {/* Carte amis */}
+        <FriendsCard tmdbId={movie.id} mediaType="movie" />
+
         {/* Actions */}
         <div className="space-y-3 mt-6">
           {/* Couple actions */}
@@ -344,6 +349,9 @@ export function MovieDetailPage() {
               {actionLoading === 'personal' ? '…' : '🎬 Vu en solo'}
             </button>
           )}
+
+          {/* Recommander à un ami */}
+          <RecommendButton movieId={movie.id} tvShowId={null} title={movie.title} />
         </div>
       </div>
     </div>

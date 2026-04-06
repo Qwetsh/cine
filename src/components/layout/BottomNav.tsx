@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useFriendsContext } from '../../contexts/FriendsContext'
 
 // SVG icons — cinema style, thin stroke
 function IconHome({ active }: { active: boolean }) {
@@ -58,6 +59,9 @@ const NAV_ITEMS = [
 ]
 
 export function BottomNav() {
+  const { recos } = useFriendsContext()
+  const unseenCount = recos.unseenCount
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)]/95 backdrop-blur border-t border-[var(--color-border)] safe-area-inset-bottom">
       <div className="flex items-stretch max-w-2xl mx-auto">
@@ -76,10 +80,15 @@ export function BottomNav() {
             }
           >
             {({ isActive }) => (
-              <>
+              <div className="relative flex flex-col items-center">
                 <Icon active={isActive} />
                 <span>{label}</span>
-              </>
+                {to === '/watchlist' && unseenCount > 0 && (
+                  <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                    {unseenCount}
+                  </span>
+                )}
+              </div>
             )}
           </NavLink>
         ))}

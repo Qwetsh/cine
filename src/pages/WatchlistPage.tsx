@@ -10,6 +10,7 @@ import { useLocalFilter } from '../hooks/useLocalFilter'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
+import { useFriendsContext } from '../contexts/FriendsContext'
 import type { WatchlistMovieEntry, TvWatchlistEntry } from '../types'
 
 export function WatchlistPage() {
@@ -17,6 +18,7 @@ export function WatchlistPage() {
   const { user } = useAuth()
   const { coupleId, partner } = useCoupleContext()
   const { settings } = useSettings()
+  const { recos } = useFriendsContext()
   const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId)
   const { addToCollection } = useCollection(coupleId)
   const tvWatchlist = useTvWatchlist(settings.showSeries ? coupleId : null)
@@ -91,12 +93,23 @@ export function WatchlistPage() {
         )}
       </div>
 
-      <div className="px-4 mb-3">
+      <div className="px-4 mb-3 space-y-2">
         <button
           onClick={() => navigate('/search')}
           className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
         >
           + Ajouter {settings.showSeries ? 'un film ou une série' : 'un film'}
+        </button>
+        <button
+          onClick={() => navigate('/recommendations')}
+          className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+        >
+          💌 Recos de mes amis
+          {recos.unseenCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+              {recos.unseenCount}
+            </span>
+          )}
         </button>
       </div>
 

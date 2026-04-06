@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { supabase } from '../lib/supabase'
 import { SettingsSection } from '../components/profile/SettingsSection'
+import { FriendsSection } from '../components/profile/FriendsSection'
 
 export function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -191,6 +192,9 @@ export function ProfilePage() {
           <div className="h-4 bg-[var(--color-surface-2)] rounded animate-pulse w-1/2" />
         </div>
       )}
+
+      {/* Mes amis */}
+      <FriendsSection inviteCode={inviteCode} />
 
       {/* Paramètres */}
       <SettingsSection />

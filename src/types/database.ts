@@ -153,3 +153,24 @@ export type Movie = Database['public']['Tables']['movies']['Row']
 export type WatchlistEntry = Database['public']['Tables']['watchlist']['Row']
 export type CollectionEntry = Database['public']['Tables']['collection']['Row']
 export type Couple = Database['public']['Tables']['couples']['Row']
+
+// Types amis (non générés — table friendships)
+export interface Friendship {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: 'pending' | 'accepted'
+  created_at: string
+}
+
+// Types recommandations (non générés — table recommendations)
+export interface Recommendation {
+  id: string
+  from_user_id: string
+  to_user_id: string
+  movie_id: number | null
+  tv_show_id: number | null
+  message: string | null
+  created_at: string
+  seen_at: string | null
+}

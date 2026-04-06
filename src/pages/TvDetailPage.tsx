@@ -8,6 +8,8 @@ import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
 import { useTvSeasonStatus } from '../hooks/useTvSeasonStatus'
 import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
+import { RecommendButton } from '../components/movie/RecommendButton'
+import { FriendsCard } from '../components/movie/FriendsCard'
 import { supabase } from '../lib/supabase'
 import type { TmdbTvShowDetail } from '../lib/tmdb'
 
@@ -278,6 +280,9 @@ export function TvDetailPage() {
 
         <WatchProviders tmdbId={show.id} releaseDate={show.first_air_date} isTv />
 
+        {/* Carte amis */}
+        <FriendsCard tmdbId={show.id} mediaType="tv" />
+
         {/* Actions */}
         <div className="space-y-3 mt-6">
           {coupleId && (
@@ -309,6 +314,9 @@ export function TvDetailPage() {
               {actionLoading === 'personal' ? '…' : '🎬 Vu en solo'}
             </button>
           )}
+
+          {/* Recommander à un ami */}
+          <RecommendButton movieId={null} tvShowId={show.id} title={show.name} />
         </div>
 
         {/* Saisons */}
