@@ -6,6 +6,7 @@ import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useTvCollection } from '../hooks/useTvCollection'
 import { useTvCollectionRatings } from '../hooks/useTvCollectionRatings'
+import { useTvPersonalCollection } from '../hooks/useTvPersonalCollection'
 import { useLocalFilter } from '../hooks/useLocalFilter'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
@@ -27,6 +28,7 @@ export function CollectionPage() {
   const personal = usePersonalCollection(user?.id ?? null)
   const tvCol = useTvCollection(settings.showSeries ? coupleId : null)
   const tvRatings = useTvCollectionRatings(settings.showSeries ? coupleId : null)
+  const tvPerso = useTvPersonalCollection(settings.showSeries ? user?.id ?? null : null)
   const [tab, setTab] = useState<Tab>(coupleId ? 'couple' : 'perso')
   const [sort, setSort] = useState<SortKey>('date')
   const [editingNote, setEditingNote] = useState<string | null>(null)
@@ -339,6 +341,37 @@ export function CollectionPage() {
       ) : (
         /* --- PERSONAL LIST --- */
         <ul className="px-4 space-y-4 pb-4">
+          {/* TV series perso */}
+          {tvPerso.entries.map(entry => (
+            <li key={`tv-perso-${entry.id}`}>
+              <SwipeToDelete onDelete={() => tvPerso.removeFromTvPersonalCollection(entry.id)}>
+                <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    <button
+                      onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)}
+                      className="relative w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                    >
+                      <img src={getPosterUrl(entry.tv_show.poster_path, 'small')} alt={entry.tv_show.name} className="w-full h-full object-cover" loading="lazy" />
+                      <div className="absolute top-1 right-1 bg-purple-600/90 text-white text-[8px] font-bold px-1 py-0.5 rounded">Série</div>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <button onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)} className="text-left">
+                        <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.tv_show.name}</p>
+                      </button>
+                      <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
+                        {entry.tv_show.number_of_seasons} saison{(entry.tv_show.number_of_seasons ?? 0) > 1 ? 's' : ''}
+                      </p>
+                      <div className="mt-3">
+                        <p className="text-[var(--color-text-muted)] text-xs mb-1">Ma note</p>
+                        <StarRating value={entry.rating} onChange={r => tvPerso.updateRating(entry.id, r)} size="sm" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </SwipeToDelete>
+            </li>
+          ))}
+
           {personalEntries.map(entry => (
             <li key={entry.id}>
               <SwipeToDelete onDelete={() => personal.removeFromPersonalCollection(entry.id)}>

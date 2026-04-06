@@ -72,6 +72,14 @@ export interface TvCollectionEntry {
   tv_show: TvShowWithPoster
 }
 
+export interface TvPersonalCollectionEntry {
+  id: string
+  watched_at: string
+  rating: number | null
+  note: string | null
+  tv_show: TvShowWithPoster
+}
+
 export interface TvEpisodeRatingEntry {
   id: string
   tv_show_id: string

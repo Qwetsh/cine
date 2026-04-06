@@ -15,7 +15,8 @@ export function TvDetailPage() {
   const [show, setShow] = useState<TmdbTvShowDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [inCollection, setInCollection] = useState(false)
-  const [actionLoading, setActionLoading] = useState(false)
+  const [inPersonal, setInPersonal] = useState(false)
+  const [actionLoading, setActionLoading] = useState<'collection' | 'personal' | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [dbId, setDbId] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -55,9 +56,18 @@ export function TvDetailPage() {
             .maybeSingle()
           setInCollection(!!data)
         }
+        if (user) {
+          const { data } = await supabase
+            .from('tv_personal_collection')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('tv_show_id', tvRow.id)
+            .maybeSingle()
+          setInPersonal(!!data)
+        }
       }
     })()
-  }, [show, coupleId])
+  }, [show, coupleId, user])
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
@@ -71,7 +81,7 @@ export function TvDetailPage() {
   async function handleAddToCollection() {
     if (!user || !coupleId) { navigate('/profile'); return }
     if (!show || actionLoading) return
-    setActionLoading(true)
+    setActionLoading('collection')
     try {
       const tvShowDbId = await ensureTvShow(show)
       setDbId(tvShowDbId)
@@ -86,7 +96,30 @@ export function TvDetailPage() {
     } catch (e) {
       console.error(e)
     } finally {
-      setActionLoading(false)
+      setActionLoading(null)
+    }
+  }
+
+  async function handleAddToPersonal() {
+    if (!user) { navigate('/login'); return }
+    if (!show || actionLoading) return
+    setActionLoading('personal')
+    try {
+      const tvShowDbId = await ensureTvShow(show)
+      setDbId(tvShowDbId)
+      const { error } = await supabase.from('tv_personal_collection').insert({
+        tv_show_id: tvShowDbId,
+        user_id: user.id,
+        watched_at: new Date().toISOString(),
+      })
+      if (!error) {
+        setInPersonal(true)
+        showToast('Ajouté à ta collection perso ✓')
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -264,12 +297,26 @@ export function TvDetailPage() {
             ) : (
               <button
                 onClick={handleAddToCollection}
-                disabled={actionLoading}
+                disabled={actionLoading !== null}
                 className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
               >
-                {actionLoading ? '…' : '+ Ajouter à la collection'}
+                {actionLoading === 'collection' ? '…' : '👫 Vu ensemble'}
               </button>
             )
+          )}
+
+          {inPersonal ? (
+            <div className="bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
+              ✓ Dans ma collection perso
+            </div>
+          ) : (
+            <button
+              onClick={handleAddToPersonal}
+              disabled={actionLoading !== null}
+              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+            >
+              {actionLoading === 'personal' ? '…' : '🎬 Vu en solo'}
+            </button>
           )}
         </div>
 
