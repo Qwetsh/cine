@@ -330,16 +330,20 @@ export function CollectionPage() {
                       >
                         <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
                       </button>
-                      <button
-                        onClick={() => document.getElementById(`emoji-couple-${entry.id}`)?.classList.toggle('hidden')}
-                        className="flex gap-0.5 hover:scale-110 transition-transform"
-                      >
-                        {getMyEmoji(entry) && <span className="text-sm">{getMyEmoji(entry)}</span>}
-                        {getPartnerEmoji(entry) && <span className="text-sm">{getPartnerEmoji(entry)}</span>}
-                        {!getMyEmoji(entry) && !getPartnerEmoji(entry) && (
-                          <span className="text-sm opacity-40">+</span>
-                        )}
-                      </button>
+                      <div className="flex gap-1.5 items-center">
+                        <button
+                          onClick={() => document.getElementById(`emoji-couple-${entry.id}`)?.classList.toggle('hidden')}
+                          className="flex flex-col items-center hover:scale-110 transition-transform"
+                          title="Ton emoji"
+                        >
+                          <span className="text-base leading-none">{getMyEmoji(entry) || '😶'}</span>
+                          <span className="text-[8px] text-[var(--color-text-muted)]">Toi</span>
+                        </button>
+                        <div className="flex flex-col items-center">
+                          <span className="text-base leading-none">{getPartnerEmoji(entry) || '😶'}</span>
+                          <span className="text-[8px] text-[var(--color-text-muted)]">{partner?.display_name?.slice(0, 4) ?? ''}</span>
+                        </div>
+                      </div>
                       <div id={`emoji-couple-${entry.id}`} className="hidden flex flex-wrap gap-1 max-w-[4.5rem] justify-center">
                         {MOOD_EMOJIS.map(e => (
                           <button key={e} onClick={() => {
