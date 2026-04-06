@@ -69,7 +69,7 @@ export function useTvEpisodeRatings(tvShowId: string | null, coupleId: string | 
     })
 
     // Upsert to Supabase
-    const { error } = await supabase
+    const { data: upserted, error } = await supabase
       .from('tv_episode_ratings')
       .upsert(
         {
@@ -82,12 +82,18 @@ export function useTvEpisodeRatings(tvShowId: string | null, coupleId: string | 
         },
         { onConflict: 'tv_show_id,season_number,episode_number,couple_id' }
       )
+      .select('id')
+      .single()
 
     if (error) {
       await fetchRatings() // revert on error
-    } else {
-      // Refetch to get real IDs
-      await fetchRatings()
+    } else if (upserted) {
+      // Patch temp ID with real ID without refetch
+      setRatings(prev => prev.map(r =>
+        r.season_number === seasonNumber && r.episode_number === episodeNumber && r.id.startsWith('temp-')
+          ? { ...r, id: upserted.id }
+          : r
+      ))
     }
     return { error: error?.message ?? null }
   }
