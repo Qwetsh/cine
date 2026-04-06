@@ -81,8 +81,8 @@ export function SearchPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Sticky search header */}
-      <div className="sticky top-14 z-10 bg-[var(--color-bg)]/90 backdrop-blur px-4 pt-3 pb-2 space-y-3">
+      {/* Sticky search header — compact: toggles + input only */}
+      <div className="sticky top-14 z-10 bg-[var(--color-bg)]/90 backdrop-blur px-4 pt-1 pb-2 space-y-2">
         {/* Media type toggle — Films / Séries */}
         {settings.showSeries && (
           <div className="flex rounded-xl bg-[var(--color-surface-2)] p-1">
@@ -139,37 +139,33 @@ export function SearchPage() {
             </button>
           )}
         </div>
-
-        {/* Genre/Year/Country chips — movies only */}
-        {!isTvMode && (
-          <>
-            <GenreChips
-              genres={genres}
-              selected={filters.genres}
-              onToggle={toggleGenre}
-            />
-            <YearFilter
-              value={filters.yearRange}
-              onChange={setYearRange}
-            />
-            <CountryChips
-              selected={filters.country}
-              onSelect={setCountry}
-            />
-          </>
-        )}
       </div>
 
-      {/* Active filter pills — movies only */}
+      {/* Filters — scrolls with content, not sticky */}
       {!isTvMode && (
-        <ActiveFilters
-          filters={filters}
-          genres={genres}
-          onRemoveGenre={toggleGenre}
-          onRemoveYearRange={() => setYearRange(null)}
-          onRemoveCountry={() => setCountry(null)}
-          onClearAll={clearFilters}
-        />
+        <div className="px-4 space-y-3 pt-2">
+          <GenreChips
+            genres={genres}
+            selected={filters.genres}
+            onToggle={toggleGenre}
+          />
+          <YearFilter
+            value={filters.yearRange}
+            onChange={setYearRange}
+          />
+          <CountryChips
+            selected={filters.country}
+            onSelect={setCountry}
+          />
+          <ActiveFilters
+            filters={filters}
+            genres={genres}
+            onRemoveGenre={toggleGenre}
+            onRemoveYearRange={() => setYearRange(null)}
+            onRemoveCountry={() => setCountry(null)}
+            onClearAll={clearFilters}
+          />
+        </div>
       )}
 
       {/* Person info card */}
