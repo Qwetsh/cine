@@ -18,7 +18,7 @@ export function usePersonalCollection(userId: string | null) {
 
     const { data, error } = await supabase
       .from('personal_collection')
-      .select('id, watched_at, rating, note, movie:movies(*)')
+      .select('id, watched_at, rating, note, emoji, movie:movies(*)')
       .eq('user_id', userId)
       .order('watched_at', { ascending: false })
 
@@ -58,6 +58,12 @@ export function usePersonalCollection(userId: string | null) {
     return { error: error?.message ?? null }
   }
 
+  async function updateEmoji(entryId: string, emoji: string | null) {
+    setEntries(prev => prev.map(e => e.id !== entryId ? e : { ...e, emoji }))
+    const { error } = await supabase.from('personal_collection').update({ emoji }).eq('id', entryId)
+    if (error) await fetchCollection()
+  }
+
   async function removeFromPersonalCollection(entryId: string) {
     // Optimistic remove
     setEntries(prev => prev.filter(e => e.id !== entryId))
@@ -78,5 +84,5 @@ export function usePersonalCollection(userId: string | null) {
     return !!data
   }
 
-  return { entries, loading, error, addToPersonalCollection, updateRating, removeFromPersonalCollection, isInPersonalCollection, refetch: fetchCollection }
+  return { entries, loading, error, addToPersonalCollection, updateRating, updateEmoji, removeFromPersonalCollection, isInPersonalCollection, refetch: fetchCollection }
 }

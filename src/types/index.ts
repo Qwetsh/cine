@@ -30,6 +30,8 @@ export interface CollectionMovieEntry {
   rating_user2: number | null
   note_user1: string | null
   note_user2: string | null
+  emoji_user1: string | null
+  emoji_user2: string | null
   movie: MovieWithPoster
 }
 
@@ -38,6 +40,7 @@ export interface PersonalCollectionEntry {
   watched_at: string
   rating: number | null
   note: string | null
+  emoji: string | null
   movie: MovieWithPoster
 }
 

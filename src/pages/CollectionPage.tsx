@@ -20,6 +20,8 @@ type Tab = 'couple' | 'perso'
 type MediaFilter = 'all' | 'film' | 'serie'
 type SortKey = 'date' | 'rating' | 'title'
 
+const MOOD_EMOJIS = ['😍', '😂', '😢', '😱', '🤯', '😴', '🥱', '😡', '🤔', '🥰', '😭', '🫣']
+
 export function CollectionPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -53,6 +55,12 @@ export function CollectionPage() {
   }
   function getPartnerNote(entry: CollectionMovieEntry) {
     return isUser1 ? entry.note_user2 : entry.note_user1
+  }
+  function getMyEmoji(entry: CollectionMovieEntry) {
+    return isUser1 ? entry.emoji_user1 : entry.emoji_user2
+  }
+  function getPartnerEmoji(entry: CollectionMovieEntry) {
+    return isUser1 ? entry.emoji_user2 : entry.emoji_user1
   }
 
   async function handleCoupleRating(entry: CollectionMovieEntry, rating: number) {
@@ -280,11 +288,11 @@ export function CollectionPage() {
                           {entry.tv_show.number_of_seasons} saison{(entry.tv_show.number_of_seasons ?? 0) > 1 ? 's' : ''}
                         </p>
                         <TvProviderLogos tmdbId={entry.tv_show.tmdb_id} />
-                        <div className="mt-3 space-y-2">
-                          <div>
-                            <p className="text-[var(--color-text-muted)] text-xs mb-1">Ta note moyenne</p>
+                        <div className="mt-2 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[var(--color-text-muted)] text-xs w-10 flex-shrink-0">Toi</p>
                             {myAvg != null ? (
-                              <StarRating value={myAvg} readOnly size="sm" />
+                              <StarRating value={myAvg} readOnly size="md" />
                             ) : (
                               <button onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)} className="text-xs text-[var(--color-accent)] hover:underline">
                                 + Ajouter un avis
@@ -292,10 +300,10 @@ export function CollectionPage() {
                             )}
                           </div>
                           {partner && (
-                            <div>
-                              <p className="text-[var(--color-text-muted)] text-xs mb-1">{partner.display_name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[var(--color-text-muted)] text-xs w-10 flex-shrink-0 truncate">{partner.display_name}</p>
                               {partnerAvg != null ? (
-                                <StarRating value={partnerAvg} readOnly size="sm" />
+                                <StarRating value={partnerAvg} readOnly size="md" />
                               ) : (
                                 <p className="text-[var(--color-text-muted)] text-xs italic">Pas encore noté</p>
                               )}
@@ -315,12 +323,38 @@ export function CollectionPage() {
               <SwipeToDelete onDelete={() => couple.removeFromCollection(entry.id)}>
                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
                   <div className="flex gap-3 p-3">
-                    <button
-                      onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-                      className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-                    >
-                      <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
-                    </button>
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
+                        className="w-16 h-24 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                      >
+                        <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
+                      </button>
+                      <button
+                        onClick={() => document.getElementById(`emoji-couple-${entry.id}`)?.classList.toggle('hidden')}
+                        className="flex gap-0.5 hover:scale-110 transition-transform"
+                      >
+                        {getMyEmoji(entry) && <span className="text-sm">{getMyEmoji(entry)}</span>}
+                        {getPartnerEmoji(entry) && <span className="text-sm">{getPartnerEmoji(entry)}</span>}
+                        {!getMyEmoji(entry) && !getPartnerEmoji(entry) && (
+                          <span className="text-sm opacity-40">+</span>
+                        )}
+                      </button>
+                      <div id={`emoji-couple-${entry.id}`} className="hidden flex flex-wrap gap-1 max-w-[4.5rem] justify-center">
+                        {MOOD_EMOJIS.map(e => (
+                          <button key={e} onClick={() => {
+                            couple.updateEmoji(entry.id, isUser1, e)
+                            document.getElementById(`emoji-couple-${entry.id}`)?.classList.add('hidden')
+                          }} className="text-base hover:scale-125 transition-transform">{e}</button>
+                        ))}
+                        {getMyEmoji(entry) && (
+                          <button onClick={() => {
+                            couple.updateEmoji(entry.id, isUser1, null)
+                            document.getElementById(`emoji-couple-${entry.id}`)?.classList.add('hidden')
+                          }} className="text-[10px] text-[var(--color-text-muted)]">✕</button>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
                         <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.movie.title}</p>
@@ -328,35 +362,37 @@ export function CollectionPage() {
                       <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
                         Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
-                      <div className="mt-3 space-y-2">
-                        <div>
-                          <p className="text-[var(--color-text-muted)] text-xs mb-1">Ta note</p>
-                          <StarRating value={getMyRating(entry)} onChange={r => handleCoupleRating(entry, r)} size="sm" />
-                          {editingNote === entry.id ? (
-                            <div className="flex gap-2 mt-1">
-                              <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ton avis…" autoFocus
-                                className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)]" />
-                              <button onClick={() => saveCoupleNote(entry.id)} className="text-xs text-[var(--color-accent)] font-medium px-2">OK</button>
-                              <button onClick={() => setEditingNote(null)} className="text-xs text-[var(--color-text-muted)] px-1">✕</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => startEditCoupleNote(entry)} className="text-left mt-1">
-                              {getMyNote(entry) ? (
-                                <p className="text-[var(--color-text-muted)] text-xs italic hover:text-[var(--color-text)] transition-colors">"{getMyNote(entry)}" ✏️</p>
-                              ) : (
-                                <p className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-accent)] transition-colors">+ Ajouter un avis</p>
-                              )}
-                            </button>
-                          )}
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[var(--color-text-muted)] text-xs w-10 flex-shrink-0">Toi</p>
+                          <StarRating value={getMyRating(entry)} onChange={r => handleCoupleRating(entry, r)} size="md" />
                         </div>
-                        {partner && (
-                          <div>
-                            <p className="text-[var(--color-text-muted)] text-xs mb-1">{partner.display_name}</p>
-                            <StarRating value={getPartnerRating(entry)} readOnly size="sm" />
-                            {getPartnerNote(entry) && (
-                              <p className="text-[var(--color-text-muted)] text-xs italic mt-1">"{getPartnerNote(entry)}"</p>
-                            )}
+                        {editingNote === entry.id ? (
+                          <div className="flex gap-2">
+                            <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ton avis…" autoFocus
+                              className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] px-2 py-1 rounded-lg border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-accent)]" />
+                            <button onClick={() => saveCoupleNote(entry.id)} className="text-xs text-[var(--color-accent)] font-medium px-2">OK</button>
+                            <button onClick={() => setEditingNote(null)} className="text-xs text-[var(--color-text-muted)] px-1">✕</button>
                           </div>
+                        ) : (
+                          <button onClick={() => startEditCoupleNote(entry)} className="text-left">
+                            {getMyNote(entry) ? (
+                              <p className="text-[var(--color-text-muted)] text-xs italic hover:text-[var(--color-text)] transition-colors">"{getMyNote(entry)}" ✏️</p>
+                            ) : (
+                              <p className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-accent)] transition-colors">+ Ajouter un avis</p>
+                            )}
+                          </button>
+                        )}
+                        {partner && (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[var(--color-text-muted)] text-xs w-10 flex-shrink-0 truncate">{partner.display_name}</p>
+                              <StarRating value={getPartnerRating(entry)} readOnly size="md" />
+                            </div>
+                            {getPartnerNote(entry) && (
+                              <p className="text-[var(--color-text-muted)] text-xs italic">"{getPartnerNote(entry)}"</p>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -393,15 +429,17 @@ export function CollectionPage() {
                         <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
                           {entry.tv_show.number_of_seasons} saison{(entry.tv_show.number_of_seasons ?? 0) > 1 ? 's' : ''}
                         </p>
-                        <div className="mt-3">
-                          <p className="text-[var(--color-text-muted)] text-xs mb-1">Ma note moyenne</p>
-                          {myAvg != null ? (
-                            <StarRating value={myAvg} readOnly size="sm" />
-                          ) : (
-                            <button onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)} className="text-xs text-[var(--color-accent)] hover:underline">
-                              + Noter les épisodes
-                            </button>
-                          )}
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[var(--color-text-muted)] text-xs flex-shrink-0">Ma note</p>
+                            {myAvg != null ? (
+                              <StarRating value={myAvg} readOnly size="md" />
+                            ) : (
+                              <button onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)} className="text-xs text-[var(--color-accent)] hover:underline">
+                                + Noter les épisodes
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -416,12 +454,34 @@ export function CollectionPage() {
               <SwipeToDelete onDelete={() => personal.removeFromPersonalCollection(entry.id)}>
                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
                   <div className="flex gap-3 p-3">
-                    <button
-                      onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-                      className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-                    >
-                      <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
-                    </button>
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
+                        className="w-16 h-24 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                      >
+                        <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
+                      </button>
+                      <button
+                        onClick={() => document.getElementById(`emoji-perso-${entry.id}`)?.classList.toggle('hidden')}
+                        className="flex gap-0.5 hover:scale-110 transition-transform"
+                      >
+                        {entry.emoji ? <span className="text-sm">{entry.emoji}</span> : <span className="text-sm opacity-40">+</span>}
+                      </button>
+                      <div id={`emoji-perso-${entry.id}`} className="hidden flex flex-wrap gap-1 max-w-[4.5rem] justify-center">
+                        {MOOD_EMOJIS.map(e => (
+                          <button key={e} onClick={() => {
+                            personal.updateEmoji(entry.id, e)
+                            document.getElementById(`emoji-perso-${entry.id}`)?.classList.add('hidden')
+                          }} className="text-base hover:scale-125 transition-transform">{e}</button>
+                        ))}
+                        {entry.emoji && (
+                          <button onClick={() => {
+                            personal.updateEmoji(entry.id, null)
+                            document.getElementById(`emoji-perso-${entry.id}`)?.classList.add('hidden')
+                          }} className="text-[10px] text-[var(--color-text-muted)]">✕</button>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
                         <p className="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors">{entry.movie.title}</p>
@@ -429,9 +489,11 @@ export function CollectionPage() {
                       <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
                         Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
-                      <div className="mt-3">
-                        <p className="text-[var(--color-text-muted)] text-xs mb-1">Ma note</p>
-                        <StarRating value={entry.rating} onChange={r => handlePersonalRating(entry, r)} size="sm" />
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[var(--color-text-muted)] text-xs flex-shrink-0">Ma note</p>
+                          <StarRating value={entry.rating} onChange={r => handlePersonalRating(entry, r)} size="md" />
+                        </div>
                         {editingNote === entry.id ? (
                           <div className="flex gap-2 mt-1">
                             <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Mon avis…" autoFocus

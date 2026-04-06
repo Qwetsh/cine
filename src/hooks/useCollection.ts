@@ -18,7 +18,7 @@ export function useCollection(coupleId: string | null) {
 
     const { data, error } = await supabase
       .from('collection')
-      .select('id, watched_at, rating_user1, rating_user2, note_user1, note_user2, movie:movies(*)')
+      .select('id, watched_at, rating_user1, rating_user2, note_user1, note_user2, emoji_user1, emoji_user2, movie:movies(*)')
       .eq('couple_id', coupleId)
       .order('watched_at', { ascending: false })
 
@@ -62,6 +62,13 @@ export function useCollection(coupleId: string | null) {
     return { error: error?.message ?? null }
   }
 
+  async function updateEmoji(entryId: string, isUser1: boolean, emoji: string | null) {
+    const updates = isUser1 ? { emoji_user1: emoji } : { emoji_user2: emoji }
+    setEntries(prev => prev.map(e => e.id !== entryId ? e : { ...e, ...updates }))
+    const { error } = await supabase.from('collection').update(updates).eq('id', entryId)
+    if (error) await fetchCollection()
+  }
+
   async function removeFromCollection(entryId: string) {
     // Optimistic remove
     setEntries(prev => prev.filter(e => e.id !== entryId))
@@ -84,5 +91,5 @@ export function useCollection(coupleId: string | null) {
     return !!data
   }
 
-  return { entries, loading, error, addToCollection, updateRating, removeFromCollection, isInCollection, refetch: fetchCollection }
+  return { entries, loading, error, addToCollection, updateRating, updateEmoji, removeFromCollection, isInCollection, refetch: fetchCollection }
 }

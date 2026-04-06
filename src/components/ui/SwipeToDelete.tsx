@@ -19,6 +19,9 @@ export function SwipeToDelete({ onDelete, children }: Props) {
   const [confirming, setConfirming] = useState(false)
 
   function handleTouchStart(e: React.TouchEvent) {
+    // Only allow swipe if touch starts in the right half of the card
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (rect && e.touches[0].clientX < rect.left + rect.width / 2) return
     startXRef.current = e.touches[0].clientX
     startYRef.current = e.touches[0].clientY
     currentXRef.current = 0
