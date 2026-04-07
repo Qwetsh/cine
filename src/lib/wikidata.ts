@@ -2,12 +2,12 @@ import type { TmdbKeyword } from './tmdb'
 
 // Keyword IDs TMDB identifiant des adaptations
 export const ADAPTATION_KEYWORDS: Record<number, string> = {
-  818: 'roman',
-  12565: 'nouvelle',
-  9717: 'bande dessinée',
-  155159: 'manga',
-  156279: 'roman graphique',
-  189098: 'light novel',
+  818: "d'un roman",
+  12565: "d'une nouvelle",
+  9717: "d'une bande dessinée",
+  155159: "d'un manga",
+  156279: "d'un roman graphique",
+  189098: "d'un light novel",
 }
 
 const ADAPTATION_IDS = new Set(Object.keys(ADAPTATION_KEYWORDS).map(Number))
@@ -34,6 +34,27 @@ export function detectAdaptation(keywords: TmdbKeyword[]): string | null {
     }
   }
   return null
+}
+
+/**
+ * Cherche une couverture de livre via Google Books API (gratuit, sans clé).
+ */
+async function fetchBookCover(title: string | null, author: string | null): Promise<string | null> {
+  if (!title) return null
+  try {
+    const q = author
+      ? `intitle:${title}+inauthor:${author}`
+      : `intitle:${title}`
+    const res = await fetch(
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=1`
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const thumbnail = data.items?.[0]?.volumeInfo?.imageLinks?.thumbnail
+    return thumbnail ? thumbnail.replace('http://', 'https://') : null
+  } catch {
+    return null
+  }
 }
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql'
@@ -78,12 +99,16 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
     const bookUri: string = b.book?.value ?? ''
     const bookWikidataId = bookUri.split('/').pop() ?? ''
 
+    const title = b.bookLabel?.value ?? null
+    const author = b.authorName?.value ?? null
+    const coverUrl = await fetchBookCover(title, author)
+
     const result: BookSourceInfo = {
       wikidataId: bookWikidataId,
-      title: b.bookLabel?.value ?? null,
-      author: b.authorName?.value ?? null,
+      title,
+      author,
       publicationDate: b.date?.value ? b.date.value.split('T')[0] : null,
-      coverUrl: null,
+      coverUrl,
     }
 
     cache.set(wikidataId, result)
