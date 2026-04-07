@@ -18,9 +18,8 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
   const [selectedPerson, setSelectedPerson] = useState<TmdbPerson | null>(null)
   const [sharedMovies, setSharedMovies] = useState<TmdbMovie[]>([])
   const [loading, setLoading] = useState(false)
-  const [searching, setSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const navigate = useNavigate()
 
   // Focus input when opening
@@ -65,7 +64,6 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
       )
       const data: CreditsResult = await res.json()
 
-      const otherMovieIds = new Set(data.cast.map(m => m.id))
       const shared = data.cast
         .filter(m => personMovieIds.has(m.id))
         .sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))
