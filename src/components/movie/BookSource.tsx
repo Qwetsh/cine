@@ -39,6 +39,15 @@ export function BookSource({ tmdbId, keywords }: Props) {
     ? new Date(bookSource.publicationDate).getFullYear()
     : null
 
+  const audibleQuery = encodeURIComponent(
+    `${bookSource.title ?? ''}${bookSource.author ? ' ' + bookSource.author : ''}`
+  )
+  const audibleUrl = `https://www.audible.fr/search?keywords=${audibleQuery}`
+  const kindleQuery = encodeURIComponent(
+    `${bookSource.title ?? ''}${bookSource.author ? ' ' + bookSource.author : ''}`
+  )
+  const amazonUrl = `https://www.amazon.fr/s?k=${kindleQuery}&i=digital-text`
+
   return (
     <div className="mt-4">
       <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-4">
@@ -69,6 +78,24 @@ export function BookSource({ tmdbId, keywords }: Props) {
                 {year}
               </p>
             )}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <a
+                href={amazonUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              >
+                📱 Kindle
+              </a>
+              <a
+                href={audibleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              >
+                🎧 Audiobook
+              </a>
+            </div>
           </div>
         </div>
       </div>

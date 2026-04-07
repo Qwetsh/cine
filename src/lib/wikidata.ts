@@ -18,6 +18,8 @@ export interface BookSourceInfo {
   author: string | null
   publicationDate: string | null
   coverUrl: string | null
+  isEbook: boolean
+  infoLink: string | null
 }
 
 // Cache mémoire — données Wikidata quasi statiques
@@ -36,11 +38,18 @@ export function detectAdaptation(keywords: TmdbKeyword[]): string | null {
   return null
 }
 
+interface GoogleBooksData {
+  coverUrl: string | null
+  isEbook: boolean
+  infoLink: string | null
+}
+
 /**
- * Cherche une couverture de livre via Google Books API (gratuit, sans clé).
+ * Cherche les infos du livre via Google Books API (gratuit, sans clé).
  */
-async function fetchBookCover(title: string | null, author: string | null): Promise<string | null> {
-  if (!title) return null
+async function fetchGoogleBooksData(title: string | null, author: string | null): Promise<GoogleBooksData> {
+  const empty: GoogleBooksData = { coverUrl: null, isEbook: false, infoLink: null }
+  if (!title) return empty
   try {
     const q = author
       ? `intitle:${title}+inauthor:${author}`
@@ -48,12 +57,18 @@ async function fetchBookCover(title: string | null, author: string | null): Prom
     const res = await fetch(
       `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=1`
     )
-    if (!res.ok) return null
+    if (!res.ok) return empty
     const data = await res.json()
-    const thumbnail = data.items?.[0]?.volumeInfo?.imageLinks?.thumbnail
-    return thumbnail ? thumbnail.replace('http://', 'https://') : null
+    const item = data.items?.[0]
+    if (!item) return empty
+    const thumbnail = item.volumeInfo?.imageLinks?.thumbnail
+    return {
+      coverUrl: thumbnail ? thumbnail.replace('http://', 'https://') : null,
+      isEbook: item.saleInfo?.isEbook === true,
+      infoLink: item.volumeInfo?.infoLink ?? null,
+    }
   } catch {
-    return null
+    return empty
   }
 }
 
@@ -101,14 +116,16 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
 
     const title = b.bookLabel?.value ?? null
     const author = b.authorName?.value ?? null
-    const coverUrl = await fetchBookCover(title, author)
+    const gbooks = await fetchGoogleBooksData(title, author)
 
     const result: BookSourceInfo = {
       wikidataId: bookWikidataId,
       title,
       author,
       publicationDate: b.date?.value ? b.date.value.split('T')[0] : null,
-      coverUrl,
+      coverUrl: gbooks.coverUrl,
+      isEbook: gbooks.isEbook,
+      infoLink: gbooks.infoLink,
     }
 
     cache.set(wikidataId, result)
