@@ -65,13 +65,22 @@ interface GoogleBooksData {
 }
 
 // --- Google Books rate limiting & cache ---
-// Nettoyage one-shot : supprime les entrées gbooks vides (429 cachés par erreur)
+// Nettoyage one-shot : supprime les entrées polluées par des 429 cachés
 try {
+  // Purge localStorage gbooks_* vides
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i)
     if (k?.startsWith('gbooks_')) {
       const v = JSON.parse(localStorage.getItem(k)!)
       if (!v.coverUrl && !v.isEbook && !v.infoLink) localStorage.removeItem(k)
+    }
+  }
+  // Purge sessionStorage book_* qui ont un titre mais pas de couverture (429 cachés)
+  for (let i = sessionStorage.length - 1; i >= 0; i--) {
+    const k = sessionStorage.key(i)
+    if (k?.startsWith('book_')) {
+      const v = JSON.parse(sessionStorage.getItem(k)!)
+      if (v && v.title && !v.coverUrl) sessionStorage.removeItem(k)
     }
   }
 } catch { /* ignore */ }
@@ -251,7 +260,10 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
       infoLink: gbooks.infoLink,
     }
 
-    saveCache(wikidataId, result)
+    // Ne cacher que si on a une couverture — sinon on retentera au prochain chargement
+    if (result.coverUrl) {
+      saveCache(wikidataId, result)
+    }
     return result
   } catch {
     saveCache(wikidataId, null)
