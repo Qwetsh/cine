@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { MovieGrid } from '../components/movie/MovieGrid'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
 import { CrossFilmography } from '../components/movie/CrossFilmography'
+import { DirectorFrequentActors } from '../components/movie/DirectorFrequentActors'
 import type { TmdbMovie, TmdbPersonDetail, TmdbExternalIds } from '../lib/tmdb'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p'
@@ -276,10 +277,15 @@ export function PersonPage() {
         </div>
       )}
 
-      {/* Cross filmography */}
+      {/* Cross filmography (actors) / Frequent actors (directors) */}
       {!isDirector && movies.length > 0 && (
         <div className="px-4 mb-3">
           <CrossFilmography personId={Number(id)} personMovieIds={movieIds} />
+        </div>
+      )}
+      {isDirector && movies.length > 0 && (
+        <div className="px-4 mb-3">
+          <DirectorFrequentActors movies={movies} />
         </div>
       )}
 
