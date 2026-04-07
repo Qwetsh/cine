@@ -161,11 +161,11 @@ async function fetchOpenLibrary(title: string, author: string | null): Promise<G
  * Cherche les infos du livre : Google Books → Open Library (fallback).
  * Avec cache localStorage et rate limiting.
  */
-async function fetchGoogleBooksData(title: string | null, author: string | null): Promise<GoogleBooksData> {
+async function fetchGoogleBooksData(title: string | null, titleEn: string | null, author: string | null): Promise<GoogleBooksData> {
   const empty: GoogleBooksData = { coverUrl: null, isEbook: false, infoLink: null }
-  if (!title) return empty
+  if (!title && !titleEn) return empty
 
-  const cacheKey = `${title}|${author ?? ''}`
+  const cacheKey = `${title ?? titleEn}|${author ?? ''}`
   const cached = loadGbooksCache(cacheKey)
   if (cached !== undefined) return cached
 
@@ -174,16 +174,29 @@ async function fetchGoogleBooksData(title: string | null, author: string | null)
     if (cached2 !== undefined) return cached2
 
     try {
-      // Essayer Google Books d'abord
-      const gbooks = await fetchGoogleBooks(title, author)
+      // Essayer Google Books d'abord (titre FR)
+      const searchTitle = title ?? titleEn!
+      const gbooks = await fetchGoogleBooks(searchTitle, author)
       if (gbooks !== null) {
         saveGbooksCache(cacheKey, gbooks)
         return gbooks
       }
-      // 429 Google Books → fallback Open Library
-      const olib = await fetchOpenLibrary(title, author)
-      saveGbooksCache(cacheKey, olib)
-      return olib
+      // 429 Google Books → fallback Open Library (titre EN pour de meilleurs résultats)
+      const olibTitle = titleEn ?? title!
+      const olib = await fetchOpenLibrary(olibTitle, author)
+      if (olib.coverUrl) {
+        saveGbooksCache(cacheKey, olib)
+        return olib
+      }
+      // Si pas trouvé en EN, essayer en FR
+      if (titleEn && title && titleEn !== title) {
+        const olibFr = await fetchOpenLibrary(title, author)
+        if (olibFr.coverUrl) {
+          saveGbooksCache(cacheKey, olibFr)
+          return olibFr
+        }
+      }
+      return empty
     } catch {
       return empty
     }
@@ -214,7 +227,7 @@ export function fetchBookSource(wikidataId: string): Promise<BookSourceInfo | nu
 async function _fetchBookSource(wikidataId: string): Promise<BookSourceInfo | null> {
   try {
     const query = `
-SELECT ?book ?bookLabel ?authorName ?date WHERE {
+SELECT ?book ?bookLabel ?bookLabelEn ?authorName ?date WHERE {
   wd:${wikidataId} wdt:P144 ?book .
   OPTIONAL {
     ?book wdt:P50 ?author .
@@ -222,6 +235,7 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
     FILTER(LANG(?authorName) IN ("mul", "fr", "en"))
   }
   OPTIONAL { ?book wdt:P577 ?date . }
+  OPTIONAL { ?book rdfs:label ?bookLabelEn . FILTER(LANG(?bookLabelEn) = "en") }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en" . }
 } LIMIT 1`
 
@@ -247,8 +261,9 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
     const bookWikidataId = bookUri.split('/').pop() ?? ''
 
     const title = b.bookLabel?.value ?? null
+    const titleEn = b.bookLabelEn?.value ?? null
     const author = b.authorName?.value ?? null
-    const gbooks = await fetchGoogleBooksData(title, author)
+    const gbooks = await fetchGoogleBooksData(title, titleEn, author)
 
     const result: BookSourceInfo = {
       wikidataId: bookWikidataId,
