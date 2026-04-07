@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { MovieGrid } from '../components/movie/MovieGrid'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
+import { CrossFilmography } from '../components/movie/CrossFilmography'
 import type { TmdbMovie, TmdbPersonDetail, TmdbExternalIds } from '../lib/tmdb'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p'
@@ -142,6 +143,8 @@ export function PersonPage() {
     ? (movies.reduce((sum, m) => sum + (m.vote_average || 0), 0) / movies.length).toFixed(1)
     : null
 
+  const movieIds = useMemo(() => new Set(movies.map(m => m.id)), [movies])
+
   const BIO_PREVIEW = 300
   const isLongBio = biography.length > BIO_PREVIEW
 
@@ -271,6 +274,13 @@ export function PersonPage() {
               </a>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Cross filmography */}
+      {!isDirector && movies.length > 0 && (
+        <div className="px-4 mb-3">
+          <CrossFilmography personId={Number(id)} personMovieIds={movieIds} />
         </div>
       )}
 
