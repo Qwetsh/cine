@@ -69,6 +69,22 @@ export interface TmdbMovie {
   adult: boolean
 }
 
+export interface TmdbCollectionRef {
+  id: number
+  name: string
+  poster_path: string | null
+  backdrop_path: string | null
+}
+
+export interface TmdbCollectionDetail {
+  id: number
+  name: string
+  overview: string
+  poster_path: string | null
+  backdrop_path: string | null
+  parts: TmdbMovie[]
+}
+
 export interface TmdbMovieDetail extends TmdbMovie {
   runtime: number | null
   genres: { id: number; name: string }[]
@@ -80,6 +96,7 @@ export interface TmdbMovieDetail extends TmdbMovie {
   spoken_languages: { iso_639_1: string; name: string }[]
   homepage: string
   imdb_id: string | null
+  belongs_to_collection: TmdbCollectionRef | null
   credits?: {
     cast: TmdbCastMember[]
     crew: TmdbCrewMember[]
@@ -331,6 +348,9 @@ export const tmdb = {
 
   getTvVideos: (id: number) =>
     tmdbFetch<TmdbVideosResult>(`/tv/${id}/videos`),
+
+  getCollection: (id: number) =>
+    tmdbFetch<TmdbCollectionDetail>(`/collection/${id}`),
 
   getGenres: () =>
     tmdbFetch<{ genres: TmdbGenre[] }>('/genre/movie/list'),

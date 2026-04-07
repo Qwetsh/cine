@@ -10,6 +10,7 @@ import { WatchProviders } from '../components/movie/WatchProviders'
 import { RecommendButton } from '../components/movie/RecommendButton'
 import { FriendsCard } from '../components/movie/FriendsCard'
 import { TrailerButton } from '../components/movie/TrailerButton'
+import { MovieCollection } from '../components/movie/MovieCollection'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
 export function MovieDetailPage() {
@@ -299,6 +300,11 @@ export function MovieDetailPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Saga / Collection */}
+        {movie.belongs_to_collection && (
+          <MovieCollection collectionId={movie.belongs_to_collection.id} currentMovieId={movie.id} />
         )}
 
         {/* Où regarder */}
