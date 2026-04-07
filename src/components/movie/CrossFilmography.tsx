@@ -34,7 +34,6 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
       setSuggestions([])
       return
     }
-    setSearching(true)
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await tmdb.searchPerson(q)
@@ -45,8 +44,6 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
         )
       } catch {
         setSuggestions([])
-      } finally {
-        setSearching(false)
       }
     }, 300)
   }, [personId])
