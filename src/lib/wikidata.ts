@@ -22,8 +22,28 @@ export interface BookSourceInfo {
   infoLink: string | null
 }
 
-// Cache mémoire — données Wikidata quasi statiques
+// Cache mémoire + sessionStorage pour éviter les appels répétés
 const cache = new Map<string, BookSourceInfo | null>()
+
+function loadCache(key: string): BookSourceInfo | null | undefined {
+  if (cache.has(key)) return cache.get(key)!
+  try {
+    const stored = sessionStorage.getItem(`book_${key}`)
+    if (stored) {
+      const parsed = JSON.parse(stored) as BookSourceInfo | null
+      cache.set(key, parsed)
+      return parsed
+    }
+  } catch { /* ignore */ }
+  return undefined
+}
+
+function saveCache(key: string, value: BookSourceInfo | null) {
+  cache.set(key, value)
+  try {
+    sessionStorage.setItem(`book_${key}`, JSON.stringify(value))
+  } catch { /* ignore */ }
+}
 
 /**
  * Détecte si les keywords TMDB contiennent un keyword d'adaptation.
@@ -78,7 +98,8 @@ const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql'
  * Interroge Wikidata via SPARQL pour trouver l'œuvre source (P144) d'un film.
  */
 export async function fetchBookSource(wikidataId: string): Promise<BookSourceInfo | null> {
-  if (cache.has(wikidataId)) return cache.get(wikidataId)!
+  const cached = loadCache(wikidataId)
+  if (cached !== undefined) return cached
 
   try {
     const query = `
@@ -99,14 +120,14 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
     })
 
     if (!res.ok) {
-      cache.set(wikidataId, null)
+      saveCache(wikidataId, null)
       return null
     }
 
     const data = await res.json()
     const bindings = data.results?.bindings
     if (!bindings || bindings.length === 0) {
-      cache.set(wikidataId, null)
+      saveCache(wikidataId, null)
       return null
     }
 
@@ -128,10 +149,10 @@ SELECT ?book ?bookLabel ?authorName ?date WHERE {
       infoLink: gbooks.infoLink,
     }
 
-    cache.set(wikidataId, result)
+    saveCache(wikidataId, result)
     return result
   } catch {
-    cache.set(wikidataId, null)
+    saveCache(wikidataId, null)
     return null
   }
 }
