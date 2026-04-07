@@ -11,6 +11,7 @@ import { RecommendButton } from '../components/movie/RecommendButton'
 import { FriendsCard } from '../components/movie/FriendsCard'
 import { TrailerButton } from '../components/movie/TrailerButton'
 import { MovieCollection } from '../components/movie/MovieCollection'
+import { BookSource } from '../components/movie/BookSource'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
 export function MovieDetailPage() {
@@ -301,6 +302,9 @@ export function MovieDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Adapté de... */}
+        <BookSource tmdbId={movie.id} keywords={movie.keywords} />
 
         {/* Saga / Collection */}
         {movie.belongs_to_collection && (

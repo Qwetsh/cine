@@ -85,6 +85,11 @@ export interface TmdbCollectionDetail {
   parts: TmdbMovie[]
 }
 
+export interface TmdbKeyword {
+  id: number
+  name: string
+}
+
 export interface TmdbMovieDetail extends TmdbMovie {
   runtime: number | null
   genres: { id: number; name: string }[]
@@ -97,6 +102,7 @@ export interface TmdbMovieDetail extends TmdbMovie {
   homepage: string
   imdb_id: string | null
   belongs_to_collection: TmdbCollectionRef | null
+  keywords?: { keywords: TmdbKeyword[] }
   credits?: {
     cast: TmdbCastMember[]
     crew: TmdbCrewMember[]
@@ -323,7 +329,10 @@ export const tmdb = {
     tmdbFetch<TmdbSearchResult>('/search/movie', { query, page: String(page) }),
 
   getMovie: (id: number) =>
-    tmdbFetch<TmdbMovieDetail>(`/movie/${id}`, { append_to_response: 'credits' }),
+    tmdbFetch<TmdbMovieDetail>(`/movie/${id}`, { append_to_response: 'credits,keywords' }),
+
+  getMovieExternalIds: (id: number) =>
+    tmdbFetch<TmdbExternalIds>(`/movie/${id}/external_ids`),
 
   getPopular: (page = 1) =>
     tmdbFetch<TmdbSearchResult>('/movie/popular', { page: String(page) }),
