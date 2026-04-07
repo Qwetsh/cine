@@ -10,6 +10,7 @@ import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
 import { RecommendButton } from '../components/movie/RecommendButton'
 import { FriendsCard } from '../components/movie/FriendsCard'
+import { TrailerButton } from '../components/movie/TrailerButton'
 import { supabase } from '../lib/supabase'
 import type { TmdbTvShowDetail } from '../lib/tmdb'
 
@@ -202,6 +203,7 @@ export function TvDetailPage() {
               {show.vote_average > 0 && (
                 <span className="text-[var(--color-gold)]">★ {show.vote_average.toFixed(1)}</span>
               )}
+              <TrailerButton tmdbId={show.id} mediaType="tv" />
               {seriesAvg !== null && (
                 <span className="text-[var(--color-accent)]">Notre note : {seriesAvg}/5</span>
               )}

@@ -184,6 +184,20 @@ export interface DiscoverParams {
   with_origin_country?: string
 }
 
+export interface TmdbVideo {
+  id: string
+  key: string
+  name: string
+  site: string
+  type: string
+  official: boolean
+}
+
+export interface TmdbVideosResult {
+  id: number
+  results: TmdbVideo[]
+}
+
 export type MediaType = 'movie' | 'tv'
 
 export interface SearchFilters {
@@ -311,6 +325,12 @@ export const tmdb = {
 
   getSimilar: (id: number) =>
     tmdbFetch<TmdbSearchResult>(`/movie/${id}/similar`),
+
+  getMovieVideos: (id: number) =>
+    tmdbFetch<TmdbVideosResult>(`/movie/${id}/videos`),
+
+  getTvVideos: (id: number) =>
+    tmdbFetch<TmdbVideosResult>(`/tv/${id}/videos`),
 
   getGenres: () =>
     tmdbFetch<{ genres: TmdbGenre[] }>('/genre/movie/list'),

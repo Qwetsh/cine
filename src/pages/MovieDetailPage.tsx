@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
 import { RecommendButton } from '../components/movie/RecommendButton'
 import { FriendsCard } from '../components/movie/FriendsCard'
+import { TrailerButton } from '../components/movie/TrailerButton'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
 export function MovieDetailPage() {
@@ -229,6 +230,7 @@ export function MovieDetailPage() {
               {movie.vote_average > 0 && (
                 <span className="text-[var(--color-gold)]">★ {movie.vote_average.toFixed(1)}</span>
               )}
+              <TrailerButton tmdbId={movie.id} mediaType="movie" />
             </div>
           </div>
         </div>
