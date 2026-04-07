@@ -70,7 +70,7 @@ const gbooksCache = new Map<string, GoogleBooksData>()
 function loadGbooksCache(key: string): GoogleBooksData | undefined {
   if (gbooksCache.has(key)) return gbooksCache.get(key)!
   try {
-    const stored = sessionStorage.getItem(`gbooks_${key}`)
+    const stored = localStorage.getItem(`gbooks_${key}`)
     if (stored) {
       const parsed = JSON.parse(stored) as GoogleBooksData
       gbooksCache.set(key, parsed)
@@ -83,13 +83,13 @@ function loadGbooksCache(key: string): GoogleBooksData | undefined {
 function saveGbooksCache(key: string, value: GoogleBooksData) {
   gbooksCache.set(key, value)
   try {
-    sessionStorage.setItem(`gbooks_${key}`, JSON.stringify(value))
+    localStorage.setItem(`gbooks_${key}`, JSON.stringify(value))
   } catch { /* ignore */ }
 }
 
 // Queue séquentielle : espace les requêtes Google Books pour éviter les 429
 let gbooksQueue: Promise<void> = Promise.resolve()
-const GBOOKS_DELAY_MS = 250
+const GBOOKS_DELAY_MS = 500
 
 function enqueueGbooks<T>(fn: () => Promise<T>): Promise<T> {
   const result = gbooksQueue.then(fn)
@@ -105,8 +105,8 @@ async function fetchGoogleBooksRaw(q: string, retries = 2): Promise<Response | n
   for (let i = 0; i <= retries; i++) {
     const res = await fetch(url)
     if (res.status !== 429) return res
-    // Backoff exponentiel : 1s, 2s
-    await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+    // Backoff exponentiel : 2s, 5s, 10s
+    await new Promise(r => setTimeout(r, [2000, 5000, 10000][i]))
   }
   return null
 }
