@@ -43,6 +43,7 @@ export function PersonPage() {
   const [externalIds, setExternalIds] = useState<TmdbExternalIds | null>(null)
   const [loading, setLoading] = useState(true)
   const [bioExpanded, setBioExpanded] = useState(false)
+  const movieIds = useMemo(() => new Set(movies.map(m => m.id)), [movies])
 
   useEffect(() => {
     if (!id) return
@@ -142,8 +143,6 @@ export function PersonPage() {
   const avgRating = movies.length > 0
     ? (movies.reduce((sum, m) => sum + (m.vote_average || 0), 0) / movies.length).toFixed(1)
     : null
-
-  const movieIds = useMemo(() => new Set(movies.map(m => m.id)), [movies])
 
   const BIO_PREVIEW = 300
   const isLongBio = biography.length > BIO_PREVIEW
