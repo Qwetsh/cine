@@ -65,6 +65,17 @@ interface GoogleBooksData {
 }
 
 // --- Google Books rate limiting & cache ---
+// Nettoyage one-shot : supprime les entrées gbooks vides (429 cachés par erreur)
+try {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i)
+    if (k?.startsWith('gbooks_')) {
+      const v = JSON.parse(localStorage.getItem(k)!)
+      if (!v.coverUrl && !v.isEbook && !v.infoLink) localStorage.removeItem(k)
+    }
+  }
+} catch { /* ignore */ }
+
 const gbooksCache = new Map<string, GoogleBooksData>()
 
 function loadGbooksCache(key: string): GoogleBooksData | undefined {
@@ -133,7 +144,8 @@ async function fetchGoogleBooksData(title: string | null, author: string | null)
         ? `intitle:${title}+inauthor:${author}`
         : `intitle:${title}`
       const res = await fetchGoogleBooksRaw(q)
-      if (!res || !res.ok) {
+      if (!res) return empty // 429 après retries — ne PAS cacher, on retentera
+      if (!res.ok) {
         saveGbooksCache(cacheKey, empty)
         return empty
       }
@@ -152,8 +164,7 @@ async function fetchGoogleBooksData(title: string | null, author: string | null)
       saveGbooksCache(cacheKey, result)
       return result
     } catch {
-      saveGbooksCache(cacheKey, empty)
-      return empty
+      return empty // Erreur réseau — ne pas cacher, on retentera
     }
   })
 }
