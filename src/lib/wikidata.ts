@@ -98,33 +98,59 @@ function saveGbooksCache(key: string, value: GoogleBooksData) {
   } catch { /* ignore */ }
 }
 
-// Queue séquentielle : espace les requêtes Google Books pour éviter les 429
-let gbooksQueue: Promise<void> = Promise.resolve()
-const GBOOKS_DELAY_MS = 500
+// Queue séquentielle : espace les requêtes pour éviter les 429
+let booksQueue: Promise<void> = Promise.resolve()
+const BOOKS_DELAY_MS = 300
 
-function enqueueGbooks<T>(fn: () => Promise<T>): Promise<T> {
-  const result = gbooksQueue.then(fn)
-  gbooksQueue = result.then(
-    () => new Promise(r => setTimeout(r, GBOOKS_DELAY_MS)),
-    () => new Promise(r => setTimeout(r, GBOOKS_DELAY_MS)),
+function enqueueBooks<T>(fn: () => Promise<T>): Promise<T> {
+  const result = booksQueue.then(fn)
+  booksQueue = result.then(
+    () => new Promise(r => setTimeout(r, BOOKS_DELAY_MS)),
+    () => new Promise(r => setTimeout(r, BOOKS_DELAY_MS)),
   )
   return result
 }
 
-async function fetchGoogleBooksRaw(q: string, retries = 2): Promise<Response | null> {
+/**
+ * Essaie Google Books d'abord, puis Open Library en fallback.
+ */
+async function fetchGoogleBooks(title: string, author: string | null): Promise<GoogleBooksData | null> {
+  const q = author
+    ? `intitle:${title}+inauthor:${author}`
+    : `intitle:${title}`
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=1`
-  for (let i = 0; i <= retries; i++) {
-    const res = await fetch(url)
-    if (res.status !== 429) return res
-    // Backoff exponentiel : 2s, 5s, 10s
-    await new Promise(r => setTimeout(r, [2000, 5000, 10000][i]))
+  const res = await fetch(url)
+  if (res.status === 429) return null // Signal pour tenter le fallback
+  if (!res.ok) return { coverUrl: null, isEbook: false, infoLink: null }
+  const data = await res.json()
+  const item = data.items?.[0]
+  if (!item) return { coverUrl: null, isEbook: false, infoLink: null }
+  const thumbnail = item.volumeInfo?.imageLinks?.thumbnail
+  return {
+    coverUrl: thumbnail ? thumbnail.replace('http://', 'https://') : null,
+    isEbook: item.saleInfo?.isEbook === true,
+    infoLink: item.volumeInfo?.infoLink ?? null,
   }
-  return null
+}
+
+async function fetchOpenLibrary(title: string, author: string | null): Promise<GoogleBooksData> {
+  const params = new URLSearchParams({ title, limit: '1', fields: 'cover_i,key' })
+  if (author) params.set('author', author)
+  const res = await fetch(`https://openlibrary.org/search.json?${params}`)
+  if (!res.ok) return { coverUrl: null, isEbook: false, infoLink: null }
+  const data = await res.json()
+  const doc = data.docs?.[0]
+  if (!doc?.cover_i) return { coverUrl: null, isEbook: false, infoLink: null }
+  return {
+    coverUrl: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
+    isEbook: false,
+    infoLink: doc.key ? `https://openlibrary.org${doc.key}` : null,
+  }
 }
 
 /**
- * Cherche les infos du livre via Google Books API (gratuit, sans clé).
- * Avec cache sessionStorage et rate limiting.
+ * Cherche les infos du livre : Google Books → Open Library (fallback).
+ * Avec cache localStorage et rate limiting.
  */
 async function fetchGoogleBooksData(title: string | null, author: string | null): Promise<GoogleBooksData> {
   const empty: GoogleBooksData = { coverUrl: null, isEbook: false, infoLink: null }
@@ -134,37 +160,23 @@ async function fetchGoogleBooksData(title: string | null, author: string | null)
   const cached = loadGbooksCache(cacheKey)
   if (cached !== undefined) return cached
 
-  return enqueueGbooks(async () => {
-    // Re-check cache après attente dans la queue
+  return enqueueBooks(async () => {
     const cached2 = loadGbooksCache(cacheKey)
     if (cached2 !== undefined) return cached2
 
     try {
-      const q = author
-        ? `intitle:${title}+inauthor:${author}`
-        : `intitle:${title}`
-      const res = await fetchGoogleBooksRaw(q)
-      if (!res) return empty // 429 après retries — ne PAS cacher, on retentera
-      if (!res.ok) {
-        saveGbooksCache(cacheKey, empty)
-        return empty
+      // Essayer Google Books d'abord
+      const gbooks = await fetchGoogleBooks(title, author)
+      if (gbooks !== null) {
+        saveGbooksCache(cacheKey, gbooks)
+        return gbooks
       }
-      const data = await res.json()
-      const item = data.items?.[0]
-      if (!item) {
-        saveGbooksCache(cacheKey, empty)
-        return empty
-      }
-      const thumbnail = item.volumeInfo?.imageLinks?.thumbnail
-      const result: GoogleBooksData = {
-        coverUrl: thumbnail ? thumbnail.replace('http://', 'https://') : null,
-        isEbook: item.saleInfo?.isEbook === true,
-        infoLink: item.volumeInfo?.infoLink ?? null,
-      }
-      saveGbooksCache(cacheKey, result)
-      return result
+      // 429 Google Books → fallback Open Library
+      const olib = await fetchOpenLibrary(title, author)
+      saveGbooksCache(cacheKey, olib)
+      return olib
     } catch {
-      return empty // Erreur réseau — ne pas cacher, on retentera
+      return empty
     }
   })
 }
