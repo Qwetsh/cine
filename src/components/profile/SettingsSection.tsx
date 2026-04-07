@@ -96,6 +96,34 @@ export function SettingsSection() {
             onChange={(v) => update({ showSeries: v })}
           />
         </div>
+
+        {/* Livres source */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="font-medium text-sm text-[var(--color-text)]">Livres source</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Afficher le livre dont est adapté le film
+            </p>
+          </div>
+          <Toggle
+            checked={settings.showBooks}
+            onChange={(v) => update({ showBooks: v })}
+          />
+        </div>
+
+        {/* Jeux vidéo */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="font-medium text-sm text-[var(--color-text)]">Jeux vidéo liés</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Afficher les jeux vidéo liés au film
+            </p>
+          </div>
+          <Toggle
+            checked={settings.showGames}
+            onChange={(v) => update({ showGames: v })}
+          />
+        </div>
       </div>
 
       {/* ── Où regarder ── */}

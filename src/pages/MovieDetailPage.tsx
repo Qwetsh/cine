@@ -12,6 +12,8 @@ import { FriendsCard } from '../components/movie/FriendsCard'
 import { TrailerButton } from '../components/movie/TrailerButton'
 import { MovieCollection } from '../components/movie/MovieCollection'
 import { BookSource } from '../components/movie/BookSource'
+import { GameSource } from '../components/movie/GameSource'
+import { useSettings } from '../hooks/useSettings'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
 export function MovieDetailPage() {
@@ -26,6 +28,7 @@ export function MovieDetailPage() {
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
   const { toast, showToast } = useToast()
+  const { settings } = useSettings()
 
   useEffect(() => {
     if (!id) return
@@ -304,7 +307,10 @@ export function MovieDetailPage() {
         )}
 
         {/* Adapté de... */}
-        <BookSource tmdbId={movie.id} keywords={movie.keywords} />
+        {settings.showBooks && <BookSource tmdbId={movie.id} keywords={movie.keywords} />}
+
+        {/* Jeux vidéo liés */}
+        {settings.showGames && <GameSource tmdbId={movie.id} movieTitle={movie.title} />}
 
         {/* Saga / Collection */}
         {movie.belongs_to_collection && (
