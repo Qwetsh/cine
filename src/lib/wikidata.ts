@@ -64,43 +64,122 @@ interface GoogleBooksData {
   infoLink: string | null
 }
 
+// --- Google Books rate limiting & cache ---
+const gbooksCache = new Map<string, GoogleBooksData>()
+
+function loadGbooksCache(key: string): GoogleBooksData | undefined {
+  if (gbooksCache.has(key)) return gbooksCache.get(key)!
+  try {
+    const stored = sessionStorage.getItem(`gbooks_${key}`)
+    if (stored) {
+      const parsed = JSON.parse(stored) as GoogleBooksData
+      gbooksCache.set(key, parsed)
+      return parsed
+    }
+  } catch { /* ignore */ }
+  return undefined
+}
+
+function saveGbooksCache(key: string, value: GoogleBooksData) {
+  gbooksCache.set(key, value)
+  try {
+    sessionStorage.setItem(`gbooks_${key}`, JSON.stringify(value))
+  } catch { /* ignore */ }
+}
+
+// Queue séquentielle : espace les requêtes Google Books pour éviter les 429
+let gbooksQueue: Promise<void> = Promise.resolve()
+const GBOOKS_DELAY_MS = 250
+
+function enqueueGbooks<T>(fn: () => Promise<T>): Promise<T> {
+  const result = gbooksQueue.then(fn)
+  gbooksQueue = result.then(
+    () => new Promise(r => setTimeout(r, GBOOKS_DELAY_MS)),
+    () => new Promise(r => setTimeout(r, GBOOKS_DELAY_MS)),
+  )
+  return result
+}
+
+async function fetchGoogleBooksRaw(q: string, retries = 2): Promise<Response | null> {
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=1`
+  for (let i = 0; i <= retries; i++) {
+    const res = await fetch(url)
+    if (res.status !== 429) return res
+    // Backoff exponentiel : 1s, 2s
+    await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+  }
+  return null
+}
+
 /**
  * Cherche les infos du livre via Google Books API (gratuit, sans clé).
+ * Avec cache sessionStorage et rate limiting.
  */
 async function fetchGoogleBooksData(title: string | null, author: string | null): Promise<GoogleBooksData> {
   const empty: GoogleBooksData = { coverUrl: null, isEbook: false, infoLink: null }
   if (!title) return empty
-  try {
-    const q = author
-      ? `intitle:${title}+inauthor:${author}`
-      : `intitle:${title}`
-    const res = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=1`
-    )
-    if (!res.ok) return empty
-    const data = await res.json()
-    const item = data.items?.[0]
-    if (!item) return empty
-    const thumbnail = item.volumeInfo?.imageLinks?.thumbnail
-    return {
-      coverUrl: thumbnail ? thumbnail.replace('http://', 'https://') : null,
-      isEbook: item.saleInfo?.isEbook === true,
-      infoLink: item.volumeInfo?.infoLink ?? null,
+
+  const cacheKey = `${title}|${author ?? ''}`
+  const cached = loadGbooksCache(cacheKey)
+  if (cached !== undefined) return cached
+
+  return enqueueGbooks(async () => {
+    // Re-check cache après attente dans la queue
+    const cached2 = loadGbooksCache(cacheKey)
+    if (cached2 !== undefined) return cached2
+
+    try {
+      const q = author
+        ? `intitle:${title}+inauthor:${author}`
+        : `intitle:${title}`
+      const res = await fetchGoogleBooksRaw(q)
+      if (!res || !res.ok) {
+        saveGbooksCache(cacheKey, empty)
+        return empty
+      }
+      const data = await res.json()
+      const item = data.items?.[0]
+      if (!item) {
+        saveGbooksCache(cacheKey, empty)
+        return empty
+      }
+      const thumbnail = item.volumeInfo?.imageLinks?.thumbnail
+      const result: GoogleBooksData = {
+        coverUrl: thumbnail ? thumbnail.replace('http://', 'https://') : null,
+        isEbook: item.saleInfo?.isEbook === true,
+        infoLink: item.volumeInfo?.infoLink ?? null,
+      }
+      saveGbooksCache(cacheKey, result)
+      return result
+    } catch {
+      saveGbooksCache(cacheKey, empty)
+      return empty
     }
-  } catch {
-    return empty
-  }
+  })
 }
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql'
 
+// Déduplication des appels en vol — évite les doubles requêtes (React StrictMode, re-renders)
+const inflight = new Map<string, Promise<BookSourceInfo | null>>()
+
 /**
  * Interroge Wikidata via SPARQL pour trouver l'œuvre source (P144) d'un film.
  */
-export async function fetchBookSource(wikidataId: string): Promise<BookSourceInfo | null> {
+export function fetchBookSource(wikidataId: string): Promise<BookSourceInfo | null> {
   const cached = loadCache(wikidataId)
-  if (cached !== undefined) return cached
+  if (cached !== undefined) return Promise.resolve(cached)
 
+  // Si un appel est déjà en vol pour ce wikidataId, retourner la même promesse
+  if (inflight.has(wikidataId)) return inflight.get(wikidataId)!
+
+  const promise = _fetchBookSource(wikidataId)
+  inflight.set(wikidataId, promise)
+  promise.finally(() => inflight.delete(wikidataId))
+  return promise
+}
+
+async function _fetchBookSource(wikidataId: string): Promise<BookSourceInfo | null> {
   try {
     const query = `
 SELECT ?book ?bookLabel ?authorName ?date WHERE {
