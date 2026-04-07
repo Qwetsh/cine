@@ -93,9 +93,9 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition-colors"
+        className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 text-sm font-medium border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
       >
-        🎭 Jouant avec...
+        <span>🎭</span> Jouant avec...
       </button>
     )
   }
