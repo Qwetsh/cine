@@ -80,10 +80,11 @@ interface DeezerTracksResult {
   }[]
 }
 
-// Deezer API doesn't support CORS — proxy through corsproxy.io
+// Deezer API doesn't support CORS — proxy through Supabase Edge Function
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
+
 function deezerFetch(path: string): Promise<Response> {
-  const url = `https://api.deezer.com${path}`
-  return fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`)
+  return fetch(`${SUPABASE_URL}/functions/v1/deezer-proxy?path=${encodeURIComponent(path)}`)
 }
 
 async function _fetchSoundtrack(movieTitle: string, key: string): Promise<DeezerAlbum | null> {
