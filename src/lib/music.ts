@@ -80,6 +80,12 @@ interface DeezerTracksResult {
   }[]
 }
 
+// Deezer API doesn't support CORS — proxy through corsproxy.io
+function deezerFetch(path: string): Promise<Response> {
+  const url = `https://api.deezer.com${path}`
+  return fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`)
+}
+
 async function _fetchSoundtrack(movieTitle: string, key: string): Promise<DeezerAlbum | null> {
   try {
     // Try multiple search queries in order of specificity
@@ -93,8 +99,8 @@ async function _fetchSoundtrack(movieTitle: string, key: string): Promise<Deezer
     let bestAlbum: DeezerAlbumResult | null = null
 
     for (const q of queries) {
-      const res = await fetch(
-        `https://api.deezer.com/search/album?q=${encodeURIComponent(q)}&limit=5`
+      const res = await deezerFetch(
+        `/search/album?q=${encodeURIComponent(q)}&limit=5`
       )
       if (!res.ok) continue
 
@@ -119,7 +125,7 @@ async function _fetchSoundtrack(movieTitle: string, key: string): Promise<Deezer
     }
 
     // Fetch tracks
-    const tracksRes = await fetch(`https://api.deezer.com/album/${bestAlbum.id}/tracks?limit=50`)
+    const tracksRes = await deezerFetch(`/album/${bestAlbum.id}/tracks?limit=50`)
     let tracks: DeezerTrack[] = []
 
     if (tracksRes.ok) {
