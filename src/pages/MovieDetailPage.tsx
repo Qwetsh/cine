@@ -314,7 +314,7 @@ export function MovieDetailPage() {
         {settings.showGames && <GameSource tmdbId={movie.id} movieTitle={movie.title} />}
 
         {/* Bande originale */}
-        {settings.showMusic && <MusicSource movieTitle={movie.title} />}
+        {settings.showMusic && <MusicSource movieTitle={movie.title} originalTitle={movie.original_title} />}
 
         {/* Saga / Collection */}
         {movie.belongs_to_collection && (

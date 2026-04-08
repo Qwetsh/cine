@@ -3,9 +3,10 @@ import { fetchSoundtrack, type DeezerAlbum, type DeezerTrack } from '../../lib/m
 
 interface Props {
   movieTitle: string
+  originalTitle?: string
 }
 
-export function MusicSource({ movieTitle }: Props) {
+export function MusicSource({ movieTitle, originalTitle }: Props) {
   const [album, setAlbum] = useState<DeezerAlbum | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
@@ -16,7 +17,7 @@ export function MusicSource({ movieTitle }: Props) {
     let cancelled = false
     setLoading(true)
 
-    fetchSoundtrack(movieTitle)
+    fetchSoundtrack(movieTitle, originalTitle)
       .then(result => {
         if (!cancelled) setAlbum(result)
       })
@@ -26,7 +27,7 @@ export function MusicSource({ movieTitle }: Props) {
       })
 
     return () => { cancelled = true }
-  }, [movieTitle])
+  }, [movieTitle, originalTitle])
 
   // Cleanup audio on unmount
   useEffect(() => {

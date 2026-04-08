@@ -46,14 +46,14 @@ function saveCache(key: string, value: DeezerAlbum | null) {
   } catch { /* ignore */ }
 }
 
-export function fetchSoundtrack(movieTitle: string): Promise<DeezerAlbum | null> {
+export function fetchSoundtrack(movieTitle: string, originalTitle?: string): Promise<DeezerAlbum | null> {
   const key = cacheKey(movieTitle)
   const cached = loadCache(key)
   if (cached !== undefined) return Promise.resolve(cached)
 
   if (inflight.has(key)) return inflight.get(key)!
 
-  const promise = _fetchSoundtrack(movieTitle, key)
+  const promise = _fetchSoundtrack(movieTitle, key, originalTitle)
   inflight.set(key, promise)
   promise.finally(() => inflight.delete(key))
   return promise
@@ -83,26 +83,31 @@ interface DeezerTracksResult {
 // Deezer API doesn't support CORS — proxy through Supabase Edge Function
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 
-function deezerFetch(path: string): Promise<Response> {
+function deezerFetch(endpoint: string, params: Record<string, string> = {}): Promise<Response> {
+  const qs = new URLSearchParams(params).toString()
+  const path = qs ? `${endpoint}?${qs}` : endpoint
   return fetch(`${SUPABASE_URL}/functions/v1/deezer-proxy?path=${encodeURIComponent(path)}`)
 }
 
-async function _fetchSoundtrack(movieTitle: string, key: string): Promise<DeezerAlbum | null> {
+async function _fetchSoundtrack(movieTitle: string, key: string, originalTitle?: string): Promise<DeezerAlbum | null> {
   try {
-    // Try multiple search queries in order of specificity
-    const queries = [
-      `${movieTitle} original motion picture soundtrack`,
-      `${movieTitle} soundtrack`,
-      `${movieTitle} bande originale`,
-    ]
+    // Build search queries — try original (English) title first if different from local title
+    const titles = originalTitle && originalTitle.toLowerCase() !== movieTitle.toLowerCase()
+      ? [originalTitle, movieTitle]
+      : [movieTitle]
+
+    const queries: string[] = []
+    for (const t of titles) {
+      queries.push(`${t} original motion picture soundtrack`)
+      queries.push(`${t} soundtrack`)
+      queries.push(`${t} bande originale`)
+    }
 
     type DeezerAlbumResult = NonNullable<DeezerSearchResult['data']>[number]
     let bestAlbum: DeezerAlbumResult | null = null
 
     for (const q of queries) {
-      const res = await deezerFetch(
-        `/search/album?q=${encodeURIComponent(q)}&limit=5`
-      )
+      const res = await deezerFetch('/search/album', { q, limit: '5' })
       if (!res.ok) continue
 
       const data: DeezerSearchResult = await res.json()
@@ -126,7 +131,7 @@ async function _fetchSoundtrack(movieTitle: string, key: string): Promise<Deezer
     }
 
     // Fetch tracks
-    const tracksRes = await deezerFetch(`/album/${bestAlbum.id}/tracks?limit=50`)
+    const tracksRes = await deezerFetch(`/album/${bestAlbum.id}/tracks`, { limit: '50' })
     let tracks: DeezerTrack[] = []
 
     if (tracksRes.ok) {
