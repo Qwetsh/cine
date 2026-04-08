@@ -8,7 +8,9 @@ import { useGenres } from '../hooks/useGenres'
 import { useCollection } from '../hooks/useCollection'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useRecommendations } from '../hooks/useRecommendations'
+import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useCoupleContext } from '../contexts/CoupleContext'
+import { useAuth } from '../contexts/AuthContext'
 import { TvProviderLogos } from '../components/movie/TvProviderLogos'
 import type { TmdbMovie, TmdbTvShow } from '../lib/tmdb'
 
@@ -24,12 +26,14 @@ export function HomePage() {
   const navigate = useNavigate()
 
   // For "Pour vous" mode
+  const { user } = useAuth()
   const { coupleId } = useCoupleContext()
   const { genres } = useGenres()
   const { entries: collection } = useCollection(coupleId)
   const { entries: watchlist } = useWatchlist(coupleId)
+  const { entries: personalCollection } = usePersonalCollection(user?.id ?? null)
   const { results: recommended, loading: loadingReco, refresh: refreshReco } = useRecommendations(
-    collection, watchlist, genres, isForYou,
+    collection, watchlist, genres, isForYou, personalCollection,
   )
 
   useEffect(() => {

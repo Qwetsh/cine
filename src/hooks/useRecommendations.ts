@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../lib/tmdb'
-import type { CollectionMovieEntry, WatchlistMovieEntry } from '../types'
+import type { CollectionMovieEntry, WatchlistMovieEntry, PersonalCollectionEntry } from '../types'
 
 /**
  * Build personalized recommendations from collection + watchlist.
@@ -87,6 +87,7 @@ export function useRecommendations(
   watchlist: WatchlistMovieEntry[],
   genres: TmdbGenre[],
   enabled: boolean,
+  personalCollection: PersonalCollectionEntry[] = [],
 ) {
   const [results, setResults] = useState<TmdbMovie[]>([])
   const [loading, setLoading] = useState(false)
@@ -111,10 +112,11 @@ export function useRecommendations(
         return
       }
 
-      // Set of tmdb_ids to exclude
+      // Set of tmdb_ids to exclude (couple collection + watchlist + solo collection)
       const excludeIds = new Set<number>()
       for (const e of collection) excludeIds.add(e.movie.tmdb_id)
       for (const e of watchlist) excludeIds.add(e.movie.tmdb_id)
+      for (const e of personalCollection) excludeIds.add(e.movie.tmdb_id)
 
       const allMovies: TmdbMovie[] = []
 
@@ -196,18 +198,18 @@ export function useRecommendations(
     } finally {
       setLoading(false)
     }
-  }, [collection, watchlist, genres])
+  }, [collection, watchlist, genres, personalCollection])
 
   // Auto-fetch once when data is ready (re-fetch if collection/watchlist size changes)
   useEffect(() => {
     if (!enabled) return
     if (genres.length === 0 || (collection.length === 0 && watchlist.length === 0)) return
-    const key = `${collection.length}-${watchlist.length}`
+    const key = `${collection.length}-${watchlist.length}-${personalCollection.length}`
     if (didFetchRef.current && dataKeyRef.current === key) return
     didFetchRef.current = true
     dataKeyRef.current = key
     refresh()
-  }, [enabled, genres.length, collection.length, watchlist.length, refresh])
+  }, [enabled, genres.length, collection.length, watchlist.length, personalCollection.length, refresh])
 
   return { results, loading, refresh }
 }
