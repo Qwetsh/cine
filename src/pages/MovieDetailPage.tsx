@@ -13,6 +13,7 @@ import { TrailerButton } from '../components/movie/TrailerButton'
 import { MovieCollection } from '../components/movie/MovieCollection'
 import { BookSource } from '../components/movie/BookSource'
 import { GameSource } from '../components/movie/GameSource'
+import { MusicSource } from '../components/movie/MusicSource'
 import { useSettings } from '../hooks/useSettings'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
@@ -311,6 +312,9 @@ export function MovieDetailPage() {
 
         {/* Jeux vidéo liés */}
         {settings.showGames && <GameSource tmdbId={movie.id} movieTitle={movie.title} />}
+
+        {/* Bande originale */}
+        {settings.showMusic && <MusicSource movieTitle={movie.title} />}
 
         {/* Saga / Collection */}
         {movie.belongs_to_collection && (

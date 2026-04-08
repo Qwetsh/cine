@@ -62,6 +62,7 @@ export interface Settings {
   // Enrichments on movie detail page
   showBooks: boolean
   showGames: boolean
+  showMusic: boolean
 }
 
 const STORAGE_KEY = 'cine_settings'
@@ -76,6 +77,7 @@ const defaultSettings: Settings = {
   showSeries: false,
   showBooks: true,
   showGames: true,
+  showMusic: true,
 }
 
 // Cached snapshot — useSyncExternalStore requires referential stability

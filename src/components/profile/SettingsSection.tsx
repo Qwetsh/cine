@@ -124,6 +124,20 @@ export function SettingsSection() {
             onChange={(v) => update({ showGames: v })}
           />
         </div>
+
+        {/* Musique / BO */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="font-medium text-sm text-[var(--color-text)]">Bande originale</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Afficher la BO du film avec écoute de previews
+            </p>
+          </div>
+          <Toggle
+            checked={settings.showMusic}
+            onChange={(v) => update({ showMusic: v })}
+          />
+        </div>
       </div>
 
       {/* ── Où regarder ── */}
