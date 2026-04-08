@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { tmdb } from '../../lib/tmdb'
 import { fetchRelatedGames, type GameInfo } from '../../lib/games'
+import { AccordionSection } from './AccordionSection'
 
 interface Props {
   tmdbId: number
@@ -48,14 +49,12 @@ export function GameSource({ tmdbId, movieTitle }: Props) {
 
   return (
     <>
-      <div className="mt-6">
-        <h2 className="font-semibold text-[var(--color-text)] mb-3">
-          Jeux vidéo liés
-          <span className="text-xs font-normal text-[var(--color-text-muted)] ml-2">
-            {games.length} jeu{games.length > 1 ? 'x' : ''}
-          </span>
-        </h2>
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+      <AccordionSection
+        icon="🎮"
+        title="Jeux vidéo liés"
+        badge={`${games.length} jeu${games.length > 1 ? 'x' : ''}`}
+      >
+        <div className="flex gap-3 overflow-x-auto py-3 px-4 scrollbar-hide">
           {games.map(game => (
             <button
               key={game.wikidataId}
@@ -81,7 +80,7 @@ export function GameSource({ tmdbId, movieTitle }: Props) {
             </button>
           ))}
         </div>
-      </div>
+      </AccordionSection>
 
       {/* Modale détail jeu */}
       {selectedGame && (
