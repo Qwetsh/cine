@@ -89,7 +89,8 @@ async function _fetchSoundtrack(movieTitle: string, key: string): Promise<Deezer
       `${movieTitle} bande originale`,
     ]
 
-    let bestAlbum: DeezerSearchResult['data'] extends (infer T)[] ? T : never | null = null
+    type DeezerAlbumResult = NonNullable<DeezerSearchResult['data']>[number]
+    let bestAlbum: DeezerAlbumResult | null = null
 
     for (const q of queries) {
       const res = await fetch(
