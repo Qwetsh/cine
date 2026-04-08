@@ -1,6 +1,7 @@
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../../lib/tmdb'
 import type { FeedbackType } from '../../hooks/useSmartSuggestion'
+import { TrailerButton } from '../movie/TrailerButton'
 
 interface Props {
   movie: TmdbMovie
@@ -33,6 +34,7 @@ export function SuggestionCard({ movie, genres, onFeedback, onAccept }: Props) {
             {movie.vote_average > 0 && (
               <span className="text-[var(--color-gold)]">★ {movie.vote_average.toFixed(1)}</span>
             )}
+            <TrailerButton tmdbId={movie.id} mediaType="movie" />
           </div>
           {movieGenres.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
