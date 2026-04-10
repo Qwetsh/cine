@@ -9,6 +9,7 @@ export interface UseFriendRecosState {
   loading: boolean
   error: string | null
   sendRecommendation: (toUserIds: string[], movieId: number | null, tvShowId: number | null, message?: string) => Promise<{ error: string | null }>
+  deleteRecommendation: (recoId: string) => Promise<void>
   markAllSeen: () => Promise<void>
   refetch: () => Promise<void>
 }
@@ -110,6 +111,21 @@ export function useFriendRecos(userId: string | null): UseFriendRecosState {
     }
   }
 
+  async function deleteRecommendation(recoId: string): Promise<void> {
+    // Optimistic remove from both lists
+    setReceived(prev => prev.filter(r => r.id !== recoId))
+    setSent(prev => prev.filter(r => r.id !== recoId))
+
+    const { error: deleteError } = await supabase
+      .from('recommendations')
+      .delete()
+      .eq('id', recoId)
+
+    if (deleteError) {
+      await fetchRecos()
+    }
+  }
+
   return {
     sent,
     received,
@@ -117,6 +133,7 @@ export function useFriendRecos(userId: string | null): UseFriendRecosState {
     loading,
     error,
     sendRecommendation,
+    deleteRecommendation,
     markAllSeen,
     refetch: fetchRecos,
   }
