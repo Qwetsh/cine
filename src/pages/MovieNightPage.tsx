@@ -241,7 +241,7 @@ export function MovieNightPage() {
             <div className="text-left flex-1 min-w-0">
               <p className="font-medium text-[var(--color-text)] text-sm">Quiz Ciné</p>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Testez vos connaissances ciné en duo
+                Testez vos connaissances ciné, solo ou en duo
               </p>
             </div>
             <svg

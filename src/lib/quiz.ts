@@ -1,4 +1,7 @@
+import { tmdb } from './tmdb'
 import type { TmdbMovieDetail } from './tmdb'
+import { discoverMoviesByTheme } from './discover'
+import type { QuizDifficulty, DiscoverTheme } from './discover'
 import {
   DECOY_DIRECTORS, DECOY_ACTORS, DECOY_TAGLINES,
   DECOY_COUNTRIES, RUNTIME_RANGES,
@@ -418,4 +421,47 @@ export function generatePosterQuestions(
 export function calculateScore(correct: boolean, timeMs: number): number {
   if (!correct) return 0
   return 100 + Math.max(0, 100 - Math.floor(timeMs / 150))
+}
+
+/**
+ * Generate quiz questions for any mode (classic, fight, solo).
+ * Shared between solo and duo quiz to guarantee identical question logic.
+ */
+export async function generateQuizQuestions(config: {
+  type: 'classic' | 'fight'
+  theme?: string | null
+  themeValue?: string | null
+  difficulty?: QuizDifficulty
+  film1TmdbId?: number
+  film2TmdbId?: number
+  count?: number
+}): Promise<QuizQuestion[]> {
+  const count = config.count ?? 10
+
+  if (config.type === 'fight') {
+    if (!config.film1TmdbId || !config.film2TmdbId) return []
+    const [m1, m2] = await Promise.all([
+      tmdb.getMovie(config.film1TmdbId),
+      tmdb.getMovie(config.film2TmdbId),
+    ])
+    return generateQuestionsFromTwoFilms(m1, m2, count)
+  }
+
+  // Classic / solo mode
+  const theme = (config.theme ?? 'general') as DiscoverTheme
+  const movies = await discoverMoviesByTheme(
+    theme,
+    config.themeValue ?? null,
+    config.difficulty ?? 'normal',
+  )
+
+  if (theme === 'poster') {
+    return generatePosterQuestions(movies, count)
+  }
+
+  const shuffled = shuffle([...movies])
+  const picked = shuffled.slice(0, 12)
+  const details = await Promise.all(picked.map(m => tmdb.getMovie(m.id)))
+  const pool = details.flatMap(m => generateQuestions(m))
+  return selectQuestions(pool, count)
 }

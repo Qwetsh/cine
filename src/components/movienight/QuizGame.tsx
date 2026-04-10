@@ -13,13 +13,14 @@ interface Props {
   partnerName: string
   isUser1: boolean
   isHost: boolean
+  solo?: boolean
   onAnswer: (questionIndex: number, answerIndex: number, timeMs: number, score: number) => void
   onAdvance: (nextIndex: number, phase: QuizData['phase']) => void
   onGameEnd: (score1: number, score2: number) => void
 }
 
 export function QuizGame({
-  quizData, partnerName, isUser1, isHost,
+  quizData, partnerName, isUser1, isHost, solo = false,
   onAnswer, onAdvance, onGameEnd,
 }: Props) {
   const { questions, current_index, phase, scores } = quizData
@@ -87,13 +88,14 @@ export function QuizGame({
     return () => clearInterval(timerRef.current)
   }, [phase, quizData.question_started_at, current_index, onAnswer])
 
-  // ── REVEAL: both answered → show results, then advance ──
+  // ── REVEAL: both answered (or solo answered) → show results, then advance ──
   useEffect(() => {
     if (phase !== 'question') return
     const myAns = myAnswers[current_index]
     const partnerAns = partnerAnswers[current_index]
 
-    if (myAns != null && partnerAns != null) {
+    const shouldReveal = solo ? myAns != null : (myAns != null && partnerAns != null)
+    if (shouldReveal) {
       setShowResult(true)
       if (timerRef.current) clearInterval(timerRef.current)
 
@@ -109,7 +111,7 @@ export function QuizGame({
         return () => clearTimeout(timer)
       }
     }
-  }, [phase, myAnswers, partnerAnswers, current_index, isHost, questions.length, onAdvance])
+  }, [phase, myAnswers, partnerAnswers, current_index, isHost, solo, questions.length, onAdvance])
 
   // ── RESULTS: trigger game end ──
   useEffect(() => {
@@ -147,11 +149,38 @@ export function QuizGame({
 
   // ── RESULTS RENDER ──
   if (phase === 'results') {
-    const winner = scores[0] > scores[1] ? (isUser1 ? 'Toi' : partnerName)
-      : scores[1] > scores[0] ? (isUser1 ? partnerName : 'Toi')
-      : 'Égalité'
     const finalMyScore = isUser1 ? scores[0] : scores[1]
+
+    if (solo) {
+      const maxScore = questions.length * 200
+      const correctCount = myAnswers.filter((a, i) => a === questions[i]?.correct_index).length
+      return (
+        <div className="px-4 text-center py-12 space-y-5">
+          <span className="text-6xl block">🏆</span>
+          <p className="text-xl font-bold text-[var(--color-text)]">Quiz terminé !</p>
+          <div className="space-y-2">
+            <p className="text-4xl font-black text-[var(--color-accent)]">{finalMyScore}</p>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {correctCount}/{questions.length} bonnes réponses
+            </p>
+            <div className="w-48 mx-auto h-2 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${(finalMyScore / maxScore) * 100}%`,
+                  background: myColor.gradient,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     const finalTheirScore = isUser1 ? scores[1] : scores[0]
+    const winner = finalMyScore > finalTheirScore ? 'Toi'
+      : finalTheirScore > finalMyScore ? partnerName
+      : 'Égalité'
     const finalTotal = finalMyScore + finalTheirScore
     const finalPct = finalTotal > 0 ? (finalMyScore / finalTotal) * 100 : 50
 
@@ -228,53 +257,71 @@ export function QuizGame({
   return (
     <div className="px-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
-        <div className="text-center min-w-[60px]">
-          <p className="text-[10px] text-[var(--color-text-muted)]">Toi</p>
-          <p className="text-xl font-bold text-[var(--color-accent)]">{myScoreQ}</p>
+      {solo ? (
+        <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
+          <div className="text-center min-w-[60px]">
+            <p className="text-[10px] text-[var(--color-text-muted)]">Score</p>
+            <p className="text-xl font-bold text-[var(--color-accent)]">{myScoreQ}</p>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-xs text-[var(--color-text-muted)] font-medium">
+              {current_index + 1}/{questions.length}
+            </span>
+            <span className={`text-lg font-bold ${isLow ? 'text-red-400' : 'text-[var(--color-text)]'}`}>
+              {seconds}s
+            </span>
+          </div>
+          <div className="w-[60px]" />
         </div>
-
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-xs text-[var(--color-text-muted)] font-medium">
-            {current_index + 1}/{questions.length}
-          </span>
-          <span className={`text-lg font-bold ${isLow ? 'text-red-400' : 'text-[var(--color-text)]'}`}>
-            {seconds}s
-          </span>
-        </div>
-
-        <div className="text-center min-w-[60px]">
-          <p className="text-[10px] text-[var(--color-text-muted)]">{partnerName}</p>
-          <p className="text-xl font-bold text-red-400">{theirScoreQ}</p>
-        </div>
-      </div>
-
-      {/* Energy bar */}
-      <div className="energy-bar-container">
-        <div className="energy-bar">
-          <div
-            className="energy-bar__left"
-            style={{
-              width: `${myPct}%`,
-              background: myColor.gradient,
-              boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)`,
-            }}
-          />
-          <div
-            className="energy-bar__right"
-            style={{ width: `${100 - myPct}%` }}
-          />
-          <div
-            className="energy-bar__clash"
-            style={{ left: `${myPct}%` }}
-          >
-            <div className="energy-bar__spark" />
-            <div className="energy-bar__spark energy-bar__spark--2" />
-            <div className="energy-bar__spark energy-bar__spark--3" />
-            <div className="energy-bar__glow" />
+      ) : (
+        <div className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-3">
+          <div className="text-center min-w-[60px]">
+            <p className="text-[10px] text-[var(--color-text-muted)]">Toi</p>
+            <p className="text-xl font-bold text-[var(--color-accent)]">{myScoreQ}</p>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-xs text-[var(--color-text-muted)] font-medium">
+              {current_index + 1}/{questions.length}
+            </span>
+            <span className={`text-lg font-bold ${isLow ? 'text-red-400' : 'text-[var(--color-text)]'}`}>
+              {seconds}s
+            </span>
+          </div>
+          <div className="text-center min-w-[60px]">
+            <p className="text-[10px] text-[var(--color-text-muted)]">{partnerName}</p>
+            <p className="text-xl font-bold text-red-400">{theirScoreQ}</p>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Energy bar (duo only) */}
+      {!solo && (
+        <div className="energy-bar-container">
+          <div className="energy-bar">
+            <div
+              className="energy-bar__left"
+              style={{
+                width: `${myPct}%`,
+                background: myColor.gradient,
+                boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)`,
+              }}
+            />
+            <div
+              className="energy-bar__right"
+              style={{ width: `${100 - myPct}%` }}
+            />
+            <div
+              className="energy-bar__clash"
+              style={{ left: `${myPct}%` }}
+            >
+              <div className="energy-bar__spark" />
+              <div className="energy-bar__spark energy-bar__spark--2" />
+              <div className="energy-bar__spark energy-bar__spark--3" />
+              <div className="energy-bar__glow" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Question */}
       {question.type === 'poster' && question.poster_path ? (
@@ -328,10 +375,10 @@ export function QuizGame({
 
       {/* Status line */}
       <div className="text-center text-xs text-[var(--color-text-muted)]">
-        {myCurrentAnswer != null && partnerCurrentAnswer == null && (
+        {!solo && myCurrentAnswer != null && partnerCurrentAnswer == null && (
           <span className="animate-pulse">En attente de {partnerName}...</span>
         )}
-        {myCurrentAnswer == null && partnerCurrentAnswer != null && (
+        {!solo && myCurrentAnswer == null && partnerCurrentAnswer != null && (
           <span>{partnerName} a répondu !</span>
         )}
         {showResult && myCurrentAnswer != null && (
