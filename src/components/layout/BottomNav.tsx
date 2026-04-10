@@ -63,7 +63,7 @@ export function BottomNav() {
   const unseenCount = recos.unseenCount
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)]/95 backdrop-blur border-t border-[var(--color-border)] safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)]/95 backdrop-blur border-t border-[var(--color-border)] safe-area-bottom">
       <div className="flex items-stretch max-w-2xl mx-auto">
         {NAV_ITEMS.map(({ to, label, Icon }) => (
           <NavLink

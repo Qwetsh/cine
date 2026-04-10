@@ -16,7 +16,7 @@ export function Header() {
   const { friends } = useFriendsContext()
 
   return (
-    <header className="sticky top-0 z-10 bg-[var(--color-bg)]/90 backdrop-blur border-b border-[var(--color-border)]">
+    <header className="sticky top-0 z-10 bg-[var(--color-bg)]/90 backdrop-blur border-b border-[var(--color-border)] safe-area-top">
       <div className="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
         <Link to="/" className="flex items-center gap-2">
           <span className="text-[var(--color-accent)] text-2xl">🎬</span>
