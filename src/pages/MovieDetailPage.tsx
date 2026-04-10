@@ -34,6 +34,9 @@ export function MovieDetailPage() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
+    setOnWatchlist(false)
+    setInCollection(false)
+    setInPersonal(false)
     tmdb.getMovie(Number(id))
       .then(setMovie)
       .catch(() => setLoading(false))
@@ -51,7 +54,12 @@ export function MovieDetailPage() {
         .eq('tmdb_id', movie!.id)
         .maybeSingle()
 
-      if (!movieRow) return
+      if (!movieRow) {
+        setOnWatchlist(false)
+        setInCollection(false)
+        setInPersonal(false)
+        return
+      }
 
       if (coupleId) {
         const [wl, col] = await Promise.all([
