@@ -237,6 +237,7 @@ export function MovieDetailPage() {
                 <span className="text-[var(--color-gold)]">★ {movie.vote_average.toFixed(1)}</span>
               )}
               <TrailerButton tmdbId={movie.id} mediaType="movie" />
+              {settings.showMusic && <MusicSource movieTitle={movie.title} originalTitle={movie.original_title} />}
             </div>
           </div>
         </div>
@@ -312,9 +313,6 @@ export function MovieDetailPage() {
 
         {/* Jeux vidéo liés */}
         {settings.showGames && <GameSource tmdbId={movie.id} movieTitle={movie.title} />}
-
-        {/* Bande originale */}
-        {settings.showMusic && <MusicSource movieTitle={movie.title} originalTitle={movie.original_title} />}
 
         {/* Saga / Collection */}
         {movie.belongs_to_collection && (
