@@ -84,17 +84,33 @@ export function SettingsSection() {
         </div>
 
         {/* Séries TV */}
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
-          <div className="flex-1 min-w-0 pr-3">
-            <p className="font-medium text-sm text-[var(--color-text)]">Séries TV</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Recherche, accueil et collection
-            </p>
+        <div className="px-4 py-3 border-t border-[var(--color-border)]">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="font-medium text-sm text-[var(--color-text)]">Séries TV</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                Recherche, accueil et collection
+              </p>
+            </div>
+            <Toggle
+              checked={settings.showSeries}
+              onChange={(v) => update({ showSeries: v, ...(!v && { suggestSeries: false }) })}
+            />
           </div>
-          <Toggle
-            checked={settings.showSeries}
-            onChange={(v) => update({ showSeries: v })}
-          />
+          {settings.showSeries && (
+            <div className="flex items-center justify-between mt-3 pl-4 border-l-2 border-[var(--color-border)]">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-sm text-[var(--color-text)]">Suggérer aussi des séries</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                  Inclure des séries dans le « Pour vous »
+                </p>
+              </div>
+              <Toggle
+                checked={settings.suggestSeries}
+                onChange={(v) => update({ suggestSeries: v })}
+              />
+            </div>
+          )}
         </div>
 
         {/* Livres source */}

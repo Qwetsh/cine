@@ -59,6 +59,7 @@ export interface Settings {
   homeMode: HomeMode
   // TV series
   showSeries: boolean
+  suggestSeries: boolean
   // Enrichments on movie detail page
   showBooks: boolean
   showGames: boolean
@@ -75,6 +76,7 @@ const defaultSettings: Settings = {
   battleColor: 'blue',
   homeMode: 'trending',
   showSeries: false,
+  suggestSeries: false,
   showBooks: true,
   showGames: true,
   showMusic: true,

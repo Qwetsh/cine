@@ -7,7 +7,7 @@ import { useSettings } from '../hooks/useSettings'
 import { useGenres } from '../hooks/useGenres'
 import { useCollection } from '../hooks/useCollection'
 import { useWatchlist } from '../hooks/useWatchlist'
-import { useRecommendations } from '../hooks/useRecommendations'
+import { useRecommendations, type RecommendationItem } from '../hooks/useRecommendations'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -34,6 +34,7 @@ export function HomePage() {
   const { entries: personalCollection } = usePersonalCollection(user?.id ?? null)
   const { results: recommended, loading: loadingReco, refresh: refreshReco } = useRecommendations(
     collection, watchlist, genres, isForYou, personalCollection,
+    settings.showSeries && settings.suggestSeries,
   )
 
   useEffect(() => {
@@ -207,7 +208,10 @@ export function HomePage() {
           <MovieGrid
             movies={recommended}
             loading={loadingReco}
-            onMovieClick={movie => navigate(`/movie/${movie.id}`)}
+            onMovieClick={movie => {
+              const item = movie as RecommendationItem
+              navigate(item.media_type === 'tv' ? `/tv/${movie.id}` : `/movie/${movie.id}`)
+            }}
           />
         )}
 

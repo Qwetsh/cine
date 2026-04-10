@@ -417,4 +417,7 @@ export const tmdb = {
 
   getTvWatchProviders: (id: number) =>
     tmdbFetch<WatchProviderResult>(`/tv/${id}/watch/providers`),
+
+  getSimilarTv: (id: number) =>
+    tmdbFetch<TmdbTvSearchResult>(`/tv/${id}/similar`),
 }

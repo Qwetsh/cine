@@ -54,6 +54,11 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
             ★ {rating}
           </div>
         )}
+        {(movie as TmdbMovie & { media_type?: string }).media_type === 'tv' && (
+          <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+            Série
+          </div>
+        )}
       </div>
 
       {/* Infos */}
