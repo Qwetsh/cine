@@ -204,6 +204,7 @@ export function TvDetailPage() {
                 <span className="text-[var(--color-gold)]">★ {show.vote_average.toFixed(1)}</span>
               )}
               <TrailerButton tmdbId={show.id} mediaType="tv" />
+              <WatchProviders tmdbId={show.id} releaseDate={show.first_air_date} isTv />
               {seriesAvg !== null && (
                 <span className="text-[var(--color-accent)]">Notre note : {seriesAvg}/5</span>
               )}
@@ -279,8 +280,6 @@ export function TvDetailPage() {
             </div>
           </div>
         )}
-
-        <WatchProviders tmdbId={show.id} releaseDate={show.first_air_date} isTv />
 
         {/* Carte amis */}
         <FriendsCard tmdbId={show.id} mediaType="tv" />

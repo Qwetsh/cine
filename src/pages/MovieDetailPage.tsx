@@ -238,6 +238,8 @@ export function MovieDetailPage() {
               )}
               <TrailerButton tmdbId={movie.id} mediaType="movie" />
               {settings.showMusic && <MusicSource movieTitle={movie.title} originalTitle={movie.original_title} />}
+              {settings.showBooks && <BookSource tmdbId={movie.id} keywords={movie.keywords} />}
+              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
             </div>
           </div>
         </div>
@@ -308,9 +310,6 @@ export function MovieDetailPage() {
           </div>
         )}
 
-        {/* Adapté de... */}
-        {settings.showBooks && <BookSource tmdbId={movie.id} keywords={movie.keywords} />}
-
         {/* Jeux vidéo liés */}
         {settings.showGames && <GameSource tmdbId={movie.id} movieTitle={movie.title} />}
 
@@ -318,9 +317,6 @@ export function MovieDetailPage() {
         {movie.belongs_to_collection && (
           <MovieCollection collectionId={movie.belongs_to_collection.id} currentMovieId={movie.id} />
         )}
-
-        {/* Où regarder */}
-        <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
 
         {/* Carte amis */}
         <FriendsCard tmdbId={movie.id} mediaType="movie" />
