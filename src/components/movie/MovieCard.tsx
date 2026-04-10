@@ -1,3 +1,4 @@
+import { useFriendsContext } from '../../contexts/FriendsContext'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie } from '../../lib/tmdb'
 
@@ -8,6 +9,9 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
+  const mediaType = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'
+  const { getFriendsWantCount } = useFriendsContext()
+  const friendsWant = getFriendsWantCount(movie.id, mediaType as 'movie' | 'tv')
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
   const rating = movie.vote_average ? movie.vote_average.toFixed(1) : null
 
@@ -68,6 +72,11 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
         </p>
         {year && (
           <p className="text-[var(--color-text-muted)] text-xs mt-1">{year}</p>
+        )}
+        {friendsWant > 0 && (
+          <p className="text-[var(--color-accent)] text-[10px] font-medium mt-1">
+            👥 {friendsWant} ami{friendsWant > 1 ? 's' : ''} veut voir
+          </p>
         )}
       </div>
     </button>

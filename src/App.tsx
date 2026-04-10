@@ -18,6 +18,8 @@ import { TvDetailPage } from './pages/TvDetailPage'
 import { TvSeasonDetailPage } from './pages/TvSeasonDetailPage'
 import { TvEpisodeDetailPage } from './pages/TvEpisodeDetailPage'
 import { FriendRecommendationsPage } from './pages/FriendRecommendationsPage'
+import { FriendsListPage } from './pages/FriendsListPage'
+import { FriendProfilePage } from './pages/FriendProfilePage'
 
 export function App() {
   return (
@@ -44,6 +46,8 @@ export function App() {
                 <Route path="tv/:id/season/:seasonNumber" element={<TvSeasonDetailPage />} />
                 <Route path="tv/:id/season/:seasonNumber/episode/:episodeNumber" element={<TvEpisodeDetailPage />} />
                 <Route path="recommendations" element={<FriendRecommendationsPage />} />
+                <Route path="friends" element={<FriendsListPage />} />
+                <Route path="friend/:userId" element={<FriendProfilePage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>

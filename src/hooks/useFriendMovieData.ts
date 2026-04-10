@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export interface FriendMovieEntry {
+  user_id: string
   display_name: string
   relation: 'wants_to_watch' | 'watched_couple' | 'watched_solo'
   rating: number | null

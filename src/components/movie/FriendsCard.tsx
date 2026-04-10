@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useFriendMovieData } from '../../hooks/useFriendMovieData'
 import { StarRating } from './StarRating'
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function FriendsCard({ tmdbId, mediaType }: Props) {
+  const navigate = useNavigate()
   const { entries, loading } = useFriendMovieData(tmdbId, mediaType)
 
   if (loading || entries.length === 0) return null
@@ -16,7 +18,11 @@ export function FriendsCard({ tmdbId, mediaType }: Props) {
       <h3 className="font-semibold text-[var(--color-text)] text-sm mb-3">Mes amis</h3>
       <div className="space-y-3">
         {entries.map((entry, i) => (
-          <div key={i} className="flex items-start gap-3">
+          <button
+            key={i}
+            onClick={() => navigate(`/friend/${entry.user_id}`)}
+            className="flex items-start gap-3 w-full text-left hover:bg-[var(--color-surface-2)] -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+          >
             <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
               👤
             </div>
@@ -40,7 +46,14 @@ export function FriendsCard({ tmdbId, mediaType }: Props) {
                 </div>
               )}
             </div>
-          </div>
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className="text-[var(--color-text-muted)] flex-shrink-0 mt-1"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
         ))}
       </div>
     </div>
