@@ -41,7 +41,7 @@ function generateJoinCode(): string {
 
 export function useQuizLobby(userId: string | null) {
   const [session, setSession] = useState<QuizLobbySession | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 

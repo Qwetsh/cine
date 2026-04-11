@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { QuizSetup } from './QuizSetup'
-import type { QuizConfig } from './QuizSetup'
 import type { useQuizLobby } from '../../hooks/useQuizLobby'
 
 interface Props {
