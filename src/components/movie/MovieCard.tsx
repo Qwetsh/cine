@@ -1,4 +1,5 @@
 import { useFriendsContext } from '../../contexts/FriendsContext'
+import { useSettings } from '../../hooks/useSettings'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie } from '../../lib/tmdb'
 
@@ -11,8 +12,9 @@ interface MovieCardProps {
 export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
   const mediaType = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'
   const { getFriendsWantCount, getFriendsWhoLoved } = useFriendsContext()
+  const { settings } = useSettings()
   const friendsWant = getFriendsWantCount(movie.id, mediaType as 'movie' | 'tv')
-  const lovedBy = getFriendsWhoLoved(movie.id)
+  const lovedBy = settings.showFriendRatings ? getFriendsWhoLoved(movie.id) : []
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
   const rating = movie.vote_average ? movie.vote_average.toFixed(1) : null
 

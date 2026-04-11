@@ -64,6 +64,7 @@ export interface Settings {
   showBooks: boolean
   showGames: boolean
   showMusic: boolean
+  showFriendRatings: boolean
 }
 
 const STORAGE_KEY = 'cine_settings'
@@ -80,6 +81,7 @@ const defaultSettings: Settings = {
   showBooks: true,
   showGames: true,
   showMusic: true,
+  showFriendRatings: true,
 }
 
 // Cached snapshot — useSyncExternalStore requires referential stability

@@ -154,6 +154,20 @@ export function SettingsSection() {
             onChange={(v) => update({ showMusic: v })}
           />
         </div>
+
+        {/* Recos amis */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="font-medium text-sm text-[var(--color-text)]">Recos des amis</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Badge sur les affiches quand un ami a noté 4+ étoiles
+            </p>
+          </div>
+          <Toggle
+            checked={settings.showFriendRatings}
+            onChange={(v) => update({ showFriendRatings: v })}
+          />
+        </div>
       </div>
 
       {/* ── Où regarder ── */}
