@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo } from 'react'
 import { useFriends } from '../hooks/useFriends'
 import { useFriendRecos } from '../hooks/useFriendRecos'
 import { useFriendsWantToWatch } from '../hooks/useFriendsWantToWatch'
+import { useFriendsHighRatings } from '../hooks/useFriendsHighRatings'
 import { useAuth } from './AuthContext'
 import type { UseFriendsState } from '../hooks/useFriends'
 import type { UseFriendRecosState } from '../hooks/useFriendRecos'
@@ -11,6 +12,8 @@ interface FriendsContextValue extends UseFriendsState {
   /** Map "movie-{tmdbId}" or "tv-{tmdbId}" → friend count who want to watch */
   friendsWantMap: Map<string, number>
   getFriendsWantCount: (tmdbId: number, mediaType: 'movie' | 'tv') => number
+  /** Get list of friend names who rated this movie ≥ 4 stars */
+  getFriendsWhoLoved: (tmdbId: number) => string[]
 }
 
 const FriendsContext = createContext<FriendsContextValue | null>(null)
@@ -21,16 +24,34 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
   const recosState = useFriendRecos(user?.id ?? null)
   const { wantMap } = useFriendsWantToWatch(user?.id ?? null)
 
+  // Build friend IDs + display name map for high-ratings hook
+  const friendIds = useMemo(() =>
+    friendsState.friends.map(f => f.profile.id),
+    [friendsState.friends],
+  )
+  const friendProfiles = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const f of friendsState.friends) m.set(f.profile.id, f.profile.display_name)
+    return m
+  }, [friendsState.friends])
+
+  const { ratingMap } = useFriendsHighRatings(friendIds, friendProfiles)
+
   const getFriendsWantCount = useCallback((tmdbId: number, mediaType: 'movie' | 'tv') => {
     return wantMap.get(`${mediaType}-${tmdbId}`) ?? 0
   }, [wantMap])
+
+  const getFriendsWhoLoved = useCallback((tmdbId: number) => {
+    return ratingMap.get(tmdbId) ?? []
+  }, [ratingMap])
 
   const value = useMemo<FriendsContextValue>(() => ({
     ...friendsState,
     recos: recosState,
     friendsWantMap: wantMap,
     getFriendsWantCount,
-  }), [friendsState, recosState, wantMap, getFriendsWantCount])
+    getFriendsWhoLoved,
+  }), [friendsState, recosState, wantMap, getFriendsWantCount, getFriendsWhoLoved])
 
   return (
     <FriendsContext.Provider value={value}>

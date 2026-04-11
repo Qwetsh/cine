@@ -10,8 +10,9 @@ interface MovieCardProps {
 
 export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
   const mediaType = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'
-  const { getFriendsWantCount } = useFriendsContext()
+  const { getFriendsWantCount, getFriendsWhoLoved } = useFriendsContext()
   const friendsWant = getFriendsWantCount(movie.id, mediaType as 'movie' | 'tv')
+  const lovedBy = getFriendsWhoLoved(movie.id)
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
   const rating = movie.vote_average ? movie.vote_average.toFixed(1) : null
 
@@ -61,6 +62,13 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
         {(movie as TmdbMovie & { media_type?: string }).media_type === 'tv' && (
           <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
             Série
+          </div>
+        )}
+        {lovedBy.length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-4">
+            <p className="text-[10px] font-medium text-green-400 truncate">
+              ★ {lovedBy.length === 1 ? `Recommandé par ${lovedBy[0]}` : `Recommandé par ${lovedBy[0]} +${lovedBy.length - 1}`}
+            </p>
           </div>
         )}
       </div>
