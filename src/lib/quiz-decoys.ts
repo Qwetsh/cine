@@ -25,27 +25,15 @@ export const DECOY_ACTORS = [
   'Daniel Auteuil', 'Isabelle Huppert', 'Catherine Deneuve', 'Mathieu Amalric',
 ]
 
-export const DECOY_TAGLINES = [
-  'May the Force be with you.',
-  'I\'ll be back.',
-  'Houston, we have a problem.',
-  'Life is like a box of chocolates.',
-  'Here\'s looking at you, kid.',
-  'To infinity and beyond!',
-  'Just when you thought it was safe to go back in the water.',
-  'In space, no one can hear you scream.',
-  'The truth is out there.',
-  'After all this time? Always.',
-  'Why so serious?',
-  'I see dead people.',
-  'There is no spoon.',
-  'With great power comes great responsibility.',
-  'A long time ago in a galaxy far, far away...',
-  'You talking to me?',
-  'Here\'s Johnny!',
-  'Elementary, my dear Watson.',
-  'I\'m the king of the world!',
-  'Hasta la vista, baby.',
+export const DECOY_COMPOSERS = [
+  'Hans Zimmer', 'John Williams', 'Ennio Morricone', 'Alexandre Desplat',
+  'Howard Shore', 'Danny Elfman', 'Thomas Newman', 'James Horner',
+  'Ludwig Göransson', 'Michael Giacchino', 'Joe Hisaishi', 'Trent Reznor',
+  'Jonny Greenwood', 'Carter Burwell', 'Nicholas Britell', 'Gabriel Yared',
+  'Clint Mansell', 'Dario Marianelli', 'Gustavo Santaolalla', 'Ryuichi Sakamoto',
+  'Alan Silvestri', 'Bernard Herrmann', 'Nino Rota', 'Philip Glass',
+  'Rachel Portman', 'A.R. Rahman', 'Hildur Guðnadóttir', 'Justin Hurwitz',
+  'Alberto Iglesias', 'Bruno Coulais',
 ]
 
 export const DECOY_COUNTRIES = [
@@ -69,12 +57,4 @@ export const DECOY_COUNTRIES = [
   { code: 'AR', name: 'Argentine' },
   { code: 'NZ', name: 'Nouvelle-Zélande' },
   { code: 'BE', name: 'Belgique' },
-]
-
-// Runtime ranges for multiple choice
-export const RUNTIME_RANGES = [
-  { label: 'Moins de 90 min', min: 0, max: 89 },
-  { label: '90 – 120 min', min: 90, max: 120 },
-  { label: '120 – 150 min', min: 121, max: 150 },
-  { label: 'Plus de 150 min', min: 151, max: 999 },
 ]

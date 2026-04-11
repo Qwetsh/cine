@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { QuizData, QuizQuestion } from '../../lib/quiz'
+import type { QuizData, QuizQuestion, FilmPoster } from '../../lib/quiz'
 import { calculateScore } from '../../lib/quiz'
-import { getPosterUrl } from '../../lib/tmdb'
+import { getPosterUrl, getBackdropUrl } from '../../lib/tmdb'
 import { useSettings, BATTLE_COLORS } from '../../hooks/useSettings'
 
 const QUESTION_TIMEOUT = 15_000
@@ -76,7 +76,6 @@ export function QuizGame({
 
       if (remaining <= 0) {
         clearInterval(timerRef.current)
-        // Auto-submit timeout if not answered
         if (!answeredRef.current) {
           answeredRef.current = true
           setMyAnswer(-1)
@@ -88,7 +87,7 @@ export function QuizGame({
     return () => clearInterval(timerRef.current)
   }, [phase, quizData.question_started_at, current_index, onAnswer])
 
-  // ── REVEAL: both answered (or solo answered) → show results, then advance ──
+  // ── REVEAL: both answered → show results, then advance ──
   useEffect(() => {
     if (phase !== 'question') return
     const myAns = myAnswers[current_index]
@@ -202,14 +201,8 @@ export function QuizGame({
                 boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)`,
               }}
             />
-            <div
-              className="energy-bar__right"
-              style={{ width: `${100 - finalPct}%` }}
-            />
-            <div
-              className="energy-bar__clash"
-              style={{ left: `${finalPct}%` }}
-            >
+            <div className="energy-bar__right" style={{ width: `${100 - finalPct}%` }} />
+            <div className="energy-bar__clash" style={{ left: `${finalPct}%` }}>
               <div className="energy-bar__spark" />
               <div className="energy-bar__spark energy-bar__spark--2" />
               <div className="energy-bar__spark energy-bar__spark--3" />
@@ -253,6 +246,9 @@ export function QuizGame({
   const theirScoreQ = isUser1 ? scores[1] : scores[0]
   const totalScoreQ = myScoreQ + theirScoreQ
   const myPct = totalScoreQ > 0 ? (myScoreQ / totalScoreQ) * 100 : 50
+
+  // Determine question UI variant
+  const usesPosterGrid = ['budget_compare', 'revenue_compare', 'which_came_first', 'odd_one_out'].includes(question.type)
 
   return (
     <div className="px-4 space-y-4">
@@ -306,14 +302,8 @@ export function QuizGame({
                 boxShadow: `0 0 10px ${myColor.glow}, inset 0 1px 0 rgba(255,255,255,0.3)`,
               }}
             />
-            <div
-              className="energy-bar__right"
-              style={{ width: `${100 - myPct}%` }}
-            />
-            <div
-              className="energy-bar__clash"
-              style={{ left: `${myPct}%` }}
-            >
+            <div className="energy-bar__right" style={{ width: `${100 - myPct}%` }} />
+            <div className="energy-bar__clash" style={{ left: `${myPct}%` }}>
               <div className="energy-bar__spark" />
               <div className="energy-bar__spark energy-bar__spark--2" />
               <div className="energy-bar__spark energy-bar__spark--3" />
@@ -323,55 +313,40 @@ export function QuizGame({
         </div>
       )}
 
-      {/* Question */}
-      {question.type === 'poster' && question.poster_path ? (
-        <PosterQuestion
-          posterPath={question.poster_path}
-          timeLeft={timeLeft}
-          revealed={showResult || myCurrentAnswer != null}
-          filmTitle={question.source_film.title}
+      {/* Question prompt area */}
+      <QuestionPrompt
+        question={question}
+        timeLeft={timeLeft}
+        revealed={showResult || myCurrentAnswer != null}
+      />
+
+      {/* Answer options */}
+      {usesPosterGrid && question.film_posters ? (
+        <PosterGrid
+          posters={question.film_posters}
+          options={question.options}
+          correctIndex={question.correct_index}
+          myAnswer={myCurrentAnswer}
+          showResult={showResult}
+          onAnswer={handleAnswer}
         />
       ) : (
-        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center min-h-[100px] flex flex-col justify-center">
-          <p className="font-bold text-[var(--color-text)] leading-snug">{question.text}</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-2">
-            🎬 {question.source_film.title}
-          </p>
+        <div className="grid grid-cols-2 gap-2.5">
+          {question.options.map((option, idx) => {
+            const { bg, textColor } = getOptionStyle(idx, question.correct_index, myCurrentAnswer, showResult)
+            return (
+              <button
+                key={idx}
+                onClick={() => handleAnswer(idx)}
+                disabled={myCurrentAnswer != null}
+                className={`rounded-xl border p-3.5 text-sm font-medium transition-all ${bg} ${textColor}`}
+              >
+                {option}
+              </button>
+            )
+          })}
         </div>
       )}
-
-      {/* Answers 2×2 grid */}
-      <div className="grid grid-cols-2 gap-2.5">
-        {question.options.map((option, idx) => {
-          let bg = 'bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]'
-          let textColor = 'text-[var(--color-text)]'
-
-          if (showResult || myCurrentAnswer != null) {
-            if (idx === question.correct_index) {
-              bg = 'bg-green-500/20 border-green-500/50'
-              textColor = 'text-green-400'
-            } else if (idx === myCurrentAnswer && idx !== question.correct_index) {
-              bg = 'bg-red-500/20 border-red-500/50'
-              textColor = 'text-red-400'
-            } else {
-              bg = 'bg-[var(--color-surface)] border-[var(--color-border)] opacity-50'
-            }
-          } else if (idx === myCurrentAnswer) {
-            bg = 'bg-[var(--color-accent)]/20 border-[var(--color-accent)]/50'
-          }
-
-          return (
-            <button
-              key={idx}
-              onClick={() => handleAnswer(idx)}
-              disabled={myCurrentAnswer != null}
-              className={`rounded-xl border p-3.5 text-sm font-medium transition-all ${bg} ${textColor}`}
-            >
-              {option}
-            </button>
-          )
-        })}
-      </div>
 
       {/* Status line */}
       <div className="text-center text-xs text-[var(--color-text-muted)]">
@@ -391,9 +366,198 @@ export function QuizGame({
   )
 }
 
-// ── Blurred poster component ──
+// ── Question prompt component (handles all visual variants) ──
 
-const QUESTION_TIMEOUT_MS = 15_000
+function QuestionPrompt({
+  question,
+  timeLeft,
+  revealed,
+}: {
+  question: QuizQuestion
+  timeLeft: number
+  revealed: boolean
+}) {
+  // Blurred poster
+  if (question.type === 'poster' && question.poster_path) {
+    return (
+      <PosterQuestion
+        posterPath={question.poster_path}
+        timeLeft={timeLeft}
+        revealed={revealed}
+        filmTitle={question.source_film.title}
+      />
+    )
+  }
+
+  // Backdrop guess
+  if (question.type === 'backdrop_guess' && question.backdrop_path) {
+    return (
+      <BackdropQuestion
+        backdropPath={question.backdrop_path}
+        revealed={revealed}
+        filmTitle={question.source_film.title}
+      />
+    )
+  }
+
+  // Keywords pills
+  if (question.type === 'keywords_to_movie' && question.keyword_pills) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center">
+        <p className="font-bold text-[var(--color-text)] leading-snug mb-3">{question.text}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {question.keyword_pills.map((kw, i) => (
+            <span
+              key={i}
+              className="px-3 py-1 bg-[var(--color-accent)]/15 text-[var(--color-accent)] text-xs font-medium rounded-full border border-[var(--color-accent)]/30"
+            >
+              {kw}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Cast names
+  if (question.type === 'cast_to_movie' && question.cast_names) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center">
+        <p className="font-bold text-[var(--color-text)] leading-snug mb-3">{question.text}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {question.cast_names.map((name, i) => (
+            <span
+              key={i}
+              className="px-3 py-1.5 bg-[var(--color-surface-2)] text-[var(--color-text)] text-sm font-medium rounded-xl border border-[var(--color-border)]"
+            >
+              🎭 {name}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Connect films (3 mini posters as prompt)
+  if (question.type === 'connect_movies' && question.connect_films) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center">
+        <p className="font-bold text-[var(--color-text)] leading-snug mb-3">{question.text}</p>
+        <div className="flex justify-center gap-3">
+          {question.connect_films.map(film => (
+            <div key={film.tmdb_id} className="w-16">
+              <div className="w-16 h-24 rounded-lg overflow-hidden bg-[var(--color-surface-2)]">
+                {film.poster_path ? (
+                  <img
+                    src={getPosterUrl(film.poster_path, 'small')}
+                    alt={film.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-lg">🎬</div>
+                )}
+              </div>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-1 leading-tight truncate">{film.title}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Comparison questions with film posters (budget, revenue, first, odd_one_out)
+  // The prompt is just the question text — posters are shown as answer options
+  if (['budget_compare', 'revenue_compare', 'which_came_first', 'odd_one_out'].includes(question.type)) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center">
+        <p className="font-bold text-[var(--color-text)] leading-snug">{question.text}</p>
+      </div>
+    )
+  }
+
+  // Default text question
+  return (
+    <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5 text-center min-h-[100px] flex flex-col justify-center">
+      <p className="font-bold text-[var(--color-text)] leading-snug">{question.text}</p>
+      <p className="text-xs text-[var(--color-text-muted)] mt-2">
+        🎬 {question.source_film.title}
+      </p>
+    </div>
+  )
+}
+
+// ── Poster grid (for comparison questions) ──
+
+function PosterGrid({
+  posters,
+  options,
+  correctIndex,
+  myAnswer,
+  showResult,
+  onAnswer,
+}: {
+  posters: FilmPoster[]
+  options: string[]
+  correctIndex: number
+  myAnswer: number | null
+  showResult: boolean
+  onAnswer: (idx: number) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {options.map((title, idx) => {
+        const poster = posters.find(p => p.title === title)
+        const { bg, textColor } = getOptionStyle(idx, correctIndex, myAnswer, showResult)
+        return (
+          <button
+            key={idx}
+            onClick={() => onAnswer(idx)}
+            disabled={myAnswer != null}
+            className={`rounded-xl border p-2 transition-all ${bg}`}
+          >
+            <div className="w-full aspect-[2/3] rounded-lg overflow-hidden bg-[var(--color-surface-2)] mb-1.5">
+              {poster?.poster_path ? (
+                <img
+                  src={getPosterUrl(poster.poster_path, 'small')}
+                  alt={title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl">🎬</div>
+              )}
+            </div>
+            <p className={`text-xs font-medium leading-tight ${textColor} line-clamp-2`}>{title}</p>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Shared style helper ──
+
+function getOptionStyle(idx: number, correctIndex: number, myAnswer: number | null, showResult: boolean) {
+  let bg = 'bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]'
+  let textColor = 'text-[var(--color-text)]'
+
+  if (showResult || myAnswer != null) {
+    if (idx === correctIndex) {
+      bg = 'bg-green-500/20 border-green-500/50'
+      textColor = 'text-green-400'
+    } else if (idx === myAnswer && idx !== correctIndex) {
+      bg = 'bg-red-500/20 border-red-500/50'
+      textColor = 'text-red-400'
+    } else {
+      bg = 'bg-[var(--color-surface)] border-[var(--color-border)] opacity-50'
+    }
+  } else if (idx === myAnswer) {
+    bg = 'bg-[var(--color-accent)]/20 border-[var(--color-accent)]/50'
+  }
+
+  return { bg, textColor }
+}
+
+// ── Blurred poster component ──
 
 function PosterQuestion({
   posterPath,
@@ -408,12 +572,8 @@ function PosterQuestion({
 }) {
   const [imageLoaded, setImageLoaded] = useState(false)
 
-  // Blur: starts at 20px, fast initial deblur then slows down (square root curve).
-  // At 15s → 20px, at 7s → ~7px, at 3s → ~4px, at 0s → 2px
-  const progress = 1 - (timeLeft / QUESTION_TIMEOUT_MS) // 0 → 1
-  const blurPx = revealed
-    ? 0
-    : Math.max(2, 20 * (1 - Math.sqrt(progress)))
+  const progress = 1 - (timeLeft / QUESTION_TIMEOUT)
+  const blurPx = revealed ? 0 : Math.max(2, 20 * (1 - Math.sqrt(progress)))
 
   return (
     <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 text-center">
@@ -438,9 +598,48 @@ function PosterQuestion({
         )}
       </div>
       {revealed && (
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">
-          {filmTitle}
-        </p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">{filmTitle}</p>
+      )}
+    </div>
+  )
+}
+
+// ── Backdrop question component ──
+
+function BackdropQuestion({
+  backdropPath,
+  revealed,
+  filmTitle,
+}: {
+  backdropPath: string
+  revealed: boolean
+  filmTitle: string
+}) {
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  return (
+    <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-4 text-center">
+      <p className="text-sm font-bold text-[var(--color-text)] mb-3">Quel est ce film ?</p>
+      <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg bg-[var(--color-surface-2)]">
+        <img
+          src={getBackdropUrl(backdropPath, 'medium')}
+          alt="Image du film"
+          onLoad={() => setImageLoaded(true)}
+          className="w-full h-full object-cover"
+          style={{
+            opacity: imageLoaded ? 1 : 0,
+            transition: 'opacity 0.3s',
+          }}
+          draggable={false}
+        />
+        {!imageLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-4xl">📸</span>
+          </div>
+        )}
+      </div>
+      {revealed && (
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">{filmTitle}</p>
       )}
     </div>
   )

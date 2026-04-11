@@ -1,10 +1,9 @@
 import { useCallback, useRef, useState } from 'react'
-import { ClassicSetup, THEME_LABELS, DIFFICULTY_LABELS } from './QuizClassicSetup'
-import type { QuizTheme } from './QuizClassicSetup'
+import { QuizSetup } from './QuizSetup'
+import type { QuizConfig } from './QuizSetup'
 import { QuizGame } from './QuizGame'
 import { generateQuizQuestions, createEmptyQuizData, calculateScore } from '../../lib/quiz'
 import type { QuizData } from '../../lib/quiz'
-import type { QuizDifficulty } from '../../lib/discover'
 
 type SoloPhase = 'setup' | 'generating' | 'playing' | 'done'
 
@@ -17,32 +16,24 @@ export function QuizSoloMode({ onBack }: Props) {
   const [quizData, setQuizData] = useState<QuizData | null>(null)
   const [finalScore, setFinalScore] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
-  const [theme, setTheme] = useState<QuizTheme | null>(null)
-  const [themeValue, setThemeValue] = useState<string | null>(null)
-  const [difficulty, setDifficulty] = useState<QuizDifficulty | null>(null)
+  const [config, setConfig] = useState<QuizConfig | null>(null)
   const [error, setError] = useState(false)
   const generatingRef = useRef(false)
 
-  const handleSelectTheme = useCallback(async (
-    selectedTheme: QuizTheme,
-    value?: string,
-    diff?: QuizDifficulty,
-  ) => {
+  const handleConfirm = useCallback(async (cfg: QuizConfig) => {
     if (generatingRef.current) return
     generatingRef.current = true
-    setTheme(selectedTheme)
-    setThemeValue(value ?? null)
-    setDifficulty(diff ?? 'normal')
+    setConfig(cfg)
     setPhase('generating')
     setError(false)
 
     try {
       const questions = await generateQuizQuestions({
-        type: 'classic',
-        theme: selectedTheme,
-        themeValue: value ?? null,
-        difficulty: diff ?? 'normal',
-        count: 10,
+        difficulty: cfg.difficulty,
+        yearMin: cfg.yearMin,
+        yearMax: cfg.yearMax,
+        enabledTypes: cfg.enabledTypes,
+        count: cfg.count,
       })
 
       if (questions.length === 0) {
@@ -117,13 +108,17 @@ export function QuizSoloMode({ onBack }: Props) {
   if (phase === 'setup') {
     return (
       <div>
+        <div className="text-center pt-4 pb-2">
+          <span className="text-4xl block mb-1">🧠</span>
+          <p className="text-[var(--color-text)] font-medium">Quiz Solo</p>
+        </div>
         {error && (
           <div className="mx-4 mb-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-center">
-            <p className="text-sm text-red-400">Pas assez de films trouvés pour ce thème. Essayez un autre.</p>
+            <p className="text-sm text-red-400">Pas assez de films trouvés. Essayez d'élargir la période ou les types.</p>
           </div>
         )}
-        <ClassicSetup
-          onSelectTheme={handleSelectTheme}
+        <QuizSetup
+          onConfirm={handleConfirm}
           onCancel={onBack}
           confirmLabel="Lancer le quiz"
         />
@@ -183,11 +178,9 @@ export function QuizSoloMode({ onBack }: Props) {
         <p className="text-sm text-[var(--color-text-muted)]">
           {correctCount}/{quizData?.questions.length ?? 10} bonnes réponses
         </p>
-        {theme && (
+        {config && (
           <p className="text-sm text-[var(--color-text-muted)]">
-            {THEME_LABELS[theme]}
-            {themeValue ? ` — ${themeValue}` : ''}
-            {difficulty ? ` • ${DIFFICULTY_LABELS[difficulty]}` : ''}
+            {config.yearMin} — {config.yearMax} | {config.count} questions
           </p>
         )}
         <div className="space-y-3 pt-2">

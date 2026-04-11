@@ -125,3 +125,22 @@ export async function discoverMoviesByTheme(
     }
   }
 }
+
+/** Discover movies by year range — used by refactored quiz */
+export async function discoverMoviesByYearRange(
+  yearMin: number,
+  yearMax: number,
+  difficulty: QuizDifficulty = 'normal',
+): Promise<TmdbMovie[]> {
+  const mult = DIFFICULTY_MULTIPLIER[difficulty]
+  const offsetRange = DIFFICULTY_OFFSET[difficulty]
+
+  const voteGte = String(Math.max(1, Math.round(200 * mult)))
+  const maxOffset = Math.max(offsetRange.min, Math.min(15, offsetRange.max))
+
+  return fetchRandomPages({
+    'primary_release_date.gte': `${yearMin}-01-01`,
+    'primary_release_date.lte': `${yearMax}-12-31`,
+    'vote_count.gte': voteGte,
+  }, 3, maxOffset)
+}

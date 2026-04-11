@@ -1,26 +1,71 @@
 import { tmdb } from './tmdb'
 import type { TmdbMovieDetail } from './tmdb'
-import { discoverMoviesByTheme } from './discover'
+import { discoverMoviesByTheme, discoverMoviesByYearRange } from './discover'
 import type { QuizDifficulty, DiscoverTheme } from './discover'
 import {
-  DECOY_DIRECTORS, DECOY_ACTORS, DECOY_TAGLINES,
-  DECOY_COUNTRIES, RUNTIME_RANGES,
+  DECOY_DIRECTORS, DECOY_ACTORS, DECOY_COMPOSERS,
+  DECOY_COUNTRIES,
 } from './quiz-decoys'
 
 // ── Types ──
 
 export type QuestionType =
+  // Existing (kept)
   | 'release_year'
   | 'genre'
   | 'director'
   | 'actor_role'
   | 'actor_not_in'
-  | 'runtime'
   | 'country'
-  | 'tagline'
   | 'poster'
+  // New
+  | 'budget_compare'
+  | 'revenue_compare'
+  | 'which_came_first'
+  | 'odd_one_out'
+  | 'keywords_to_movie'
+  | 'backdrop_guess'
+  | 'composer'
+  | 'cast_to_movie'
+  | 'connect_movies'
+
+/** All question types with metadata for the setup UI */
+export const QUESTION_TYPE_META: {
+  id: QuestionType
+  label: string
+  emoji: string
+  difficulty: Difficulty
+}[] = [
+  // Easy
+  { id: 'release_year', label: 'Année de sortie', emoji: '📅', difficulty: 'easy' },
+  { id: 'genre', label: 'Genre', emoji: '🎭', difficulty: 'easy' },
+  { id: 'which_came_first', label: 'Sorti en premier', emoji: '⏳', difficulty: 'easy' },
+  // Medium
+  { id: 'director', label: 'Réalisateur', emoji: '🎬', difficulty: 'medium' },
+  { id: 'actor_role', label: 'Rôle acteur', emoji: '🎭', difficulty: 'medium' },
+  { id: 'actor_not_in', label: 'Acteur absent', emoji: '❌', difficulty: 'medium' },
+  { id: 'poster', label: 'Affiche floue', emoji: '🖼️', difficulty: 'medium' },
+  { id: 'backdrop_guess', label: 'Image du film', emoji: '📸', difficulty: 'medium' },
+  { id: 'revenue_compare', label: 'Box-office', emoji: '💰', difficulty: 'medium' },
+  { id: 'odd_one_out', label: "L'intrus", emoji: '🔍', difficulty: 'medium' },
+  { id: 'cast_to_movie', label: 'Casting → Film', emoji: '🎬', difficulty: 'medium' },
+  // Hard
+  { id: 'country', label: 'Pays', emoji: '🌍', difficulty: 'hard' },
+  { id: 'composer', label: 'Compositeur', emoji: '🎵', difficulty: 'hard' },
+  { id: 'budget_compare', label: 'Budget', emoji: '💸', difficulty: 'hard' },
+  { id: 'keywords_to_movie', label: 'Mots-clés', emoji: '🔑', difficulty: 'hard' },
+  { id: 'connect_movies', label: 'Point commun', emoji: '🔗', difficulty: 'hard' },
+]
+
+export const ALL_QUESTION_TYPES: QuestionType[] = QUESTION_TYPE_META.map(q => q.id)
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
+
+export interface FilmPoster {
+  tmdb_id: number
+  title: string
+  poster_path: string | null
+}
 
 export interface QuizQuestion {
   id: string
@@ -30,8 +75,18 @@ export interface QuizQuestion {
   options: string[]
   correct_index: number
   source_film: { tmdb_id: number; title: string }
-  /** Poster path for 'poster' type questions (TMDB poster_path) */
+  /** Poster path for 'poster' type questions */
   poster_path?: string | null
+  /** Backdrop path for 'backdrop_guess' type */
+  backdrop_path?: string | null
+  /** Film posters for comparison questions (budget, revenue, first, odd_one_out) */
+  film_posters?: FilmPoster[]
+  /** Keyword pills for 'keywords_to_movie' type */
+  keyword_pills?: string[]
+  /** Actor names for 'cast_to_movie' type */
+  cast_names?: string[]
+  /** Film posters shown as prompt for 'connect_movies' type */
+  connect_films?: FilmPoster[]
 }
 
 export interface QuizData {
@@ -80,13 +135,22 @@ function getDirector(movie: TmdbMovieDetail): string | null {
   return movie.credits?.crew.find(c => c.job === 'Director')?.name ?? null
 }
 
-// ── Question generators ──
+function getComposer(movie: TmdbMovieDetail): string | null {
+  return movie.credits?.crew.find(
+    c => c.job === 'Original Music Composer' || c.job === 'Music' || c.job === 'Composer'
+  )?.name ?? null
+}
+
+function toFilmPoster(movie: TmdbMovieDetail): FilmPoster {
+  return { tmdb_id: movie.id, title: movie.title, poster_path: movie.poster_path }
+}
+
+// ── Single-movie question generators ──
 
 function yearQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
   if (!movie.release_date) return null
   const year = new Date(movie.release_date).getFullYear()
 
-  // Generate 3 plausible wrong years (±1 to ±6, no duplicates)
   const wrongs = new Set<number>()
   while (wrongs.size < 3) {
     const offset = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 6) + 1)
@@ -154,7 +218,6 @@ function actorRoleQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
   const cast = movie.credits?.cast
   if (!cast || cast.length < 4) return null
 
-  // Pick a cast member with a named character (not just "Self")
   const candidates = cast.filter(c => c.character && c.character !== 'Self' && c.order < 10)
   if (candidates.length === 0) return null
 
@@ -181,7 +244,6 @@ function actorNotInQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
   const cast = movie.credits?.cast
   if (!cast || cast.length < 3) return null
 
-  // 3 real cast members + 1 decoy who's NOT in the film
   const realActors = pickRandom(cast.slice(0, 8), 3).map(c => c.name)
   const castNames = cast.map(c => c.name)
   const decoy = DECOY_ACTORS.find(a => !castNames.includes(a) && !realActors.includes(a))
@@ -193,26 +255,6 @@ function actorNotInQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
     type: 'actor_not_in',
     difficulty: 'medium',
     text: `Lequel de ces acteurs n'a PAS joué dans "${movie.title}" ?`,
-    options,
-    correct_index,
-    source_film: { tmdb_id: movie.id, title: movie.title },
-  }
-}
-
-function runtimeQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
-  if (!movie.runtime) return null
-
-  const correctRange = RUNTIME_RANGES.find(r => movie.runtime! >= r.min && movie.runtime! <= r.max)
-  if (!correctRange) return null
-
-  const options = RUNTIME_RANGES.map(r => r.label)
-  const correct_index = RUNTIME_RANGES.indexOf(correctRange)
-
-  return {
-    id: makeId(),
-    type: 'runtime',
-    difficulty: 'medium',
-    text: `Quelle est la durée de "${movie.title}" ?`,
     options,
     correct_index,
     source_film: { tmdb_id: movie.id, title: movie.title },
@@ -244,41 +286,278 @@ function countryQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
   }
 }
 
-function taglineQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
-  if (!movie.tagline || movie.tagline.length < 5) return null
+function composerQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
+  const composer = getComposer(movie)
+  if (!composer) return null
 
-  const wrongs = pickRandom(
-    DECOY_TAGLINES.filter(t => t !== movie.tagline),
-    3
-  )
+  const wrongs = pickRandom(DECOY_COMPOSERS.filter(c => c !== composer), 3)
   if (wrongs.length < 3) return null
 
-  const { options, correct_index } = buildOptions(movie.tagline, wrongs)
+  const { options, correct_index } = buildOptions(composer, wrongs)
   return {
     id: makeId(),
-    type: 'tagline',
+    type: 'composer',
     difficulty: 'hard',
-    text: `Quel est le slogan/tagline de "${movie.title}" ?`,
+    text: `Qui a composé la musique de "${movie.title}" ?`,
     options,
     correct_index,
     source_film: { tmdb_id: movie.id, title: movie.title },
   }
 }
 
+// ── Pool-aware single-movie generators ──
+
+function backdropGuessQuestion(movie: TmdbMovieDetail, pool: TmdbMovieDetail[]): QuizQuestion | null {
+  if (!movie.backdrop_path) return null
+  const others = pool.filter(m => m.id !== movie.id && m.title !== movie.title)
+  if (others.length < 3) return null
+
+  const wrongs = pickRandom(others, 3).map(m => m.title)
+  const { options, correct_index } = buildOptions(movie.title, wrongs)
+  return {
+    id: makeId(),
+    type: 'backdrop_guess',
+    difficulty: 'medium',
+    text: 'Quel est ce film ?',
+    options,
+    correct_index,
+    source_film: { tmdb_id: movie.id, title: movie.title },
+    backdrop_path: movie.backdrop_path,
+  }
+}
+
+function keywordsToMovieQuestion(movie: TmdbMovieDetail, pool: TmdbMovieDetail[]): QuizQuestion | null {
+  const keywords = movie.keywords?.keywords
+  if (!keywords || keywords.length < 3) return null
+  const others = pool.filter(m => m.id !== movie.id)
+  if (others.length < 3) return null
+
+  const pills = pickRandom(keywords, Math.min(5, keywords.length)).map(k => k.name)
+  const wrongs = pickRandom(others, 3).map(m => m.title)
+  const { options, correct_index } = buildOptions(movie.title, wrongs)
+
+  return {
+    id: makeId(),
+    type: 'keywords_to_movie',
+    difficulty: 'hard',
+    text: 'Quel film correspond à ces mots-clés ?',
+    options,
+    correct_index,
+    source_film: { tmdb_id: movie.id, title: movie.title },
+    keyword_pills: pills,
+  }
+}
+
+function castToMovieQuestion(movie: TmdbMovieDetail, pool: TmdbMovieDetail[]): QuizQuestion | null {
+  const cast = movie.credits?.cast
+  if (!cast || cast.length < 3) return null
+  const others = pool.filter(m => m.id !== movie.id)
+  if (others.length < 3) return null
+
+  const actors = pickRandom(cast.slice(0, 8), 3).map(c => c.name)
+  const wrongs = pickRandom(others, 3).map(m => m.title)
+  const { options, correct_index } = buildOptions(movie.title, wrongs)
+
+  return {
+    id: makeId(),
+    type: 'cast_to_movie',
+    difficulty: 'medium',
+    text: 'Quel film réunit ces acteurs ?',
+    options,
+    correct_index,
+    source_film: { tmdb_id: movie.id, title: movie.title },
+    cast_names: actors,
+  }
+}
+
+// ── Multi-movie generators ──
+
+function budgetCompareQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
+  const withBudget = pool.filter(m => m.budget > 1_000_000)
+  if (withBudget.length < 4) return null
+
+  const picked = pickRandom(withBudget, 4)
+  const sorted = [...picked].sort((a, b) => b.budget - a.budget)
+  const correct = sorted[0]
+
+  const options = picked.map(m => m.title)
+  const shuffled = shuffle(options)
+  return {
+    id: makeId(),
+    type: 'budget_compare',
+    difficulty: 'hard',
+    text: 'Quel film a eu le plus gros budget ?',
+    options: shuffled,
+    correct_index: shuffled.indexOf(correct.title),
+    source_film: { tmdb_id: correct.id, title: correct.title },
+    film_posters: picked.map(toFilmPoster),
+  }
+}
+
+function revenueCompareQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
+  const withRevenue = pool.filter(m => m.revenue > 1_000_000)
+  if (withRevenue.length < 4) return null
+
+  const picked = pickRandom(withRevenue, 4)
+  const sorted = [...picked].sort((a, b) => b.revenue - a.revenue)
+  const correct = sorted[0]
+
+  const options = picked.map(m => m.title)
+  const shuffled = shuffle(options)
+  return {
+    id: makeId(),
+    type: 'revenue_compare',
+    difficulty: 'medium',
+    text: 'Quel film a rapporté le plus au box-office ?',
+    options: shuffled,
+    correct_index: shuffled.indexOf(correct.title),
+    source_film: { tmdb_id: correct.id, title: correct.title },
+    film_posters: picked.map(toFilmPoster),
+  }
+}
+
+function whichCameFirstQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
+  const withDate = pool.filter(m => m.release_date)
+  if (withDate.length < 4) return null
+
+  const picked = pickRandom(withDate, 4)
+  // Ensure they have different years for a meaningful question
+  const years = new Set(picked.map(m => new Date(m.release_date).getFullYear()))
+  if (years.size < 3) return null
+
+  const sorted = [...picked].sort(
+    (a, b) => new Date(a.release_date).getTime() - new Date(b.release_date).getTime()
+  )
+  const correct = sorted[0]
+
+  const options = picked.map(m => m.title)
+  const shuffled = shuffle(options)
+  return {
+    id: makeId(),
+    type: 'which_came_first',
+    difficulty: 'easy',
+    text: 'Quel film est sorti en premier ?',
+    options: shuffled,
+    correct_index: shuffled.indexOf(correct.title),
+    source_film: { tmdb_id: correct.id, title: correct.title },
+    film_posters: picked.map(toFilmPoster),
+  }
+}
+
+function oddOneOutQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
+  // Try to find 3 films sharing a genre + 1 that doesn't
+  const genreMap = new Map<string, TmdbMovieDetail[]>()
+  for (const m of pool) {
+    for (const g of m.genres ?? []) {
+      const list = genreMap.get(g.name) ?? []
+      list.push(m)
+      genreMap.set(g.name, list)
+    }
+  }
+
+  // Find a genre shared by at least 3 films
+  for (const [genreName, films] of genreMap) {
+    if (films.length < 3) continue
+    const group = pickRandom(films, 3)
+    const groupIds = new Set(group.map(m => m.id))
+    const outsider = pool.find(
+      m => !groupIds.has(m.id) && !(m.genres ?? []).some(g => g.name === genreName)
+    )
+    if (!outsider) continue
+
+    const all = shuffle([...group, outsider])
+    const options = all.map(m => m.title)
+    return {
+      id: makeId(),
+      type: 'odd_one_out',
+      difficulty: 'medium',
+      text: `Un de ces films n'est pas du genre "${genreName}". Lequel ?`,
+      options,
+      correct_index: options.indexOf(outsider.title),
+      source_film: { tmdb_id: outsider.id, title: outsider.title },
+      film_posters: all.map(toFilmPoster),
+    }
+  }
+
+  return null
+}
+
+function connectMoviesQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
+  // Find 3 films sharing an actor, and generate wrong answer options
+  const actorMap = new Map<string, TmdbMovieDetail[]>()
+  for (const m of pool) {
+    for (const c of (m.credits?.cast ?? []).slice(0, 10)) {
+      const list = actorMap.get(c.name) ?? []
+      list.push(m)
+      actorMap.set(c.name, list)
+    }
+  }
+
+  for (const [actorName, films] of actorMap) {
+    if (films.length < 3) continue
+    const group = pickRandom(films, 3)
+
+    // Wrong options: other actors, a genre, a director
+    const director = getDirector(group[0])
+    const wrongActors = pickRandom(
+      DECOY_ACTORS.filter(a => a !== actorName),
+      2
+    )
+    const wrongDirector = director
+      ? pickRandom(DECOY_DIRECTORS.filter(d => d !== director), 1)[0]
+      : pickRandom(DECOY_DIRECTORS, 1)[0]
+
+    const wrongs = [...wrongActors, wrongDirector].slice(0, 3)
+    if (wrongs.length < 3) continue
+
+    const { options, correct_index } = buildOptions(actorName, wrongs)
+    return {
+      id: makeId(),
+      type: 'connect_movies',
+      difficulty: 'hard',
+      text: "Qu'ont ces 3 films en commun ?",
+      options,
+      correct_index,
+      source_film: { tmdb_id: group[0].id, title: group[0].title },
+      connect_films: group.map(toFilmPoster),
+    }
+  }
+
+  return null
+}
+
 // ── Public API ──
 
-const GENERATORS: ((movie: TmdbMovieDetail) => QuizQuestion | null)[] = [
+const SINGLE_GENERATORS: ((movie: TmdbMovieDetail) => QuizQuestion | null)[] = [
   yearQuestion,
   genreQuestion,
   directorQuestion,
   actorRoleQuestion,
   actorNotInQuestion,
-  runtimeQuestion,
   countryQuestion,
-  taglineQuestion,
+  composerQuestion,
 ]
 
-/** Generate all possible questions from a single movie */
+type PoolAwareSingleGen = (movie: TmdbMovieDetail, pool: TmdbMovieDetail[]) => QuizQuestion | null
+const POOL_AWARE_SINGLE_GENERATORS: { type: QuestionType; gen: PoolAwareSingleGen }[] = [
+  { type: 'backdrop_guess', gen: backdropGuessQuestion },
+  { type: 'keywords_to_movie', gen: keywordsToMovieQuestion },
+  { type: 'cast_to_movie', gen: castToMovieQuestion },
+]
+
+type MultiMovieGen = (pool: TmdbMovieDetail[]) => QuizQuestion | null
+const MULTI_GENERATORS: { type: QuestionType; gen: MultiMovieGen }[] = [
+  { type: 'budget_compare', gen: budgetCompareQuestion },
+  { type: 'revenue_compare', gen: revenueCompareQuestion },
+  { type: 'which_came_first', gen: whichCameFirstQuestion },
+  { type: 'odd_one_out', gen: oddOneOutQuestion },
+  { type: 'connect_movies', gen: connectMoviesQuestion },
+]
+
+// Keep old GENERATORS array for backward compat (tournament-questions.ts)
+const GENERATORS: ((movie: TmdbMovieDetail) => QuizQuestion | null)[] = SINGLE_GENERATORS
+
+/** Generate all possible questions from a single movie (legacy, used by tournament) */
 export function generateQuestions(movie: TmdbMovieDetail): QuizQuestion[] {
   const questions: QuizQuestion[] = []
   for (const gen of GENERATORS) {
@@ -286,6 +565,51 @@ export function generateQuestions(movie: TmdbMovieDetail): QuizQuestion[] {
     if (q) questions.push(q)
   }
   return questions
+}
+
+/** Generate all questions from a movie pool (single + pool-aware + multi) */
+function generateAllQuestions(
+  movies: TmdbMovieDetail[],
+  enabledTypes: QuestionType[],
+): QuizQuestion[] {
+  const pool: QuizQuestion[] = []
+  const enabled = new Set(enabledTypes)
+
+  // Single-movie generators
+  for (const movie of movies) {
+    for (const gen of SINGLE_GENERATORS) {
+      const q = gen(movie)
+      if (q && enabled.has(q.type)) pool.push(q)
+    }
+
+    // Pool-aware single generators
+    for (const { type, gen } of POOL_AWARE_SINGLE_GENERATORS) {
+      if (!enabled.has(type)) continue
+      const q = gen(movie, movies)
+      if (q) pool.push(q)
+    }
+  }
+
+  // Multi-movie generators (multiple attempts for variety)
+  for (const { type, gen } of MULTI_GENERATORS) {
+    if (!enabled.has(type)) continue
+    // Generate several questions of this type
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const q = gen(shuffle(movies))
+      if (q) pool.push(q)
+    }
+  }
+
+  // Poster questions (special generator)
+  if (enabled.has('poster')) {
+    const posterQs = generatePosterQuestions(
+      movies.map(m => ({ id: m.id, title: m.title, poster_path: m.poster_path })),
+      5
+    )
+    pool.push(...posterQs)
+  }
+
+  return pool
 }
 
 /** Select a balanced set of questions from a pool, maximizing film diversity */
@@ -306,12 +630,11 @@ export function selectQuestions(pool: QuizQuestion[], count: number = 10): QuizQ
     }
   }
 
-  // If we have enough diverse questions, balance by difficulty
+  // Also try to diversify by question type
   if (diverse.length >= count) {
     return balanceByDifficulty(diverse, count)
   }
 
-  // Not enough unique films — fill with duplicates
   const combined = [...diverse, ...shuffle(rest)]
   return balanceByDifficulty(combined, count)
 }
@@ -330,9 +653,9 @@ function balanceByDifficulty(pool: QuizQuestion[], count: number): QuizQuestion[
   }
 
   let remaining = count
-  remaining -= take(easy, Math.min(3, remaining))
-  remaining -= take(medium, Math.min(4, remaining))
-  remaining -= take(hard, Math.min(3, remaining))
+  remaining -= take(easy, Math.min(Math.ceil(count * 0.25), remaining))
+  remaining -= take(medium, Math.min(Math.ceil(count * 0.4), remaining))
+  remaining -= take(hard, Math.min(remaining, remaining))
 
   if (remaining > 0) {
     take([...easy, ...medium, ...hard], remaining)
@@ -350,12 +673,10 @@ export function generateQuestionsFromTwoFilms(
   const pool1 = generateQuestions(movie1)
   const pool2 = generateQuestions(movie2)
 
-  // Try to balance: ~half from each film
   const half = Math.ceil(count / 2)
   const selected1 = selectQuestions(pool1, half)
   const selected2 = selectQuestions(pool2, count - selected1.length)
 
-  // If one film didn't have enough, fill from the other
   const combined = [...selected1, ...selected2]
   if (combined.length < count) {
     const remaining = [...pool1, ...pool2].filter(q => !combined.includes(q))
@@ -385,7 +706,6 @@ export function generatePosterQuestions(
   movies: { id: number; title: string; poster_path: string | null }[],
   count: number = 10
 ): QuizQuestion[] {
-  // Only movies with posters
   const withPosters = movies.filter(m => m.poster_path)
   if (withPosters.length < 4) return []
 
@@ -394,7 +714,6 @@ export function generatePosterQuestions(
 
   for (let i = 0; i < Math.min(count, shuffled.length); i++) {
     const correct = shuffled[i]
-    // Pick 3 wrong titles from other movies
     const wrongs = shuffle(withPosters.filter(m => m.id !== correct.id))
       .slice(0, 3)
       .map(m => m.title)
@@ -424,22 +743,30 @@ export function calculateScore(correct: boolean, timeMs: number): number {
 }
 
 /**
- * Generate quiz questions for any mode (classic, fight, solo).
- * Shared between solo and duo quiz to guarantee identical question logic.
+ * Generate quiz questions — new pipeline with year range and question type selection.
+ * Also supports legacy theme-based mode for backward compatibility.
  */
 export async function generateQuizQuestions(config: {
-  type: 'classic' | 'fight'
-  theme?: string | null
-  themeValue?: string | null
+  // New config
   difficulty?: QuizDifficulty
+  yearMin?: number
+  yearMax?: number
+  enabledTypes?: QuestionType[]
+  count?: number
+  // Fight mode
   film1TmdbId?: number
   film2TmdbId?: number
-  count?: number
+  // Legacy config (for backward compat with old QuizMode/tournament)
+  type?: 'classic' | 'fight'
+  theme?: string | null
+  themeValue?: string | null
 }): Promise<QuizQuestion[]> {
   const count = config.count ?? 10
+  const enabledTypes = config.enabledTypes ?? ALL_QUESTION_TYPES
+  const difficulty = config.difficulty ?? 'normal'
 
-  if (config.type === 'fight') {
-    if (!config.film1TmdbId || !config.film2TmdbId) return []
+  // Fight mode: questions from two specific films
+  if (config.film1TmdbId && config.film2TmdbId) {
     const [m1, m2] = await Promise.all([
       tmdb.getMovie(config.film1TmdbId),
       tmdb.getMovie(config.film2TmdbId),
@@ -447,21 +774,37 @@ export async function generateQuizQuestions(config: {
     return generateQuestionsFromTwoFilms(m1, m2, count)
   }
 
-  // Classic / solo mode
-  const theme = (config.theme ?? 'general') as DiscoverTheme
-  const movies = await discoverMoviesByTheme(
-    theme,
-    config.themeValue ?? null,
-    config.difficulty ?? 'normal',
-  )
+  // Legacy theme-based mode (for backward compat)
+  if (config.theme && config.theme !== 'general') {
+    const theme = config.theme as DiscoverTheme
+    const movies = await discoverMoviesByTheme(
+      theme,
+      config.themeValue ?? null,
+      difficulty,
+    )
 
-  if (theme === 'poster') {
-    return generatePosterQuestions(movies, count)
+    if (theme === 'poster') {
+      return generatePosterQuestions(movies, count)
+    }
+
+    const shuffled = shuffle([...movies])
+    const picked = shuffled.slice(0, 12)
+    const details = await Promise.all(picked.map(m => tmdb.getMovie(m.id)))
+    const pool = details.flatMap(m => generateQuestions(m))
+    return selectQuestions(pool, count)
   }
 
+  // New year-range based mode
+  const yearMin = config.yearMin ?? 1970
+  const yearMax = config.yearMax ?? new Date().getFullYear()
+
+  const movies = await discoverMoviesByYearRange(yearMin, yearMax, difficulty)
+  if (movies.length === 0) return []
+
   const shuffled = shuffle([...movies])
-  const picked = shuffled.slice(0, 12)
+  const picked = shuffled.slice(0, Math.min(20, shuffled.length))
   const details = await Promise.all(picked.map(m => tmdb.getMovie(m.id)))
-  const pool = details.flatMap(m => generateQuestions(m))
+
+  const pool = generateAllQuestions(details, enabledTypes)
   return selectQuestions(pool, count)
 }
