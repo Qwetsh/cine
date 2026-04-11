@@ -67,8 +67,9 @@ export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
     : 0
   const count = providerCount + (showCinema ? selectedCinemas.length : 0)
 
-  // Build label for the pill button
-  const pillLabel = hasAny ? `${count}` : null
+  // Pick the main provider (first flatrate, then free, then rent, then buy)
+  const mainProvider = providers?.flatrate?.[0] ?? providers?.free?.[0] ?? providers?.rent?.[0] ?? providers?.buy?.[0] ?? null
+  const hasMore = count > 1
 
   return (
     <>
@@ -76,11 +77,15 @@ export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
         onClick={() => setOpen(true)}
         className="text-xs px-2 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1"
       >
-        📍 Où voir
-        {pillLabel && (
-          <span className="bg-[var(--color-accent)] text-white text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[14px] text-center leading-none">
-            {pillLabel}
-          </span>
+        {mainProvider ? (
+          <>
+            <img src={`${TMDB_IMAGE}${mainProvider.logo_path}`} alt={mainProvider.provider_name} className="w-4 h-4 rounded" />
+            {hasMore && <span className="text-[10px]">...</span>}
+          </>
+        ) : showCinema ? (
+          '🎟️ Cinéma'
+        ) : (
+          '📍 Où voir'
         )}
       </button>
 
