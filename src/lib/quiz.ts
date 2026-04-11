@@ -556,31 +556,49 @@ function generateAllQuestions(
   return pool
 }
 
-/** Select a balanced set of questions from a pool, maximizing film diversity */
+/** Select a balanced set of questions from a pool, maximizing type AND film diversity */
 export function selectQuestions(pool: QuizQuestion[], count: number = 10): QuizQuestion[] {
   const shuffled = shuffle(pool)
 
-  // Pass 1: pick 1 question per unique film (diverse selection)
+  // Pass 1: pick 1 question per unique type (maximize type diversity first)
+  const usedTypes = new Set<QuestionType>()
   const usedFilms = new Set<number>()
-  const diverse: QuizQuestion[] = []
-  const rest: QuizQuestion[] = []
+  const selected: QuizQuestion[] = []
+  const remaining: QuizQuestion[] = []
 
+  // First: one question per type, preferring unique films
   for (const q of shuffled) {
-    if (!usedFilms.has(q.source_film.tmdb_id)) {
+    if (!usedTypes.has(q.type)) {
+      usedTypes.add(q.type)
       usedFilms.add(q.source_film.tmdb_id)
-      diverse.push(q)
+      selected.push(q)
     } else {
-      rest.push(q)
+      remaining.push(q)
     }
   }
 
-  // Also try to diversify by question type
-  if (diverse.length >= count) {
-    return balanceByDifficulty(diverse, count)
+  // If we already have enough from type diversity alone
+  if (selected.length >= count) {
+    return balanceByDifficulty(selected, count)
   }
 
-  const combined = [...diverse, ...shuffle(rest)]
-  return balanceByDifficulty(combined, count)
+  // Pass 2: fill remaining slots, preferring unique films
+  const rest = shuffle(remaining)
+  for (const q of rest) {
+    if (selected.length >= count) break
+    if (!usedFilms.has(q.source_film.tmdb_id)) {
+      usedFilms.add(q.source_film.tmdb_id)
+      selected.push(q)
+    }
+  }
+
+  // Pass 3: if still not enough, fill with anything remaining
+  if (selected.length < count) {
+    const leftovers = rest.filter(q => !selected.includes(q))
+    selected.push(...leftovers.slice(0, count - selected.length))
+  }
+
+  return balanceByDifficulty(selected, count)
 }
 
 function balanceByDifficulty(pool: QuizQuestion[], count: number): QuizQuestion[] {

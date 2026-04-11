@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import * as Slider from '@radix-ui/react-slider'
 import { QUESTION_TYPE_META, ALL_QUESTION_TYPES } from '../../lib/quiz'
 import type { QuestionType, Difficulty } from '../../lib/quiz'
 import type { QuizDifficulty } from '../../lib/discover'
@@ -25,6 +26,15 @@ const DURATION_OPTIONS = [
 
 const CURRENT_YEAR = new Date().getFullYear()
 const MIN_YEAR = 1920
+
+const YEAR_PRESETS: { label: string; range: [number, number] }[] = [
+  { label: '2020s', range: [2020, CURRENT_YEAR] },
+  { label: '2010s', range: [2010, 2019] },
+  { label: '2000s', range: [2000, 2009] },
+  { label: '90s', range: [1990, 1999] },
+  { label: '80s', range: [1980, 1989] },
+  { label: 'Classiques', range: [MIN_YEAR, 1979] },
+]
 
 const DIFFICULTY_GROUPS: { label: string; difficulty: Difficulty }[] = [
   { label: 'Facile', difficulty: 'easy' },
@@ -117,34 +127,48 @@ export function QuizSetup({ onConfirm, onCancel, confirmLabel = 'Lancer le quiz'
           <p className="text-center text-sm font-bold text-[var(--color-text)] mb-3">
             {yearMin} — {yearMax}
           </p>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-[var(--color-text-muted)] w-8">De</span>
-              <input
-                type="range"
-                min={MIN_YEAR}
-                max={CURRENT_YEAR}
-                value={yearMin}
-                onChange={e => {
-                  const v = Number(e.target.value)
-                  setYearMin(Math.min(v, yearMax - 5))
-                }}
-                className="flex-1 accent-[var(--color-accent)]"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-[var(--color-text-muted)] w-8">À</span>
-              <input
-                type="range"
-                min={MIN_YEAR}
-                max={CURRENT_YEAR}
-                value={yearMax}
-                onChange={e => {
-                  const v = Number(e.target.value)
-                  setYearMax(Math.max(v, yearMin + 5))
-                }}
-                className="flex-1 accent-[var(--color-accent)]"
-              />
+
+          {/* Presets */}
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {YEAR_PRESETS.map(p => {
+              const active = yearMin === p.range[0] && yearMax === p.range[1]
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => { setYearMin(p.range[0]); setYearMax(p.range[1]) }}
+                  className={[
+                    'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap',
+                    active
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+                  ].join(' ')}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Dual-thumb slider */}
+          <div className="px-1">
+            <Slider.Root
+              className="relative flex items-center select-none touch-none h-5 w-full"
+              min={MIN_YEAR}
+              max={CURRENT_YEAR}
+              step={1}
+              value={[yearMin, yearMax]}
+              onValueChange={v => { setYearMin(v[0]); setYearMax(v[1]) }}
+              minStepsBetweenThumbs={5}
+            >
+              <Slider.Track className="relative h-1 grow rounded-full bg-[var(--color-surface-2)]">
+                <Slider.Range className="absolute h-full rounded-full bg-[var(--color-accent)]" />
+              </Slider.Track>
+              <Slider.Thumb className="block w-5 h-5 rounded-full bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]" />
+              <Slider.Thumb className="block w-5 h-5 rounded-full bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]" />
+            </Slider.Root>
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-[var(--color-text-muted)]">{yearMin}</span>
+              <span className="text-[10px] text-[var(--color-text-muted)]">{yearMax}</span>
             </div>
           </div>
         </div>
