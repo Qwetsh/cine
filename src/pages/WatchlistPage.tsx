@@ -28,24 +28,34 @@ export function WatchlistPage() {
   const tvWatchlist = useTvWatchlist(settings.showSeries ? coupleId : null, settings.showSeries ? user?.id : null)
   const tvCollection = useTvCollection(settings.showSeries ? coupleId : null)
   const [actionId, setActionId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'couple' | 'solo'>(coupleId ? 'couple' : 'solo')
+
+  const activeEntries = coupleId && viewMode === 'solo' ? soloWl.entries : entries
 
   const {
     filters, filtered, availableGenres, activeCount,
     setQuery, toggleGenre, setYearRange, clearAll,
-  } = useLocalFilter(entries)
+  } = useLocalFilter(activeEntries)
 
   async function handleMarkWatched(entry: WatchlistMovieEntry) {
     setActionId(entry.id)
-    const { error } = await addToCollection(entry.movie.id)
-    if (!error) {
-      await removeFromWatchlist(entry.id)
+    if (coupleId && viewMode === 'solo') {
+      await addToPersonalCollection(entry.movie.id)
+      await soloWl.removeFromWatchlist(entry.id)
+    } else {
+      const { error } = await addToCollection(entry.movie.id)
+      if (!error) await removeFromWatchlist(entry.id)
     }
     setActionId(null)
   }
 
   async function handleRemove(entryId: string) {
     setActionId(entryId)
-    await removeFromWatchlist(entryId)
+    if (coupleId && viewMode === 'solo') {
+      await soloWl.removeFromWatchlist(entryId)
+    } else {
+      await removeFromWatchlist(entryId)
+    }
     setActionId(null)
   }
 
@@ -62,18 +72,6 @@ export function WatchlistPage() {
     setActionId(null)
   }
 
-  async function handleSoloMarkWatched(entry: WatchlistMovieEntry) {
-    setActionId(entry.id)
-    await addToPersonalCollection(entry.movie.id)
-    await soloWl.removeFromWatchlist(entry.id)
-    setActionId(null)
-  }
-
-  async function handleSoloRemove(entryId: string) {
-    setActionId(entryId)
-    await soloWl.removeFromWatchlist(entryId)
-    setActionId(null)
-  }
 
   function getAddedByLabel(addedBy: string) {
     if (addedBy === user?.id) return 'Toi'
@@ -86,11 +84,41 @@ export function WatchlistPage() {
         <h1 className="text-xl font-bold text-[var(--color-text)]">À regarder</h1>
         {!loading && (
           <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            {entries.length + soloWl.entries.length + tvWatchlist.entries.length} élément{(entries.length + soloWl.entries.length + tvWatchlist.entries.length) !== 1 ? 's' : ''} dans la liste
+            {activeEntries.length + (viewMode === 'couple' ? tvWatchlist.entries.length : 0)} élément{(activeEntries.length + (viewMode === 'couple' ? tvWatchlist.entries.length : 0)) !== 1 ? 's' : ''}
             {activeCount > 0 && ` · ${filtered.length} affiché${filtered.length !== 1 ? 's' : ''}`}
           </p>
         )}
       </div>
+
+      {/* Toggle couple / solo */}
+      {coupleId && (
+        <div className="px-4 mb-3">
+          <div className="flex rounded-xl bg-[var(--color-surface-2)] p-1">
+            <button
+              onClick={() => setViewMode('couple')}
+              className={[
+                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+                viewMode === 'couple'
+                  ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+              ].join(' ')}
+            >
+              👫 En couple
+            </button>
+            <button
+              onClick={() => setViewMode('solo')}
+              className={[
+                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+                viewMode === 'solo'
+                  ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+              ].join(' ')}
+            >
+              🎬 Solo {soloWl.entries.length > 0 && `(${soloWl.entries.length})`}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 mb-3 space-y-2">
         <button
@@ -113,7 +141,7 @@ export function WatchlistPage() {
       </div>
 
       {/* Filter accordion */}
-      {!loading && entries.length > 0 && (
+      {!loading && activeEntries.length > 0 && (
         <CollectionFilterPanel
           filters={filters}
           availableGenres={availableGenres}
@@ -131,7 +159,7 @@ export function WatchlistPage() {
             <li key={i} className="bg-[var(--color-surface)] rounded-xl h-28 animate-pulse border border-[var(--color-border)]" />
           ))}
         </ul>
-      ) : entries.length === 0 ? (
+      ) : activeEntries.length === 0 ? (
         <div className="flex flex-col items-center py-20 text-[var(--color-text-muted)]">
           <span className="text-5xl mb-4">📋</span>
           <p className="font-medium">Votre liste est vide</p>
@@ -151,12 +179,6 @@ export function WatchlistPage() {
           </button>
         </div>
       ) : (
-        <>
-        {coupleId && soloWl.entries.length > 0 && (
-          <div className="px-4 pb-2">
-            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium">En couple</p>
-          </div>
-        )}
         <ul className="px-4 space-y-3 pb-4">
           {filtered.map(entry => (
             <li
@@ -227,8 +249,8 @@ export function WatchlistPage() {
             </li>
           ))}
 
-          {/* TV watchlist entries */}
-          {tvWatchlist.entries.map(entry => (
+          {/* TV watchlist entries — couple mode only */}
+          {viewMode !== 'solo' && tvWatchlist.entries.map(entry => (
             <li
               key={`tv-${entry.id}`}
               className="bg-[var(--color-surface)] rounded-xl overflow-hidden border border-[var(--color-border)]"
@@ -293,68 +315,6 @@ export function WatchlistPage() {
             </li>
           ))}
         </ul>
-        </>
-      )}
-
-      {/* Section solo — uniquement si l'utilisateur a un couple */}
-      {coupleId && soloWl.entries.length > 0 && (
-        <div className="mt-6">
-          <div className="px-4 pb-2">
-            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium">À voir solo</p>
-          </div>
-          <ul className="px-4 space-y-3 pb-4">
-            {soloWl.entries.map(entry => (
-              <li
-                key={`solo-${entry.id}`}
-                className="bg-[var(--color-surface)] rounded-xl overflow-hidden border border-[var(--color-border)]"
-              >
-                <div className="flex gap-3 p-3">
-                  <button
-                    onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-                    className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-                  >
-                    <img
-                      src={getPosterUrl(entry.movie.poster_path, 'small')}
-                      alt={`Affiche ${entry.movie.title}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
-                      <p className="font-semibold text-[var(--color-text)] leading-tight hover:text-[var(--color-accent)] transition-colors">
-                        {entry.movie.title}
-                      </p>
-                    </button>
-                    {entry.movie.release_date && (
-                      <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
-                        {new Date(entry.movie.release_date).getFullYear()}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2 justify-start pt-1">
-                    <button
-                      onClick={() => handleSoloMarkWatched(entry)}
-                      disabled={actionId === entry.id}
-                      className="text-[var(--color-text-muted)] hover:text-green-400 text-xl transition-colors disabled:opacity-40"
-                      title="Vu !"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      onClick={() => handleSoloRemove(entry.id)}
-                      disabled={actionId === entry.id}
-                      className="text-[var(--color-text-muted)] hover:text-red-400 text-xl transition-colors disabled:opacity-40"
-                      title="Retirer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </div>
   )
