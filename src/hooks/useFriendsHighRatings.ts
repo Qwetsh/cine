@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-interface FriendRatingEntry {
-  tmdb_id: number
-  friend_name: string
-}
-
 /** Map tmdb_id → list of friend display_names who rated ≥ 4 stars */
 export function useFriendsHighRatings(
   friendIds: string[],
