@@ -14,6 +14,7 @@ import { MovieCollection } from '../components/movie/MovieCollection'
 import { BookSource } from '../components/movie/BookSource'
 import { GameSource } from '../components/movie/GameSource'
 import { MusicSource } from '../components/movie/MusicSource'
+import { AwardsButton } from '../components/movie/AwardsButton'
 import { useSettings } from '../hooks/useSettings'
 import type { TmdbMovieDetail } from '../lib/tmdb'
 
@@ -248,6 +249,7 @@ export function MovieDetailPage() {
               <TrailerButton tmdbId={movie.id} mediaType="movie" />
               {settings.showMusic && <MusicSource movieTitle={movie.title} originalTitle={movie.original_title} />}
               {settings.showBooks && <BookSource tmdbId={movie.id} keywords={movie.keywords} />}
+              <AwardsButton imdbId={movie.imdb_id} />
               <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
             </div>
           </div>

@@ -4,6 +4,7 @@ import { MovieGrid } from '../components/movie/MovieGrid'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
 import { CrossFilmography } from '../components/movie/CrossFilmography'
 import { DirectorFrequentActors } from '../components/movie/DirectorFrequentActors'
+import { AwardsButton } from '../components/movie/AwardsButton'
 import type { TmdbMovie, TmdbPersonDetail, TmdbExternalIds } from '../lib/tmdb'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p'
@@ -257,10 +258,11 @@ export function PersonPage() {
         </div>
       )}
 
-      {/* External links */}
-      {links.length > 0 && (
+      {/* Awards + External links */}
+      {(links.length > 0 || externalIds?.imdb_id) && (
         <div className="px-4 mb-3">
           <div className="flex flex-wrap gap-2">
+            <AwardsButton imdbId={externalIds?.imdb_id ?? null} />
             {links.map(link => (
               <a
                 key={link.label}
