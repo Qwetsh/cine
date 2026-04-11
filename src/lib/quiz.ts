@@ -4,7 +4,6 @@ import { discoverMoviesByTheme, discoverMoviesByYearRange } from './discover'
 import type { QuizDifficulty, DiscoverTheme } from './discover'
 import {
   DECOY_DIRECTORS, DECOY_ACTORS, DECOY_COMPOSERS,
-  DECOY_COUNTRIES,
 } from './quiz-decoys'
 
 // ── Types ──
@@ -12,11 +11,9 @@ import {
 export type QuestionType =
   // Existing (kept)
   | 'release_year'
-  | 'genre'
   | 'director'
   | 'actor_role'
   | 'actor_not_in'
-  | 'country'
   | 'poster'
   // New
   | 'budget_compare'
@@ -38,7 +35,6 @@ export const QUESTION_TYPE_META: {
 }[] = [
   // Easy
   { id: 'release_year', label: 'Année de sortie', emoji: '📅', difficulty: 'easy' },
-  { id: 'genre', label: 'Genre', emoji: '🎭', difficulty: 'easy' },
   { id: 'which_came_first', label: 'Sorti en premier', emoji: '⏳', difficulty: 'easy' },
   // Medium
   { id: 'director', label: 'Réalisateur', emoji: '🎬', difficulty: 'medium' },
@@ -50,7 +46,6 @@ export const QUESTION_TYPE_META: {
   { id: 'odd_one_out', label: "L'intrus", emoji: '🔍', difficulty: 'medium' },
   { id: 'cast_to_movie', label: 'Casting → Film', emoji: '🎬', difficulty: 'medium' },
   // Hard
-  { id: 'country', label: 'Pays', emoji: '🌍', difficulty: 'hard' },
   { id: 'composer', label: 'Compositeur', emoji: '🎵', difficulty: 'hard' },
   { id: 'budget_compare', label: 'Budget', emoji: '💸', difficulty: 'hard' },
   { id: 'keywords_to_movie', label: 'Mots-clés', emoji: '🔑', difficulty: 'hard' },
@@ -170,31 +165,6 @@ function yearQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
   }
 }
 
-function genreQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
-  if (!movie.genres?.length) return null
-  const correct = movie.genres[0].name
-
-  const allGenres = [
-    'Action', 'Aventure', 'Animation', 'Comédie', 'Crime', 'Documentaire',
-    'Drame', 'Familial', 'Fantastique', 'Histoire', 'Horreur', 'Musique',
-    'Mystère', 'Romance', 'Science-Fiction', 'Téléfilm', 'Thriller', 'Guerre', 'Western',
-  ]
-  const movieGenreNames = movie.genres.map(g => g.name)
-  const wrongs = pickRandom(allGenres.filter(g => !movieGenreNames.includes(g)), 3)
-
-  if (wrongs.length < 3) return null
-  const { options, correct_index } = buildOptions(correct, wrongs)
-  return {
-    id: makeId(),
-    type: 'genre',
-    difficulty: 'easy',
-    text: `Quel est un genre du film "${movie.title}" ?`,
-    options,
-    correct_index,
-    source_film: { tmdb_id: movie.id, title: movie.title },
-  }
-}
-
 function directorQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
   const director = getDirector(movie)
   if (!director) return null
@@ -246,8 +216,9 @@ function actorNotInQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
 
   const realActors = pickRandom(cast.slice(0, 8), 3).map(c => c.name)
   const castNames = cast.map(c => c.name)
-  const decoy = DECOY_ACTORS.find(a => !castNames.includes(a) && !realActors.includes(a))
-  if (!decoy) return null
+  const candidates = DECOY_ACTORS.filter(a => !castNames.includes(a) && !realActors.includes(a))
+  if (candidates.length === 0) return null
+  const decoy = candidates[Math.floor(Math.random() * candidates.length)]
 
   const { options, correct_index } = buildOptions(decoy, realActors)
   return {
@@ -255,31 +226,6 @@ function actorNotInQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
     type: 'actor_not_in',
     difficulty: 'medium',
     text: `Lequel de ces acteurs n'a PAS joué dans "${movie.title}" ?`,
-    options,
-    correct_index,
-    source_film: { tmdb_id: movie.id, title: movie.title },
-  }
-}
-
-function countryQuestion(movie: TmdbMovieDetail): QuizQuestion | null {
-  if (!movie.production_countries?.length) return null
-
-  const correctCode = movie.production_countries[0].iso_3166_1
-  const correctEntry = DECOY_COUNTRIES.find(c => c.code === correctCode)
-  if (!correctEntry) return null
-
-  const wrongs = pickRandom(
-    DECOY_COUNTRIES.filter(c => c.code !== correctCode),
-    3
-  ).map(c => c.name)
-
-  if (wrongs.length < 3) return null
-  const { options, correct_index } = buildOptions(correctEntry.name, wrongs)
-  return {
-    id: makeId(),
-    type: 'country',
-    difficulty: 'hard',
-    text: `De quel pays est originaire "${movie.title}" ?`,
     options,
     correct_index,
     source_film: { tmdb_id: movie.id, title: movie.title },
@@ -530,11 +476,9 @@ function connectMoviesQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
 
 const SINGLE_GENERATORS: ((movie: TmdbMovieDetail) => QuizQuestion | null)[] = [
   yearQuestion,
-  genreQuestion,
   directorQuestion,
   actorRoleQuestion,
   actorNotInQuestion,
-  countryQuestion,
   composerQuestion,
 ]
 
