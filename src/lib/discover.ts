@@ -142,5 +142,5 @@ export async function discoverMoviesByYearRange(
     'primary_release_date.gte': `${yearMin}-01-01`,
     'primary_release_date.lte': `${yearMax}-12-31`,
     'vote_count.gte': voteGte,
-  }, 3, maxOffset)
+  }, 5, maxOffset)
 }

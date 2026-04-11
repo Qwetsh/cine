@@ -169,7 +169,7 @@ export function QuizMode() {
         <div className="px-4 text-center py-8 space-y-5">
           <span className="text-6xl block">🏆</span>
           <p className="text-xl font-bold text-[var(--color-text)]">
-            {winner === 'Égalité' ? 'Égalité !' : `${winner} gagne !`}
+            {winner === 'Égalité' ? 'Égalité !' : winner === 'Toi' ? 'Tu as gagné !' : `${winner} a gagné !`}
           </p>
           <div className="flex justify-center gap-8">
             <div className="text-center">

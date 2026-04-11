@@ -82,6 +82,8 @@ export interface QuizQuestion {
   cast_names?: string[]
   /** Film posters shown as prompt for 'connect_movies' type */
   connect_films?: FilmPoster[]
+  /** Values to display on each option after reveal (e.g., "$150M", "2014") */
+  option_values?: string[]
 }
 
 export interface QuizData {
@@ -138,6 +140,13 @@ function getComposer(movie: TmdbMovieDetail): string | null {
 
 function toFilmPoster(movie: TmdbMovieDetail): FilmPoster {
   return { tmdb_id: movie.id, title: movie.title, poster_path: movie.poster_path }
+}
+
+function formatMoney(amount: number): string {
+  if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(1).replace('.0', '')} Md$`
+  if (amount >= 1_000_000) return `${Math.round(amount / 1_000_000)} M$`
+  if (amount >= 1_000) return `${Math.round(amount / 1_000)} k$`
+  return `${amount} $`
 }
 
 // ── Single-movie question generators ──
@@ -328,6 +337,10 @@ function budgetCompareQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
 
   const options = picked.map(m => m.title)
   const shuffled = shuffle(options)
+  const optionValues = shuffled.map(title => {
+    const m = picked.find(p => p.title === title)!
+    return formatMoney(m.budget)
+  })
   return {
     id: makeId(),
     type: 'budget_compare',
@@ -337,6 +350,7 @@ function budgetCompareQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
     correct_index: shuffled.indexOf(correct.title),
     source_film: { tmdb_id: correct.id, title: correct.title },
     film_posters: picked.map(toFilmPoster),
+    option_values: optionValues,
   }
 }
 
@@ -350,6 +364,10 @@ function revenueCompareQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
 
   const options = picked.map(m => m.title)
   const shuffled = shuffle(options)
+  const optionValues = shuffled.map(title => {
+    const m = picked.find(p => p.title === title)!
+    return formatMoney(m.revenue)
+  })
   return {
     id: makeId(),
     type: 'revenue_compare',
@@ -359,6 +377,7 @@ function revenueCompareQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
     correct_index: shuffled.indexOf(correct.title),
     source_film: { tmdb_id: correct.id, title: correct.title },
     film_posters: picked.map(toFilmPoster),
+    option_values: optionValues,
   }
 }
 
@@ -378,6 +397,10 @@ function whichCameFirstQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
 
   const options = picked.map(m => m.title)
   const shuffled = shuffle(options)
+  const optionValues = shuffled.map(title => {
+    const m = picked.find(p => p.title === title)!
+    return String(new Date(m.release_date).getFullYear())
+  })
   return {
     id: makeId(),
     type: 'which_came_first',
@@ -387,6 +410,7 @@ function whichCameFirstQuestion(pool: TmdbMovieDetail[]): QuizQuestion | null {
     correct_index: shuffled.indexOf(correct.title),
     source_film: { tmdb_id: correct.id, title: correct.title },
     film_posters: picked.map(toFilmPoster),
+    option_values: optionValues,
   }
 }
 
@@ -582,7 +606,7 @@ export function selectQuestions(pool: QuizQuestion[], count: number = 10): QuizQ
     return balanceByDifficulty(selected, count)
   }
 
-  // Pass 2: fill remaining slots, preferring unique films
+  // Pass 2: fill remaining slots, preferring unique films AND unique types
   const rest = shuffle(remaining)
   for (const q of rest) {
     if (selected.length >= count) break
@@ -592,10 +616,23 @@ export function selectQuestions(pool: QuizQuestion[], count: number = 10): QuizQ
     }
   }
 
-  // Pass 3: if still not enough, fill with anything remaining
+  // Pass 3: if still not enough, prefer least-used films
   if (selected.length < count) {
     const leftovers = rest.filter(q => !selected.includes(q))
-    selected.push(...leftovers.slice(0, count - selected.length))
+    // Count how many times each film is used
+    const filmCount = new Map<number, number>()
+    for (const q of selected) {
+      filmCount.set(q.source_film.tmdb_id, (filmCount.get(q.source_film.tmdb_id) ?? 0) + 1)
+    }
+    // Sort leftovers by least-used film first
+    leftovers.sort((a, b) =>
+      (filmCount.get(a.source_film.tmdb_id) ?? 0) - (filmCount.get(b.source_film.tmdb_id) ?? 0)
+    )
+    for (const q of leftovers) {
+      if (selected.length >= count) break
+      selected.push(q)
+      filmCount.set(q.source_film.tmdb_id, (filmCount.get(q.source_film.tmdb_id) ?? 0) + 1)
+    }
   }
 
   return balanceByDifficulty(selected, count)
@@ -763,8 +800,10 @@ export async function generateQuizQuestions(config: {
   const movies = await discoverMoviesByYearRange(yearMin, yearMax, difficulty)
   if (movies.length === 0) return []
 
+  // Fetch more movies for better diversity (scale with question count)
+  const detailCount = Math.min(Math.max(25, count * 3), movies.length)
   const shuffled = shuffle([...movies])
-  const picked = shuffled.slice(0, Math.min(20, shuffled.length))
+  const picked = shuffled.slice(0, detailCount)
   const details = await Promise.all(picked.map(m => tmdb.getMovie(m.id)))
 
   const pool = generateAllQuestions(details, enabledTypes)

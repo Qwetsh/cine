@@ -187,7 +187,7 @@ export function QuizGame({
       <div className="px-4 text-center py-12 space-y-5">
         <span className="text-6xl block">🏆</span>
         <p className="text-xl font-bold text-[var(--color-text)]">
-          {winner === 'Égalité' ? 'Égalité !' : `${winner} gagne !`}
+          {winner === 'Égalité' ? 'Égalité !' : winner === 'Toi' ? 'Tu as gagné !' : `${winner} a gagné !`}
         </p>
 
         {/* Energy bar */}
@@ -329,11 +329,13 @@ export function QuizGame({
           myAnswer={myCurrentAnswer}
           showResult={showResult}
           onAnswer={handleAnswer}
+          optionValues={question.option_values}
         />
       ) : (
         <div className="grid grid-cols-2 gap-2.5">
           {question.options.map((option, idx) => {
             const { bg, textColor } = getOptionStyle(idx, question.correct_index, myCurrentAnswer, showResult)
+            const valueLabel = (showResult || myCurrentAnswer != null) && question.option_values?.[idx]
             return (
               <button
                 key={idx}
@@ -342,6 +344,9 @@ export function QuizGame({
                 className={`rounded-xl border p-3.5 text-sm font-medium transition-all ${bg} ${textColor}`}
               >
                 {option}
+                {valueLabel && (
+                  <span className="block text-[10px] mt-0.5 opacity-75">{valueLabel}</span>
+                )}
               </button>
             )
           })}
@@ -495,6 +500,7 @@ function PosterGrid({
   myAnswer,
   showResult,
   onAnswer,
+  optionValues,
 }: {
   posters: FilmPoster[]
   options: string[]
@@ -502,12 +508,15 @@ function PosterGrid({
   myAnswer: number | null
   showResult: boolean
   onAnswer: (idx: number) => void
+  optionValues?: string[]
 }) {
+  const revealed = showResult || myAnswer != null
   return (
     <div className="grid grid-cols-2 gap-2.5">
       {options.map((title, idx) => {
         const poster = posters.find(p => p.title === title)
         const { bg, textColor } = getOptionStyle(idx, correctIndex, myAnswer, showResult)
+        const valueLabel = revealed && optionValues?.[idx]
         return (
           <button
             key={idx}
@@ -515,7 +524,7 @@ function PosterGrid({
             disabled={myAnswer != null}
             className={`rounded-xl border p-2 transition-all ${bg}`}
           >
-            <div className="w-full aspect-[2/3] rounded-lg overflow-hidden bg-[var(--color-surface-2)] mb-1.5">
+            <div className="w-full aspect-[2/3] rounded-lg overflow-hidden bg-[var(--color-surface-2)] mb-1.5 relative">
               {poster?.poster_path ? (
                 <img
                   src={getPosterUrl(poster.poster_path, 'small')}
@@ -524,6 +533,11 @@ function PosterGrid({
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-2xl">🎬</div>
+              )}
+              {valueLabel && (
+                <div className="absolute bottom-0 inset-x-0 bg-black/70 backdrop-blur-sm py-1 px-1.5">
+                  <p className="text-xs font-bold text-white text-center">{valueLabel}</p>
+                </div>
               )}
             </div>
             <p className={`text-xs font-medium leading-tight ${textColor} line-clamp-2`}>{title}</p>
