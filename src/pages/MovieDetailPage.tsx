@@ -21,10 +21,11 @@ export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [movie, setMovie] = useState<TmdbMovieDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [onWatchlist, setOnWatchlist] = useState(false)
+  const [onWatchlistSolo, setOnWatchlistSolo] = useState(false)
+  const [onWatchlistCouple, setOnWatchlistCouple] = useState(false)
   const [inCollection, setInCollection] = useState(false)
   const [inPersonal, setInPersonal] = useState(false)
-  const [actionLoading, setActionLoading] = useState<'watchlist' | 'collection' | 'personal' | null>(null)
+  const [actionLoading, setActionLoading] = useState<'wl-solo' | 'wl-couple' | 'collection' | 'personal' | null>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
@@ -34,7 +35,8 @@ export function MovieDetailPage() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
-    setOnWatchlist(false)
+    setOnWatchlistSolo(false)
+    setOnWatchlistCouple(false)
     setInCollection(false)
     setInPersonal(false)
     tmdb.getMovie(Number(id))
@@ -55,89 +57,92 @@ export function MovieDetailPage() {
         .maybeSingle()
 
       if (!movieRow) {
-        setOnWatchlist(false)
+        setOnWatchlistSolo(false)
+        setOnWatchlistCouple(false)
         setInCollection(false)
         setInPersonal(false)
         return
       }
 
+      if (user) {
+        // Solo watchlist — toujours vérifier
+        const { data: wlSolo } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieRow.id).maybeSingle()
+        setOnWatchlistSolo(!!wlSolo)
+
+        // Collection perso
+        const { data: perso } = await supabase.from('personal_collection').select('id').eq('user_id', user.id).eq('movie_id', movieRow.id).maybeSingle()
+        setInPersonal(!!perso)
+      }
+
       if (coupleId) {
-        const [wl, col] = await Promise.all([
+        const [wlCouple, col] = await Promise.all([
           supabase.from('watchlist').select('id').eq('couple_id', coupleId).eq('movie_id', movieRow.id).maybeSingle(),
           supabase.from('collection').select('id').eq('couple_id', coupleId).eq('movie_id', movieRow.id).maybeSingle(),
         ])
-        setOnWatchlist(!!wl.data)
+        setOnWatchlistCouple(!!wlCouple.data)
         setInCollection(!!col.data)
-      } else if (user) {
-        // Solo watchlist check
-        const { data: wl } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieRow.id).maybeSingle()
-        setOnWatchlist(!!wl)
-      }
-
-      if (user) {
-        const { data } = await supabase.from('personal_collection').select('id').eq('user_id', user.id).eq('movie_id', movieRow.id).maybeSingle()
-        setInPersonal(!!data)
       }
     }
 
     checkStatus()
   }, [movie, coupleId, user])
 
-  async function handleAddToWatchlist() {
+  async function handleToggleWatchlistSolo() {
     if (!user) { navigate('/login'); return }
     if (!movie || actionLoading) return
-    setActionLoading('watchlist')
+    setActionLoading('wl-solo')
     try {
       const movieDbId = await ensureMovie(movie)
-      const { error } = await supabase.from('watchlist').insert({
-        movie_id: movieDbId,
-        added_by: user.id,
-        couple_id: coupleId ?? null,
-      })
-      if (!error) {
-        setOnWatchlist(true)
-        showToast('Ajouté à la liste ✓')
+      if (onWatchlistSolo) {
+        const { data: row } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieDbId).maybeSingle()
+        if (row) await supabase.from('watchlist').delete().eq('id', row.id)
+        setOnWatchlistSolo(false)
+        showToast('Retiré de ta liste solo')
+      } else {
+        const { error } = await supabase.from('watchlist').insert({ movie_id: movieDbId, added_by: user.id, couple_id: null })
+        if (!error) { setOnWatchlistSolo(true); showToast('Ajouté à ta liste solo ✓') }
       }
     } catch {
-      showToast('Erreur lors de l\'ajout à la liste')
-    } finally {
-      setActionLoading(null)
-    }
+      showToast('Erreur')
+    } finally { setActionLoading(null) }
+  }
+
+  async function handleToggleWatchlistCouple() {
+    if (!user || !coupleId) return
+    if (!movie || actionLoading) return
+    setActionLoading('wl-couple')
+    try {
+      const movieDbId = await ensureMovie(movie)
+      if (onWatchlistCouple) {
+        const { data: row } = await supabase.from('watchlist').select('id').eq('couple_id', coupleId).eq('movie_id', movieDbId).maybeSingle()
+        if (row) await supabase.from('watchlist').delete().eq('id', row.id)
+        setOnWatchlistCouple(false)
+        showToast('Retiré de la liste couple')
+      } else {
+        const { error } = await supabase.from('watchlist').insert({ movie_id: movieDbId, added_by: user.id, couple_id: coupleId })
+        if (!error) { setOnWatchlistCouple(true); showToast('Ajouté à la liste couple ✓') }
+      }
+    } catch {
+      showToast('Erreur')
+    } finally { setActionLoading(null) }
   }
 
   async function handleMarkWatched() {
-    if (!user || !coupleId) { navigate('/profile'); return }
+    if (!user || !coupleId) return
     if (!movie || actionLoading) return
     setActionLoading('collection')
     try {
       const movieDbId = await ensureMovie(movie)
-      // Retirer de la watchlist si présent
-      if (onWatchlist) {
-        const { data: wlRow } = await supabase
-          .from('watchlist')
-          .select('id')
-          .eq('couple_id', coupleId)
-          .eq('movie_id', movieDbId)
-          .maybeSingle()
-        if (wlRow) {
-          await supabase.from('watchlist').delete().eq('id', wlRow.id)
-          setOnWatchlist(false)
-        }
+      // Retirer de la watchlist couple si présent
+      if (onWatchlistCouple) {
+        const { data: wlRow } = await supabase.from('watchlist').select('id').eq('couple_id', coupleId).eq('movie_id', movieDbId).maybeSingle()
+        if (wlRow) { await supabase.from('watchlist').delete().eq('id', wlRow.id); setOnWatchlistCouple(false) }
       }
-      const { error } = await supabase.from('collection').insert({
-        movie_id: movieDbId,
-        couple_id: coupleId,
-        watched_at: new Date().toISOString(),
-      })
-      if (!error) {
-        setInCollection(true)
-        showToast('Ajouté à la collection ✓')
-      }
+      const { error } = await supabase.from('collection').insert({ movie_id: movieDbId, couple_id: coupleId, watched_at: new Date().toISOString() })
+      if (!error) { setInCollection(true); showToast('Ajouté à la collection ✓') }
     } catch {
-      showToast('Erreur lors de l\'ajout à la collection')
-    } finally {
-      setActionLoading(null)
-    }
+      showToast('Erreur')
+    } finally { setActionLoading(null) }
   }
 
   async function handleMarkPersonal() {
@@ -146,20 +151,16 @@ export function MovieDetailPage() {
     setActionLoading('personal')
     try {
       const movieDbId = await ensureMovie(movie)
-      const { error } = await supabase.from('personal_collection').insert({
-        movie_id: movieDbId,
-        user_id: user.id,
-        watched_at: new Date().toISOString(),
-      })
-      if (!error) {
-        setInPersonal(true)
-        showToast('Ajouté à ta collection perso ✓')
+      // Retirer de la watchlist solo si présent
+      if (onWatchlistSolo) {
+        const { data: wlRow } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieDbId).maybeSingle()
+        if (wlRow) { await supabase.from('watchlist').delete().eq('id', wlRow.id); setOnWatchlistSolo(false) }
       }
+      const { error } = await supabase.from('personal_collection').insert({ movie_id: movieDbId, user_id: user.id, watched_at: new Date().toISOString() })
+      if (!error) { setInPersonal(true); showToast('Ajouté à ta collection perso ✓') }
     } catch {
-      showToast('Erreur lors de l\'ajout à ta collection perso')
-    } finally {
-      setActionLoading(null)
-    }
+      showToast('Erreur')
+    } finally { setActionLoading(null) }
   }
 
   if (loading) {
@@ -330,27 +331,67 @@ export function MovieDetailPage() {
         <FriendsCard tmdbId={movie.id} mediaType="movie" />
 
         {/* Actions */}
-        <div className="space-y-3 mt-6">
-          {/* Watchlist + couple actions */}
-          {coupleId ? (
-            <div className="flex gap-3">
-              {inCollection ? (
-                <div className="flex-1 bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
-                  ✓ Vu ensemble
+        <div className="space-y-4 mt-6">
+          {/* — À regarder — */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium mb-2 text-center">À regarder</p>
+            <div className={coupleId ? 'flex gap-3' : ''}>
+              <button
+                onClick={handleToggleWatchlistSolo}
+                disabled={actionLoading !== null}
+                className={[
+                  coupleId ? 'flex-1' : 'w-full',
+                  'rounded-xl py-3 font-medium text-sm transition-colors disabled:opacity-60',
+                  onWatchlistSolo
+                    ? 'bg-[var(--color-accent)] text-white'
+                    : 'bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]',
+                ].join(' ')}
+              >
+                {actionLoading === 'wl-solo' ? '…' : onWatchlistSolo ? '✓ À voir solo' : '🎬 À voir solo'}
+              </button>
+              {coupleId && (
+                <button
+                  onClick={handleToggleWatchlistCouple}
+                  disabled={actionLoading !== null}
+                  className={[
+                    'flex-1 rounded-xl py-3 font-medium text-sm transition-colors disabled:opacity-60',
+                    onWatchlistCouple
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]',
+                  ].join(' ')}
+                >
+                  {actionLoading === 'wl-couple' ? '…' : onWatchlistCouple ? '✓ À voir couple' : '👫 À voir couple'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* — Déjà vu — */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium mb-2 text-center">Déjà vu</p>
+            <div className={coupleId ? 'flex gap-3' : ''}>
+              {inPersonal ? (
+                <div className={[coupleId ? 'flex-1' : 'w-full', 'bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30'].join(' ')}>
+                  ✓ Vu solo
                 </div>
               ) : (
-                <>
-                  <button
-                    onClick={handleAddToWatchlist}
-                    disabled={onWatchlist || actionLoading !== null}
-                    className="flex-1 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
-                  >
-                    {actionLoading === 'watchlist'
-                      ? '…'
-                      : onWatchlist
-                      ? '✓ Dans la liste'
-                      : '+ À regarder'}
-                  </button>
+                <button
+                  onClick={handleMarkPersonal}
+                  disabled={actionLoading !== null}
+                  className={[
+                    coupleId ? 'flex-1' : 'w-full',
+                    'bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors',
+                  ].join(' ')}
+                >
+                  {actionLoading === 'personal' ? '…' : '🎬 Vu solo'}
+                </button>
+              )}
+              {coupleId && (
+                inCollection ? (
+                  <div className="flex-1 bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
+                    ✓ Vu ensemble
+                  </div>
+                ) : (
                   <button
                     onClick={handleMarkWatched}
                     disabled={actionLoading !== null}
@@ -358,37 +399,10 @@ export function MovieDetailPage() {
                   >
                     {actionLoading === 'collection' ? '…' : '👫 Vu ensemble'}
                   </button>
-                </>
+                )
               )}
             </div>
-          ) : (
-            <button
-              onClick={handleAddToWatchlist}
-              disabled={onWatchlist || actionLoading !== null}
-              className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
-            >
-              {actionLoading === 'watchlist'
-                ? '…'
-                : onWatchlist
-                ? '✓ Dans la liste'
-                : '+ À regarder'}
-            </button>
-          )}
-
-          {/* Personal action */}
-          {inPersonal ? (
-            <div className="bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
-              ✓ Dans ma collection perso
-            </div>
-          ) : (
-            <button
-              onClick={handleMarkPersonal}
-              disabled={actionLoading !== null}
-              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
-            >
-              {actionLoading === 'personal' ? '…' : '🎬 Vu en solo'}
-            </button>
-          )}
+          </div>
 
           {/* Recommander à un ami */}
           <RecommendButton movieId={movie.id} tvShowId={null} title={movie.title} onBeforeSend={() => ensureMovie(movie).then(() => {})} />
