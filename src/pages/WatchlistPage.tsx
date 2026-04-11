@@ -90,8 +90,8 @@ export function WatchlistPage() {
         )}
       </div>
 
-      {/* Toggle couple / solo */}
-      {coupleId && (
+      {/* Toggle couple / solo / recos */}
+      {coupleId ? (
         <div className="px-4 mb-3">
           <div className="flex rounded-xl bg-[var(--color-surface-2)] p-1">
             <button
@@ -116,27 +116,41 @@ export function WatchlistPage() {
             >
               🎬 Solo {soloWl.entries.length > 0 && `(${soloWl.entries.length})`}
             </button>
+            <button
+              onClick={() => navigate('/recommendations')}
+              className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text)] flex items-center justify-center gap-1"
+            >
+              💌 Recos
+              {recos.unseenCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">
+                  {recos.unseenCount}
+                </span>
+              )}
+            </button>
           </div>
+        </div>
+      ) : (
+        <div className="px-4 mb-3">
+          <button
+            onClick={() => navigate('/recommendations')}
+            className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+          >
+            💌 Recos de mes amis
+            {recos.unseenCount > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                {recos.unseenCount}
+              </span>
+            )}
+          </button>
         </div>
       )}
 
-      <div className="px-4 mb-3 space-y-2">
+      <div className="px-4 mb-3">
         <button
           onClick={() => navigate('/search')}
           className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
         >
           + Ajouter {settings.showSeries ? 'un film ou une série' : 'un film'}
-        </button>
-        <button
-          onClick={() => navigate('/recommendations')}
-          className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
-        >
-          💌 Recos de mes amis
-          {recos.unseenCount > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
-              {recos.unseenCount}
-            </span>
-          )}
         </button>
       </div>
 
