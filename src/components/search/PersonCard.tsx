@@ -25,7 +25,7 @@ export function PersonCard({ person, filmCount }: Props) {
   const age = getAge(person.birthday, person.deathday)
 
   return (
-    <div className="mx-4 mt-2 mb-1 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+    <div className="mt-1 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
       <div className="flex items-center gap-3 p-3">
         {person.profile_path ? (
           <img

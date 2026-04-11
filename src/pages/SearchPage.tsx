@@ -158,6 +158,11 @@ export function SearchPage() {
             />
           </>
         )}
+
+        {/* Person info card — inside sticky to stay visible */}
+        {matchedPerson && !isTvMode && (
+          <PersonCard person={matchedPerson} filmCount={results.length} />
+        )}
       </div>
 
       {/* Active filter pills */}
@@ -169,11 +174,6 @@ export function SearchPage() {
         onRemoveCountry={() => setCountry(null)}
         onClearAll={clearFilters}
       />
-
-      {/* Person info card */}
-      {matchedPerson && !isTvMode && (
-        <PersonCard person={matchedPerson} filmCount={results.length} />
-      )}
 
       {/* Section title */}
       <div className="px-4 pt-2 pb-1">
