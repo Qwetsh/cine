@@ -24,18 +24,7 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
   const recosState = useFriendRecos(user?.id ?? null)
   const { wantMap } = useFriendsWantToWatch(user?.id ?? null)
 
-  // Build friend IDs + display name map for high-ratings hook
-  const friendIds = useMemo(() =>
-    friendsState.friends.map(f => f.profile.id),
-    [friendsState.friends],
-  )
-  const friendProfiles = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const f of friendsState.friends) m.set(f.profile.id, f.profile.display_name)
-    return m
-  }, [friendsState.friends])
-
-  const { ratingMap } = useFriendsHighRatings(friendIds, friendProfiles)
+  const { ratingMap } = useFriendsHighRatings(user?.id ?? null)
 
   const getFriendsWantCount = useCallback((tmdbId: number, mediaType: 'movie' | 'tv') => {
     return wantMap.get(`${mediaType}-${tmdbId}`) ?? 0
