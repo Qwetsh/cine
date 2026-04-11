@@ -65,9 +65,10 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
           </div>
         )}
         {lovedBy.length > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-4">
-            <p className="text-[10px] font-medium text-green-400 truncate">
-              ★ {lovedBy.length === 1 ? `Recommandé par ${lovedBy[0]}` : `Recommandé par ${lovedBy[0]} +${lovedBy.length - 1}`}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-4 text-center">
+            <p className="text-[8px] text-green-400/80 leading-tight">★ Reco par</p>
+            <p className="text-[11px] font-semibold text-green-400 leading-tight truncate">
+              {lovedBy.length === 1 ? lovedBy[0] : `${lovedBy[0]} +${lovedBy.length - 1}`}
             </p>
           </div>
         )}
