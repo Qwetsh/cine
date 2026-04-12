@@ -41,7 +41,7 @@ export function PersonPage() {
   const [person, setPerson] = useState<TmdbPersonDetail | null>(null)
   const [biography, setBiography] = useState('')
   const [movies, setMovies] = useState<TmdbMovie[]>([])
-  const [topMovies, setTopMovies] = useState<TmdbMovie[]>([])
+  const [filmSections, setFilmSections] = useState<{ label: string; movies: TmdbMovie[] }[]>([])
   const [externalIds, setExternalIds] = useState<TmdbExternalIds | null>(null)
   const [loading, setLoading] = useState(true)
   const [bioExpanded, setBioExpanded] = useState(false)
@@ -75,29 +75,87 @@ export function PersonPage() {
           setBiography(bioFr)
         }
 
-        const dept = personFr.known_for_department
-        const isCrewMember = dept && dept !== 'Acting'
-        let filmList: TmdbMovie[]
-
-        if (isCrewMember) {
-          filmList = creditsData.crew
-            .filter(m => m.department === dept || m.job === dept)
-            .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
-        } else {
-          filmList = creditsData.cast
-            .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+        // Build sections by role
+        const SECTION_LABELS: Record<string, string> = {
+          'Acting': 'acteur',
+          'Directing': 'réalisateur',
+          'Writing': 'scénariste',
+          'Production': 'producteur',
+          'Sound': 'compositeur',
+          'Camera': 'directeur de la photographie',
+          'Editing': 'monteur',
+          'Art': 'directeur artistique',
+          'Costume & Make-Up': 'costumes & maquillage',
+          'Visual Effects': 'effets visuels',
+          'Crew': 'équipe technique',
         }
 
-        // Deduplicate
-        const seen = new Set<number>()
-        filmList = filmList.filter(m => {
-          if (seen.has(m.id)) return false
-          seen.add(m.id)
-          return true
-        })
+        const dedup = (list: TmdbMovie[]) => {
+          const seen = new Set<number>()
+          return list.filter(m => {
+            if (seen.has(m.id)) return false
+            seen.add(m.id)
+            return true
+          })
+        }
 
-        setMovies(filmList)
-        setTopMovies(filmList.slice(0, 5))
+        const sortByPop = (list: TmdbMovie[]) =>
+          list.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+
+        // Group crew by department
+        const crewByDept = new Map<string, TmdbMovie[]>()
+        for (const c of creditsData.crew) {
+          if (!crewByDept.has(c.department)) crewByDept.set(c.department, [])
+          crewByDept.get(c.department)!.push(c)
+        }
+
+        const sections: { label: string; movies: TmdbMovie[] }[] = []
+        const primaryDept = personFr.known_for_department
+
+        // Primary department first
+        if (primaryDept && primaryDept !== 'Acting' && crewByDept.has(primaryDept)) {
+          const films = dedup(sortByPop(crewByDept.get(primaryDept)!))
+          if (films.length > 0) {
+            sections.push({ label: SECTION_LABELS[primaryDept] ?? primaryDept, movies: films })
+          }
+          crewByDept.delete(primaryDept)
+        }
+
+        // Acting credits
+        if (creditsData.cast.length > 0) {
+          const castFilms = dedup(sortByPop([...creditsData.cast]))
+          if (castFilms.length > 0) {
+            sections.push({ label: 'acteur', movies: castFilms })
+          }
+        }
+
+        // If primary is Acting, it's already added above; add other crew depts
+        if (primaryDept === 'Acting' || !primaryDept) {
+          // Acting is already first, now add crew roles
+        }
+
+        // Remaining crew departments
+        for (const [dept, films] of crewByDept) {
+          const dedupedFilms = dedup(sortByPop(films))
+          if (dedupedFilms.length > 0) {
+            sections.push({ label: SECTION_LABELS[dept] ?? dept, movies: dedupedFilms })
+          }
+        }
+
+        // For actors with no crew, primary section is acting (move to front if not already)
+        if ((!primaryDept || primaryDept === 'Acting') && sections.length > 0 && sections[0].label !== 'acteur') {
+          const actIdx = sections.findIndex(s => s.label === 'acteur')
+          if (actIdx > 0) {
+            const [actSection] = sections.splice(actIdx, 1)
+            sections.unshift(actSection)
+          }
+        }
+
+        setFilmSections(sections)
+
+        // All movies combined for stats
+        const allMovies = dedup(sections.flatMap(s => s.movies))
+        setMovies(allMovies)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -308,40 +366,40 @@ export function PersonPage() {
         </div>
       )}
 
-      {/* Top films */}
-      {topMovies.length > 0 && (
-        <div className="px-4 mb-2">
-          <h2 className="text-sm font-semibold text-[var(--color-text)] mb-2">Films notables</h2>
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {topMovies.map(movie => (
-              <button
-                key={movie.id}
-                onClick={() => navigate(`/movie/${movie.id}`)}
-                className="flex-shrink-0 w-20 text-center group"
-              >
-                <img
-                  src={getPosterUrl(movie.poster_path, 'small')}
-                  alt={movie.title}
-                  className="w-20 h-[120px] rounded-lg object-cover border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors"
-                />
-                <p className="text-[10px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-tight">{movie.title}</p>
-              </button>
-            ))}
+      {/* Filmography by role sections */}
+      {filmSections.map((section, idx) => (
+        <div key={section.label}>
+          <div className="px-4 pt-3 pb-1">
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium">
+              A été {section.label} dans ({section.movies.length})
+            </p>
           </div>
+          {idx === 0 && section.movies.length > 0 && (
+            <div className="px-4 mb-2">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                {section.movies.slice(0, 5).map(movie => (
+                  <button
+                    key={movie.id}
+                    onClick={() => navigate(`/movie/${movie.id}`)}
+                    className="flex-shrink-0 w-20 text-center group"
+                  >
+                    <img
+                      src={getPosterUrl(movie.poster_path, 'small')}
+                      alt={movie.title}
+                      className="w-20 h-[120px] rounded-lg object-cover border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors"
+                    />
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-tight">{movie.title}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <MovieGrid
+            movies={section.movies}
+            onMovieClick={(movie) => navigate(`/movie/${movie.id}`)}
+          />
         </div>
-      )}
-
-      {/* Full filmography */}
-      <div className="px-4 pt-1 pb-1">
-        <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium">
-          Filmographie ({movies.length})
-        </p>
-      </div>
-
-      <MovieGrid
-        movies={movies}
-        onMovieClick={(movie) => navigate(`/movie/${movie.id}`)}
-      />
+      ))}
     </div>
   )
 }
