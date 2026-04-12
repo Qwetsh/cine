@@ -16,7 +16,7 @@ export function MentionInput({ value, onChange, onSubmit, disabled, placeholder 
   const [mentionStart, setMentionStart] = useState(-1)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // Detect @ trigger
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
