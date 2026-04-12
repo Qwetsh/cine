@@ -11,7 +11,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p'
 
 interface CreditsResult {
   cast: (TmdbMovie & { character?: string })[]
-  crew: (TmdbMovie & { job: string })[]
+  crew: (TmdbMovie & { job: string; department: string })[]
 }
 
 function formatDate(dateStr: string): string {
@@ -75,12 +75,13 @@ export function PersonPage() {
           setBiography(bioFr)
         }
 
-        const isDirector = personFr.known_for_department === 'Directing'
+        const dept = personFr.known_for_department
+        const isCrewMember = dept && dept !== 'Acting'
         let filmList: TmdbMovie[]
 
-        if (isDirector) {
+        if (isCrewMember) {
           filmList = creditsData.crew
-            .filter(m => m.job === 'Director')
+            .filter(m => m.department === dept || m.job === dept)
             .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
         } else {
           filmList = creditsData.cast
@@ -139,8 +140,24 @@ export function PersonPage() {
     )
   }
 
-  const isDirector = person.known_for_department === 'Directing'
-  const role = isDirector ? 'Realisateur' : 'Acteur'
+  const dept = person.known_for_department
+  const isDirector = dept === 'Directing'
+  const isActor = !dept || dept === 'Acting'
+
+  const DEPT_LABELS: Record<string, string> = {
+    'Acting': 'Acteur',
+    'Directing': 'Réalisateur',
+    'Writing': 'Scénariste',
+    'Production': 'Producteur',
+    'Sound': 'Compositeur',
+    'Camera': 'Directeur de la photographie',
+    'Editing': 'Monteur',
+    'Art': 'Directeur artistique',
+    'Costume & Make-Up': 'Costumes & Maquillage',
+    'Visual Effects': 'Effets visuels',
+    'Crew': 'Équipe technique',
+  }
+  const role = DEPT_LABELS[dept ?? 'Acting'] ?? dept ?? 'Acteur'
   const career = getCareerSpan(movies)
   const avgRating = movies.length > 0
     ? (movies.reduce((sum, m) => sum + (m.vote_average || 0), 0) / movies.length).toFixed(1)
@@ -179,7 +196,7 @@ export function PersonPage() {
           />
         ) : (
           <div className="w-24 h-32 rounded-2xl bg-[var(--color-surface-2)] flex items-center justify-center text-4xl border-2 border-[var(--color-border)] flex-shrink-0">
-            {isDirector ? '��' : '🎭'}
+            {isActor ? '🎭' : '🎬'}
           </div>
         )}
 
@@ -280,7 +297,7 @@ export function PersonPage() {
       )}
 
       {/* Cross filmography (actors) / Frequent actors (directors) */}
-      {!isDirector && movies.length > 0 && (
+      {isActor && movies.length > 0 && (
         <div className="px-4 mb-3">
           <CrossFilmography personId={Number(id)} personMovieIds={movieIds} />
         </div>
