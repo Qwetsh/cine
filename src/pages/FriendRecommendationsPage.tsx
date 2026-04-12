@@ -8,6 +8,7 @@ import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { tmdb, getPosterUrl } from '../lib/tmdb'
 import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
+import { RecoThread } from '../components/chat/RecoThread'
 import type { Profile } from '../types'
 import type { TmdbMovie } from '../lib/tmdb'
 
@@ -17,6 +18,7 @@ interface RecoDisplay {
   posterPath: string | null
   mediaType: 'movie' | 'tv'
   tmdbId: number
+  fromUserId: string
   fromName: string
   message: string | null
   createdAt: string
@@ -35,6 +37,7 @@ export function FriendRecommendationsPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -81,6 +84,7 @@ export function FriendRecommendationsPage() {
               posterPath: movie.poster_path,
               mediaType: 'movie',
               tmdbId: r.movie_id,
+              fromUserId: r.from_user_id,
               fromName,
               message: r.message,
               createdAt: r.created_at,
@@ -97,6 +101,7 @@ export function FriendRecommendationsPage() {
               posterPath: show.poster_path,
               mediaType: 'tv',
               tmdbId: r.tv_show_id,
+              fromUserId: r.from_user_id,
               fromName,
               message: r.message,
               createdAt: r.created_at,
@@ -274,6 +279,17 @@ export function FriendRecommendationsPage() {
                     )
                   )}
 
+                  {/* Discuter */}
+                  <button
+                    onClick={() => setOpenThreadId(item.id)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors flex-shrink-0"
+                    aria-label="Discuter"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                    </svg>
+                  </button>
+
                   {/* Supprimer */}
                   <button
                     onClick={() => handleDelete(item.id)}
@@ -290,6 +306,41 @@ export function FriendRecommendationsPage() {
           })}
         </div>
       )}
+      {/* Thread panel overlay */}
+      {openThreadId && (() => {
+        const threadItem = items.find(i => i.id === openThreadId)
+        if (!threadItem) return null
+        return (
+          <div className="fixed inset-0 z-40 bg-[var(--color-bg)] flex flex-col">
+            {/* Thread header with movie info */}
+            <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+              {threadItem.posterPath && (
+                <img
+                  src={getPosterUrl(threadItem.posterPath, 'small')}
+                  alt={threadItem.title}
+                  className="w-8 h-12 rounded object-cover flex-shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--color-text)] truncate">{threadItem.title}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">
+                  {threadItem.mediaType === 'movie' ? 'Film' : 'Série'} · reco de {threadItem.fromName}
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <RecoThread
+                recommendationId={openThreadId}
+                initialMessage={threadItem.message}
+                initialSenderName={threadItem.fromName}
+                initialDate={threadItem.createdAt}
+                otherName={threadItem.fromName}
+                onClose={() => setOpenThreadId(null)}
+              />
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

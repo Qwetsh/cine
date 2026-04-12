@@ -1,4 +1,4 @@
-export type { Profile, Movie, WatchlistEntry, CollectionEntry, Couple, Friendship, Recommendation } from './database'
+export type { Profile, Movie, WatchlistEntry, CollectionEntry, Couple, Friendship, Recommendation, RecommendationMessage } from './database'
 
 // Types UI / état local
 export interface MovieWithPoster {

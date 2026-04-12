@@ -174,3 +174,12 @@ export interface Recommendation {
   created_at: string
   seen_at: string | null
 }
+
+// Types messages de discussion sur les recommandations
+export interface RecommendationMessage {
+  id: string
+  recommendation_id: string
+  sender_id: string
+  content: string
+  created_at: string
+}

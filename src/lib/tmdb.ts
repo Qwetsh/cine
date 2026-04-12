@@ -221,6 +221,21 @@ export interface TmdbVideosResult {
   results: TmdbVideo[]
 }
 
+export interface TmdbMultiSearchItem {
+  id: number
+  media_type: 'movie' | 'tv' | 'person'
+  title?: string       // movie
+  name?: string        // tv / person
+  poster_path?: string | null
+  profile_path?: string | null
+}
+
+export interface TmdbMultiSearchResult {
+  page: number
+  results: TmdbMultiSearchItem[]
+  total_results: number
+}
+
 export type MediaType = 'movie' | 'tv'
 
 export interface SearchFilters {
@@ -420,4 +435,7 @@ export const tmdb = {
 
   getSimilarTv: (id: number) =>
     tmdbFetch<TmdbTvSearchResult>(`/tv/${id}/similar`),
+
+  searchMulti: (query: string) =>
+    tmdbFetch<TmdbMultiSearchResult>('/search/multi', { query }),
 }
