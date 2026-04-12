@@ -377,20 +377,30 @@ export function PersonPage() {
           {idx === 0 && section.movies.length > 0 && (
             <div className="px-4 mb-2">
               <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-                {section.movies.slice(0, 5).map(movie => (
-                  <button
-                    key={movie.id}
-                    onClick={() => navigate(`/movie/${movie.id}`)}
-                    className="flex-shrink-0 w-20 text-center group"
-                  >
-                    <img
-                      src={getPosterUrl(movie.poster_path, 'small')}
-                      alt={movie.title}
-                      className="w-20 h-[120px] rounded-lg object-cover border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors"
-                    />
-                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-tight">{movie.title}</p>
-                  </button>
-                ))}
+                {section.movies.slice(0, 5).map(movie => {
+                  const character = (movie as TmdbMovie & { character?: string }).character
+                  return (
+                    <button
+                      key={movie.id}
+                      onClick={() => navigate(`/movie/${movie.id}`)}
+                      className="flex-shrink-0 w-20 text-center group"
+                    >
+                      <div className="relative w-20 h-[120px] rounded-lg overflow-hidden border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
+                        <img
+                          src={getPosterUrl(movie.poster_path, 'small')}
+                          alt={movie.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {character && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-4 pb-1.5 px-1">
+                            <p className="text-[9px] text-white/80 leading-tight line-clamp-2">{character}</p>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-tight">{movie.title}</p>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
