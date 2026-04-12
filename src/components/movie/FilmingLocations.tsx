@@ -10,35 +10,22 @@ interface FilmingLocation {
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql'
 
-function buildQuery(imdbId: string): string {
+function buildLocationQuery(imdbId: string, property: 'P915' | 'P840'): string {
   return `
-SELECT DISTINCT ?locationLabel ?lat ?lon ?image ?type WHERE {
+SELECT DISTINCT ?locationLabel ?lat ?lon ?image WHERE {
   ?film wdt:P345 "${imdbId}" .
-  {
-    ?film wdt:P915 ?location .
-    BIND("filming" AS ?type)
-  } UNION {
-    ?film wdt:P840 ?location .
-    BIND("narrative" AS ?type)
-  }
+  ?film wdt:${property} ?location .
   ?location wdt:P625 ?coord .
   OPTIONAL { ?location wdt:P18 ?image . }
   BIND(geof:latitude(?coord) AS ?lat)
   BIND(geof:longitude(?coord) AS ?lon)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en" . }
 }
-LIMIT 80
+LIMIT 50
 `.trim()
 }
 
-async function fetchFilmingLocations(imdbId: string): Promise<FilmingLocation[]> {
-  const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(buildQuery(imdbId))}&format=json`
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/sparql-results+json' },
-  })
-  if (!res.ok) return []
-  const data = await res.json()
-
+function parseLocations(data: { results: { bindings: Record<string, { value: string }>[] } }, type: 'filming' | 'narrative'): FilmingLocation[] {
   const seen = new Set<string>()
   return data.results.bindings
     .map((b: Record<string, { value: string }>) => {
@@ -55,17 +42,35 @@ async function fetchFilmingLocations(imdbId: string): Promise<FilmingLocation[]>
         lat: parseFloat(b.lat?.value),
         lng: parseFloat(b.lon?.value),
         image,
-        type: (b.type?.value ?? 'filming') as 'filming' | 'narrative',
+        type,
       }
     })
     .filter((l: FilmingLocation) => {
       if (isNaN(l.lat) || isNaN(l.lng)) return false
-      // Deduplicate by name+type
-      const key = `${l.name}-${l.type}`
+      const key = l.name
       if (seen.has(key)) return false
       seen.add(key)
       return true
     })
+}
+
+async function fetchSparql(query: string) {
+  const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`
+  const res = await fetch(url, { headers: { 'Accept': 'application/sparql-results+json' } })
+  if (!res.ok) return null
+  return res.json()
+}
+
+async function fetchFilmingLocations(imdbId: string): Promise<FilmingLocation[]> {
+  const [filmingData, narrativeData] = await Promise.all([
+    fetchSparql(buildLocationQuery(imdbId, 'P915')).catch(() => null),
+    fetchSparql(buildLocationQuery(imdbId, 'P840')).catch(() => null),
+  ])
+
+  const filming = filmingData ? parseLocations(filmingData, 'filming') : []
+  const narrative = narrativeData ? parseLocations(narrativeData, 'narrative') : []
+
+  return [...filming, ...narrative]
 }
 
 async function fetchWikipediaFilmingSection(imdbId: string): Promise<string | null> {
@@ -159,17 +164,15 @@ export function FilmingLocations({ imdbId }: Props) {
     if (!imdbId) { setLoading(false); return }
     let cancelled = false
 
-    Promise.all([
-      fetchFilmingLocations(imdbId),
-      fetchWikipediaFilmingSection(imdbId),
-    ])
-      .then(([locs, wiki]) => {
-        if (cancelled) return
-        setLocations(locs)
-        setWikiText(wiki)
-      })
+    // Fetch locations and wiki text independently
+    fetchFilmingLocations(imdbId)
+      .then(locs => { if (!cancelled) setLocations(locs) })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })
+
+    fetchWikipediaFilmingSection(imdbId)
+      .then(wiki => { if (!cancelled) setWikiText(wiki) })
+      .catch(() => {})
 
     return () => { cancelled = true }
   }, [imdbId])
