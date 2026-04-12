@@ -54,8 +54,17 @@ export function useRecoMessages(
         (payload) => {
           const newMsg = payload.new as unknown as RecommendationMessage
           setMessages((prev) => {
-            // Avoid duplicates (optimistic + realtime)
+            // Already have this exact message (by server ID)
             if (prev.some((m) => m.id === newMsg.id)) return prev
+            // If it's from me, replace the optimistic message (matched by content + sender)
+            const optimisticIdx = prev.findIndex(
+              (m) => m.sender_id === newMsg.sender_id && m.content === newMsg.content && m.id !== newMsg.id
+            )
+            if (optimisticIdx !== -1) {
+              const next = [...prev]
+              next[optimisticIdx] = newMsg
+              return next
+            }
             return [...prev, newMsg]
           })
         },
