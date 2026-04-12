@@ -71,6 +71,14 @@ export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
   const mainProvider = providers?.flatrate?.[0] ?? providers?.free?.[0] ?? providers?.rent?.[0] ?? providers?.buy?.[0] ?? null
   const hasMore = count > 1
 
+  if (!hasAny && !cinemaStatus) {
+    return (
+      <span className="text-xs px-2 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] opacity-60">
+        Non dispo en ligne
+      </span>
+    )
+  }
+
   return (
     <>
       <button
