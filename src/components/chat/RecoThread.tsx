@@ -122,7 +122,7 @@ export function RecoThread({
       </div>
 
       {/* Input area */}
-      <div className="px-4 py-3 border-t border-[var(--color-border)]">
+      <div className="px-4 py-3 border-t border-[var(--color-border)] safe-area-bottom">
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <MentionInput

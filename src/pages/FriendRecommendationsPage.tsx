@@ -386,7 +386,7 @@ export function FriendRecommendationsPage() {
 
       {/* Thread panel overlay */}
       {threadItem && (
-        <div className="fixed inset-0 z-40 bg-[var(--color-bg)] flex flex-col">
+        <div className="fixed inset-0 z-40 bg-[var(--color-bg)] flex flex-col h-[100dvh]">
           {/* Big movie header */}
           <div className="relative overflow-hidden">
             {threadItem.backdropPath ? (
