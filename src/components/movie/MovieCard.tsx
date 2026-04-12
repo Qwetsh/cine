@@ -74,6 +74,13 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
             </p>
           </div>
         )}
+        {!lovedBy.length && (movie as TmdbMovie & { character?: string }).character && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-4">
+            <p className="text-[10px] text-white/75 leading-tight line-clamp-2 text-center">
+              {(movie as TmdbMovie & { character?: string }).character}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Infos */}
