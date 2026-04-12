@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useFriendsContext } from '../contexts/FriendsContext'
 import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
-import { tmdb, getPosterUrl } from '../lib/tmdb'
+import { tmdb, getPosterUrl, getBackdropUrl } from '../lib/tmdb'
 import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
 import { RecoThread } from '../components/chat/RecoThread'
@@ -16,6 +16,7 @@ interface RecoDisplay {
   id: string
   title: string
   posterPath: string | null
+  backdropPath: string | null
   mediaType: 'movie' | 'tv'
   tmdbId: number
   fromUserId: string
@@ -28,16 +29,33 @@ interface RecoDisplay {
 
 export function FriendRecommendationsPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
-  const { recos } = useFriendsContext()
+  const { recos, unreadMessages, markMessagesRead } = useFriendsContext()
   const couple = useCollection(coupleId)
   const personal = usePersonalCollection(user?.id ?? null)
   const [items, setItems] = useState<RecoDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [openThreadId, setOpenThreadId] = useState<string | null>(null)
+
+  // Thread state driven by URL search params
+  const openThreadId = searchParams.get('thread')
+
+  function openThread(recoId: string) {
+    markMessagesRead(recoId)
+    setSearchParams({ thread: recoId })
+  }
+
+  function closeThread() {
+    setSearchParams({})
+  }
+
+  // Mark messages read when thread is opened via URL (e.g. back navigation)
+  useEffect(() => {
+    if (openThreadId) markMessagesRead(openThreadId)
+  }, [openThreadId, markMessagesRead])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -82,6 +100,7 @@ export function FriendRecommendationsPage() {
               id: r.id,
               title: movie.title,
               posterPath: movie.poster_path,
+              backdropPath: movie.backdrop_path,
               mediaType: 'movie',
               tmdbId: r.movie_id,
               fromUserId: r.from_user_id,
@@ -99,6 +118,7 @@ export function FriendRecommendationsPage() {
               id: r.id,
               title: show.name,
               posterPath: show.poster_path,
+              backdropPath: show.backdrop_path,
               mediaType: 'tv',
               tmdbId: r.tv_show_id,
               fromUserId: r.from_user_id,
@@ -168,6 +188,9 @@ export function FriendRecommendationsPage() {
     await recos.deleteRecommendation(recoId)
   }
 
+  // Thread overlay
+  const threadItem = openThreadId ? items.find(i => i.id === openThreadId) : null
+
   return (
     <div className="max-w-2xl mx-auto px-4 pt-6 pb-10">
       {/* Toast */}
@@ -200,6 +223,7 @@ export function FriendRecommendationsPage() {
             const inPersonal = isAlreadyInPersonal(item.tmdbId)
             const isMovie = item.mediaType === 'movie'
             const isLoading = actionLoading === item.id
+            const unread = unreadMessages.get(item.id) ?? 0
 
             return (
               <div
@@ -281,13 +305,18 @@ export function FriendRecommendationsPage() {
 
                   {/* Discuter */}
                   <button
-                    onClick={() => setOpenThreadId(item.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors flex-shrink-0"
+                    onClick={() => openThread(item.id)}
+                    className="relative w-8 h-8 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors flex-shrink-0"
                     aria-label="Discuter"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                     </svg>
+                    {unread > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">
+                        {unread}
+                      </span>
+                    )}
                   </button>
 
                   {/* Supprimer */}
@@ -306,41 +335,69 @@ export function FriendRecommendationsPage() {
           })}
         </div>
       )}
+
       {/* Thread panel overlay */}
-      {openThreadId && (() => {
-        const threadItem = items.find(i => i.id === openThreadId)
-        if (!threadItem) return null
-        return (
-          <div className="fixed inset-0 z-40 bg-[var(--color-bg)] flex flex-col">
-            {/* Thread header with movie info */}
-            <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-              {threadItem.posterPath && (
+      {threadItem && (
+        <div className="fixed inset-0 z-40 bg-[var(--color-bg)] flex flex-col">
+          {/* Big movie header */}
+          <div className="relative overflow-hidden">
+            {/* Backdrop */}
+            {threadItem.backdropPath ? (
+              <div className="h-32 relative">
                 <img
-                  src={getPosterUrl(threadItem.posterPath, 'small')}
-                  alt={threadItem.title}
-                  className="w-8 h-12 rounded object-cover flex-shrink-0"
+                  src={getBackdropUrl(threadItem.backdropPath, 'medium')}
+                  alt=""
+                  className="w-full h-full object-cover"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/60 to-transparent" />
+              </div>
+            ) : (
+              <div className="h-20 bg-[var(--color-surface)]" />
+            )}
+
+            {/* Poster + info overlay */}
+            <div className="absolute bottom-0 left-0 right-0 flex items-end gap-3 px-4 pb-3">
+              {threadItem.posterPath && (
+                <button
+                  onClick={() => navigate(threadItem.mediaType === 'movie' ? `/movie/${threadItem.tmdbId}` : `/tv/${threadItem.tmdbId}`)}
+                  className="flex-shrink-0"
+                >
+                  <img
+                    src={getPosterUrl(threadItem.posterPath, 'small')}
+                    alt={threadItem.title}
+                    className="w-14 h-21 rounded-lg object-cover border border-white/20 shadow-lg"
+                  />
+                </button>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--color-text)] truncate">{threadItem.title}</p>
-                <p className="text-[10px] text-[var(--color-text-muted)]">
+                <button
+                  onClick={() => navigate(threadItem.mediaType === 'movie' ? `/movie/${threadItem.tmdbId}` : `/tv/${threadItem.tmdbId}`)}
+                  className="text-left"
+                >
+                  <p className="font-bold text-[var(--color-text)] text-base leading-tight truncate hover:text-[var(--color-accent)] transition-colors">
+                    {threadItem.title}
+                  </p>
+                </button>
+                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
                   {threadItem.mediaType === 'movie' ? 'Film' : 'Série'} · reco de {threadItem.fromName}
                 </p>
               </div>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <RecoThread
-                recommendationId={openThreadId}
-                initialMessage={threadItem.message}
-                initialSenderName={threadItem.fromName}
-                initialDate={threadItem.createdAt}
-                otherName={threadItem.fromName}
-                onClose={() => setOpenThreadId(null)}
-              />
-            </div>
           </div>
-        )
-      })()}
+
+          {/* Thread */}
+          <div className="flex-1 overflow-hidden">
+            <RecoThread
+              recommendationId={openThreadId!}
+              initialMessage={threadItem.message}
+              initialSenderName={threadItem.fromName}
+              initialDate={threadItem.createdAt}
+              otherName={threadItem.fromName}
+              onClose={closeThread}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

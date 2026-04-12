@@ -59,8 +59,8 @@ const NAV_ITEMS = [
 ]
 
 export function BottomNav() {
-  const { recos } = useFriendsContext()
-  const unseenCount = recos.unseenCount
+  const { recos, totalUnreadMessages } = useFriendsContext()
+  const unseenCount = recos.unseenCount + totalUnreadMessages
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)]/95 backdrop-blur border-t border-[var(--color-border)] safe-area-bottom">

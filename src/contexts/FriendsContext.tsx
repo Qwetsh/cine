@@ -3,6 +3,7 @@ import { useFriends } from '../hooks/useFriends'
 import { useFriendRecos } from '../hooks/useFriendRecos'
 import { useFriendsWantToWatch } from '../hooks/useFriendsWantToWatch'
 import { useFriendsHighRatings } from '../hooks/useFriendsHighRatings'
+import { useUnreadRecoMessages } from '../hooks/useUnreadRecoMessages'
 import { useAuth } from './AuthContext'
 import type { UseFriendsState } from '../hooks/useFriends'
 import type { UseFriendRecosState } from '../hooks/useFriendRecos'
@@ -14,6 +15,10 @@ interface FriendsContextValue extends UseFriendsState {
   getFriendsWantCount: (tmdbId: number, mediaType: 'movie' | 'tv') => number
   /** Get list of friend names who rated this movie ≥ 4 stars */
   getFriendsWhoLoved: (tmdbId: number) => string[]
+  /** Unread message counts per recommendation */
+  unreadMessages: Map<string, number>
+  totalUnreadMessages: number
+  markMessagesRead: (recommendationId: string) => void
 }
 
 const FriendsContext = createContext<FriendsContextValue | null>(null)
@@ -25,6 +30,7 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
   const { wantMap } = useFriendsWantToWatch(user?.id ?? null)
 
   const { ratingMap } = useFriendsHighRatings(user?.id ?? null)
+  const { unreadMap, totalUnread, markRead } = useUnreadRecoMessages(user?.id ?? null)
 
   const getFriendsWantCount = useCallback((tmdbId: number, mediaType: 'movie' | 'tv') => {
     return wantMap.get(`${mediaType}-${tmdbId}`) ?? 0
@@ -40,7 +46,10 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     friendsWantMap: wantMap,
     getFriendsWantCount,
     getFriendsWhoLoved,
-  }), [friendsState, recosState, wantMap, getFriendsWantCount, getFriendsWhoLoved])
+    unreadMessages: unreadMap,
+    totalUnreadMessages: totalUnread,
+    markMessagesRead: markRead,
+  }), [friendsState, recosState, wantMap, getFriendsWantCount, getFriendsWhoLoved, unreadMap, totalUnread, markRead])
 
   return (
     <FriendsContext.Provider value={value}>
