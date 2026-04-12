@@ -4,16 +4,18 @@ interface FilmingLocation {
   name: string
   lat: number
   lng: number
+  image: string | null
 }
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql'
 
 function buildQuery(imdbId: string): string {
   return `
-SELECT DISTINCT ?locationLabel ?lat ?lon WHERE {
+SELECT DISTINCT ?locationLabel ?lat ?lon ?image WHERE {
   ?film wdt:P345 "${imdbId}" .
   ?film wdt:P915 ?location .
   ?location wdt:P625 ?coord .
+  OPTIONAL { ?location wdt:P18 ?image . }
   BIND(geof:latitude(?coord) AS ?lat)
   BIND(geof:longitude(?coord) AS ?lon)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en" . }
@@ -30,11 +32,22 @@ async function fetchFilmingLocations(imdbId: string): Promise<FilmingLocation[]>
   if (!res.ok) return []
   const data = await res.json()
   return data.results.bindings
-    .map((b: Record<string, { value: string }>) => ({
-      name: b.locationLabel?.value ?? 'Lieu inconnu',
-      lat: parseFloat(b.lat?.value),
-      lng: parseFloat(b.lon?.value),
-    }))
+    .map((b: Record<string, { value: string }>) => {
+      const rawImage = b.image?.value ?? null
+      let image: string | null = null
+      if (rawImage) {
+        const url = rawImage.replace('http://', 'https://')
+        image = url.includes('Special:FilePath')
+          ? `${url}${url.includes('?') ? '&' : '?'}width=400`
+          : url
+      }
+      return {
+        name: b.locationLabel?.value ?? 'Lieu inconnu',
+        lat: parseFloat(b.lat?.value),
+        lng: parseFloat(b.lon?.value),
+        image,
+      }
+    })
     .filter((l: FilmingLocation) => !isNaN(l.lat) && !isNaN(l.lng))
 }
 
@@ -104,10 +117,18 @@ export function FilmingLocations({ imdbId }: Props) {
             </div>
 
             {/* Location list */}
-            <div className="overflow-y-auto max-h-[30vh] px-4 py-3 space-y-1.5 border-t border-[var(--color-border)]">
+            <div className="overflow-y-auto max-h-[30vh] px-4 py-3 space-y-2 border-t border-[var(--color-border)]">
               {locations.map((loc, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs">📌</span>
+                <div key={i} className="flex items-center gap-3">
+                  {loc.image ? (
+                    <img
+                      src={loc.image}
+                      alt={loc.name}
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-[var(--color-surface-2)]"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-lg flex-shrink-0">📌</div>
+                  )}
                   <span className="text-sm text-[var(--color-text)]">{loc.name}</span>
                 </div>
               ))}
