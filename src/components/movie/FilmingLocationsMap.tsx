@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,6 +26,10 @@ const narrativeIcon = new L.Icon({
   className: 'narrative-marker',
 })
 
+export interface MapHandle {
+  flyTo: (lat: number, lng: number) => void
+}
+
 function FitBounds({ locations }: { locations: FilmingLocation[] }) {
   const map = useMap()
 
@@ -38,11 +42,25 @@ function FitBounds({ locations }: { locations: FilmingLocation[] }) {
   return null
 }
 
+function MapController({ onMapReady }: { onMapReady: (map: L.Map) => void }) {
+  const map = useMap()
+  useEffect(() => { onMapReady(map) }, [map, onMapReady])
+  return null
+}
+
 interface Props {
   locations: FilmingLocation[]
 }
 
-export default function FilmingLocationsMap({ locations }: Props) {
+const FilmingLocationsMap = forwardRef<MapHandle, Props>(({ locations }, ref) => {
+  const mapRef = useRef<L.Map | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    flyTo: (lat: number, lng: number) => {
+      mapRef.current?.flyTo([lat, lng], 12, { duration: 1 })
+    },
+  }))
+
   if (locations.length === 0) return null
 
   const center: [number, number] = [locations[0].lat, locations[0].lng]
@@ -62,6 +80,7 @@ export default function FilmingLocationsMap({ locations }: Props) {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         <FitBounds locations={locations} />
+        <MapController onMapReady={(map) => { mapRef.current = map }} />
         {locations.map((loc, i) => (
           <Marker
             key={i}
@@ -82,4 +101,7 @@ export default function FilmingLocationsMap({ locations }: Props) {
       </MapContainer>
     </>
   )
-}
+})
+
+FilmingLocationsMap.displayName = 'FilmingLocationsMap'
+export default FilmingLocationsMap

@@ -1,4 +1,5 @@
-import { useEffect, useState, lazy, Suspense } from 'react'
+import { useEffect, useState, useRef, lazy, Suspense } from 'react'
+import type { MapHandle } from './FilmingLocationsMap'
 
 interface FilmingLocation {
   name: string
@@ -75,29 +76,21 @@ async function fetchFilmingLocations(imdbId: string): Promise<FilmingLocation[]>
 
 async function fetchWikipediaFilmingSection(imdbId: string): Promise<string | null> {
   try {
-    // Step 1: Get Wikipedia article title from Wikidata
     const sparql = `SELECT ?article WHERE {
       ?film wdt:P345 "${imdbId}" .
       ?article schema:about ?film ;
                schema:isPartOf <https://fr.wikipedia.org/> .
     } LIMIT 1`
-    const wdUrl = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(sparql)}&format=json`
-    const wdRes = await fetch(wdUrl, { headers: { 'Accept': 'application/sparql-results+json' } })
-    if (!wdRes.ok) return null
-    const wdData = await wdRes.json()
-    const articleUrl = wdData.results.bindings[0]?.article?.value
+    const wdData = await fetchSparql(sparql)
+    const articleUrl = wdData?.results.bindings[0]?.article?.value
     if (!articleUrl) {
-      // Fallback: try English Wikipedia
       const sparqlEn = `SELECT ?article WHERE {
         ?film wdt:P345 "${imdbId}" .
         ?article schema:about ?film ;
                  schema:isPartOf <https://en.wikipedia.org/> .
       } LIMIT 1`
-      const wdUrlEn = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(sparqlEn)}&format=json`
-      const wdResEn = await fetch(wdUrlEn, { headers: { 'Accept': 'application/sparql-results+json' } })
-      if (!wdResEn.ok) return null
-      const wdDataEn = await wdResEn.json()
-      const articleUrlEn = wdDataEn.results.bindings[0]?.article?.value
+      const wdDataEn = await fetchSparql(sparqlEn)
+      const articleUrlEn = wdDataEn?.results.bindings[0]?.article?.value
       if (!articleUrlEn) return null
       return fetchWikiSection(articleUrlEn, 'en')
     }
@@ -111,14 +104,12 @@ async function fetchWikiSection(articleUrl: string, lang: string): Promise<strin
   const title = decodeURIComponent(articleUrl.split('/wiki/')[1])
   if (!title) return null
 
-  // Get sections list
   const sectionsUrl = `https://${lang}.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=sections&format=json&origin=*`
   const sectRes = await fetch(sectionsUrl)
   if (!sectRes.ok) return null
   const sectData = await sectRes.json()
   const sections = sectData.parse?.sections ?? []
 
-  // Find filming/production section
   const filmingKeywords = lang === 'fr'
     ? ['tournage', 'lieux de tournage', 'production', 'lieux']
     : ['filming', 'filming locations', 'production', 'principal photography', 'locations']
@@ -128,23 +119,24 @@ async function fetchWikiSection(articleUrl: string, lang: string): Promise<strin
   )
   if (!section) return null
 
-  // Get section content as plain text
   const contentUrl = `https://${lang}.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&section=${section.index}&prop=text&format=json&origin=*`
   const contentRes = await fetch(contentUrl)
   if (!contentRes.ok) return null
   const contentData = await contentRes.json()
   const html = contentData.parse?.text?.['*'] ?? ''
 
-  // Strip HTML to plain text
+  // Strip HTML to plain text — remove TOC, references, edit links, images, navboxes
   const div = document.createElement('div')
   div.innerHTML = html
-  // Remove references, edit links, etc.
-  div.querySelectorAll('.reference, .mw-editsection, sup, .noprint, style, script').forEach(el => el.remove())
-  const text = div.textContent?.trim() ?? ''
+  div.querySelectorAll('.reference, .mw-editsection, sup, .noprint, style, script, .toc, .mw-heading, h1, h2, h3, h4, h5, h6, table, .navbox, .infobox, .thumb, .mw-empty-elt, figure, img, .gallery').forEach(el => el.remove())
+  const text = (div.textContent ?? '')
+    .replace(/\[modifier[^\]]*\]/gi, '')
+    .replace(/\[edit\]/gi, '')
+    .replace(/\[\d+\]/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 
-  // Skip if too short or just a heading
   if (text.length < 50) return null
-  // Cap at reasonable length
   return text.length > 2000 ? text.slice(0, 2000) + '…' : text
 }
 
@@ -159,12 +151,13 @@ export function FilmingLocations({ imdbId }: Props) {
   const [wikiText, setWikiText] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [showWiki, setShowWiki] = useState(false)
+  const mapRef = useRef<MapHandle>(null)
 
   useEffect(() => {
     if (!imdbId) { setLoading(false); return }
     let cancelled = false
 
-    // Fetch locations and wiki text independently
     fetchFilmingLocations(imdbId)
       .then(locs => { if (!cancelled) setLocations(locs) })
       .catch(() => {})
@@ -177,14 +170,16 @@ export function FilmingLocations({ imdbId }: Props) {
     return () => { cancelled = true }
   }, [imdbId])
 
-  // Show button only if we have locations OR wiki text
   if (loading || (locations.length === 0 && !wikiText)) return null
 
   const filmingLocs = locations.filter(l => l.type === 'filming')
   const narrativeLocs = locations.filter(l => l.type === 'narrative')
-  // Only show narrative locs that aren't also filming locs
   const filmingNames = new Set(filmingLocs.map(l => l.name))
   const uniqueNarrativeLocs = narrativeLocs.filter(l => !filmingNames.has(l.name))
+
+  function handleLocClick(loc: FilmingLocation) {
+    mapRef.current?.flyTo(loc.lat, loc.lng)
+  }
 
   return (
     <>
@@ -224,7 +219,7 @@ export function FilmingLocations({ imdbId }: Props) {
                       Chargement de la carte...
                     </div>
                   }>
-                    <LocationMap locations={locations} />
+                    <LocationMap ref={mapRef} locations={locations} />
                   </Suspense>
                 </div>
               )}
@@ -236,7 +231,11 @@ export function FilmingLocations({ imdbId }: Props) {
                     🎬 Tourné à ({filmingLocs.length})
                   </p>
                   {filmingLocs.map((loc, i) => (
-                    <div key={`f-${i}`} className="flex items-center gap-3">
+                    <button
+                      key={`f-${i}`}
+                      onClick={() => handleLocClick(loc)}
+                      className="w-full flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--color-surface-2)] transition-colors text-left"
+                    >
                       {loc.image ? (
                         <img
                           src={loc.image}
@@ -247,7 +246,7 @@ export function FilmingLocations({ imdbId }: Props) {
                         <div className="w-12 h-12 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-lg flex-shrink-0">📌</div>
                       )}
                       <span className="text-sm text-[var(--color-text)]">{loc.name}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -259,7 +258,11 @@ export function FilmingLocations({ imdbId }: Props) {
                     🎭 L'action se déroule à ({uniqueNarrativeLocs.length})
                   </p>
                   {uniqueNarrativeLocs.map((loc, i) => (
-                    <div key={`n-${i}`} className="flex items-center gap-3">
+                    <button
+                      key={`n-${i}`}
+                      onClick={() => handleLocClick(loc)}
+                      className="w-full flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--color-surface-2)] transition-colors text-left"
+                    >
                       {loc.image ? (
                         <img
                           src={loc.image}
@@ -270,23 +273,34 @@ export function FilmingLocations({ imdbId }: Props) {
                         <div className="w-12 h-12 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-lg flex-shrink-0">🎭</div>
                       )}
                       <span className="text-sm text-[var(--color-text)]">{loc.name}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
 
-              {/* Wikipedia filming section */}
+              {/* Wikipedia — behind "En savoir plus" */}
               {wikiText && (
                 <div className="px-4 py-3 border-t border-[var(--color-border)]">
-                  <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium mb-2">
-                    📖 Détails du tournage
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)] leading-relaxed whitespace-pre-line">
-                    {wikiText}
-                  </p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] opacity-50 mt-2">
-                    Source : Wikipédia
-                  </p>
+                  {!showWiki ? (
+                    <button
+                      onClick={() => setShowWiki(true)}
+                      className="text-xs text-[var(--color-accent)] font-medium"
+                    >
+                      📖 En savoir plus sur le tournage
+                    </button>
+                  ) : (
+                    <>
+                      <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium mb-2">
+                        📖 Détails du tournage
+                      </p>
+                      <p className="text-xs text-[var(--color-text-muted)] leading-relaxed whitespace-pre-line">
+                        {wikiText}
+                      </p>
+                      <p className="text-[10px] text-[var(--color-text-muted)] opacity-50 mt-2">
+                        Source : Wikipédia
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
