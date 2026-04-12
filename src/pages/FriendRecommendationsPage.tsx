@@ -12,6 +12,8 @@ import { RecoThread } from '../components/chat/RecoThread'
 import type { Profile } from '../types'
 import type { TmdbMovie } from '../lib/tmdb'
 
+type RecoTab = 'received' | 'sent'
+
 interface RecoDisplay {
   id: string
   title: string
@@ -19,8 +21,8 @@ interface RecoDisplay {
   backdropPath: string | null
   mediaType: 'movie' | 'tv'
   tmdbId: number
-  fromUserId: string
-  fromName: string
+  direction: RecoTab
+  otherName: string
   message: string | null
   createdAt: string
   seenAt: string | null
@@ -35,21 +37,33 @@ export function FriendRecommendationsPage() {
   const { recos, unreadMessages, markMessagesRead } = useFriendsContext()
   const couple = useCollection(coupleId)
   const personal = usePersonalCollection(user?.id ?? null)
-  const [items, setItems] = useState<RecoDisplay[]>([])
+  const [receivedItems, setReceivedItems] = useState<RecoDisplay[]>([])
+  const [sentItems, setSentItems] = useState<RecoDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  // Thread state driven by URL search params
+  // Tab & thread state driven by URL
+  const activeTab: RecoTab = searchParams.get('tab') === 'sent' ? 'sent' : 'received'
   const openThreadId = searchParams.get('thread')
+
+  function switchTab(tab: RecoTab) {
+    const params: Record<string, string> = {}
+    if (tab === 'sent') params.tab = 'sent'
+    setSearchParams(params)
+  }
 
   function openThread(recoId: string) {
     markMessagesRead(recoId)
-    setSearchParams({ thread: recoId })
+    const params: Record<string, string> = { thread: recoId }
+    if (activeTab === 'sent') params.tab = 'sent'
+    setSearchParams(params)
   }
 
   function closeThread() {
-    setSearchParams({})
+    const params: Record<string, string> = {}
+    if (activeTab === 'sent') params.tab = 'sent'
+    setSearchParams(params)
   }
 
   // Mark messages read when thread is opened via URL (e.g. back navigation)
@@ -62,82 +76,79 @@ export function FriendRecommendationsPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // Mark all as seen on mount
+  // Mark all received as seen on mount
   useEffect(() => {
     recos.markAllSeen()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Resolve reco details
+  // Resolve received reco details
   useEffect(() => {
     if (recos.loading) return
 
     async function resolve() {
       setLoading(true)
 
-      const senderIds = [...new Set(recos.received.map(r => r.from_user_id))]
-      const profileMap = new Map<string, Profile>()
+      // Collect all user IDs we need profiles for (senders of received + receivers of sent)
+      const userIds = new Set<string>()
+      for (const r of recos.received) userIds.add(r.from_user_id)
+      for (const r of recos.sent) userIds.add(r.to_user_id)
 
-      if (senderIds.length > 0) {
+      const profileMap = new Map<string, Profile>()
+      const idArray = [...userIds]
+      if (idArray.length > 0) {
         const { data } = await supabase
           .from('profiles')
           .select('*')
-          .in('id', senderIds)
+          .in('id', idArray)
         for (const p of (data ?? []) as unknown as Profile[]) {
           profileMap.set(p.id, p)
         }
       }
 
-      const results: RecoDisplay[] = []
-
-      for (const r of recos.received) {
-        const fromProfile = profileMap.get(r.from_user_id)
-        const fromName = fromProfile?.display_name ?? 'Un ami'
+      // Helper to resolve a reco into a RecoDisplay
+      async function resolveReco(
+        r: { id: string; movie_id: number | null; tv_show_id: number | null; message: string | null; created_at: string; seen_at: string | null },
+        direction: RecoTab,
+        otherUserId: string,
+      ): Promise<RecoDisplay | null> {
+        const otherProfile = profileMap.get(otherUserId)
+        const otherName = otherProfile?.display_name ?? 'Un ami'
 
         if (r.movie_id) {
           try {
             const movie = await tmdb.getMovie(r.movie_id)
-            results.push({
-              id: r.id,
-              title: movie.title,
-              posterPath: movie.poster_path,
-              backdropPath: movie.backdrop_path,
-              mediaType: 'movie',
-              tmdbId: r.movie_id,
-              fromUserId: r.from_user_id,
-              fromName,
-              message: r.message,
-              createdAt: r.created_at,
-              seenAt: r.seen_at,
-              tmdbMovie: movie,
-            })
-          } catch { /* Film introuvable */ }
+            return {
+              id: r.id, title: movie.title, posterPath: movie.poster_path, backdropPath: movie.backdrop_path,
+              mediaType: 'movie', tmdbId: r.movie_id, direction, otherName,
+              message: r.message, createdAt: r.created_at, seenAt: r.seen_at, tmdbMovie: movie,
+            }
+          } catch { return null }
         } else if (r.tv_show_id) {
           try {
             const show = await tmdb.getTvShow(r.tv_show_id)
-            results.push({
-              id: r.id,
-              title: show.name,
-              posterPath: show.poster_path,
-              backdropPath: show.backdrop_path,
-              mediaType: 'tv',
-              tmdbId: r.tv_show_id,
-              fromUserId: r.from_user_id,
-              fromName,
-              message: r.message,
-              createdAt: r.created_at,
-              seenAt: r.seen_at,
-              tmdbMovie: null,
-            })
-          } catch { /* Série introuvable */ }
+            return {
+              id: r.id, title: show.name, posterPath: show.poster_path, backdropPath: show.backdrop_path,
+              mediaType: 'tv', tmdbId: r.tv_show_id, direction, otherName,
+              message: r.message, createdAt: r.created_at, seenAt: r.seen_at, tmdbMovie: null,
+            }
+          } catch { return null }
         }
+        return null
       }
 
-      setItems(results)
+      // Resolve both lists in parallel
+      const [receivedResults, sentResults] = await Promise.all([
+        Promise.all(recos.received.map(r => resolveReco(r, 'received', r.from_user_id))),
+        Promise.all(recos.sent.map(r => resolveReco(r, 'sent', r.to_user_id))),
+      ])
+
+      setReceivedItems(receivedResults.filter((r): r is RecoDisplay => r !== null))
+      setSentItems(sentResults.filter((r): r is RecoDisplay => r !== null))
       setLoading(false)
     }
 
     resolve()
-  }, [recos.received, recos.loading])
+  }, [recos.received, recos.sent, recos.loading])
 
   function formatDate(iso: string) {
     const d = new Date(iso)
@@ -184,12 +195,17 @@ export function FriendRecommendationsPage() {
   }
 
   async function handleDelete(recoId: string) {
-    setItems(prev => prev.filter(i => i.id !== recoId))
+    setReceivedItems(prev => prev.filter(i => i.id !== recoId))
+    setSentItems(prev => prev.filter(i => i.id !== recoId))
     await recos.deleteRecommendation(recoId)
   }
 
-  // Thread overlay
-  const threadItem = openThreadId ? items.find(i => i.id === openThreadId) : null
+  const items = activeTab === 'received' ? receivedItems : sentItems
+  const allItems = [...receivedItems, ...sentItems]
+  const threadItem = openThreadId ? allItems.find(i => i.id === openThreadId) : null
+
+  // Count unread in sent tab
+  const sentUnreadTotal = sentItems.reduce((sum, item) => sum + (unreadMessages.get(item.id) ?? 0), 0)
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-6 pb-10">
@@ -200,7 +216,36 @@ export function FriendRecommendationsPage() {
         </div>
       )}
 
-      <h1 className="text-xl font-bold text-[var(--color-text)] mb-4">Recos de mes amis</h1>
+      <h1 className="text-xl font-bold text-[var(--color-text)] mb-4">Recommandations</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 bg-[var(--color-surface)] rounded-lg p-1 border border-[var(--color-border)]">
+        <button
+          onClick={() => switchTab('received')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+            activeTab === 'received'
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+          }`}
+        >
+          Reçues ({receivedItems.length})
+        </button>
+        <button
+          onClick={() => switchTab('sent')}
+          className={`relative flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+            activeTab === 'sent'
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+          }`}
+        >
+          Envoyées ({sentItems.length})
+          {sentUnreadTotal > 0 && activeTab !== 'sent' && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+              {sentUnreadTotal}
+            </span>
+          )}
+        </button>
+      </div>
 
       {loading ? (
         <div className="space-y-3">
@@ -210,9 +255,11 @@ export function FriendRecommendationsPage() {
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-4xl mb-3">💌</div>
+          <div className="text-4xl mb-3">{activeTab === 'received' ? '💌' : '📤'}</div>
           <p className="text-[var(--color-text-muted)] text-sm">
-            Aucune recommandation pour le moment
+            {activeTab === 'received'
+              ? 'Aucune recommandation reçue'
+              : 'Aucune recommandation envoyée'}
           </p>
         </div>
       ) : (
@@ -224,6 +271,7 @@ export function FriendRecommendationsPage() {
             const isMovie = item.mediaType === 'movie'
             const isLoading = actionLoading === item.id
             const unread = unreadMessages.get(item.id) ?? 0
+            const isReceived = item.direction === 'received'
 
             return (
               <div
@@ -249,14 +297,14 @@ export function FriendRecommendationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-[var(--color-text)] text-sm truncate">{item.title}</p>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                      par {item.fromName} · {formatDate(item.createdAt)}
+                      {isReceived ? `par ${item.otherName}` : `à ${item.otherName}`} · {formatDate(item.createdAt)}
                     </p>
                     {item.message && (
                       <p className="text-xs text-[var(--color-accent)] mt-1 truncate">
                         « {item.message} »
                       </p>
                     )}
-                    {watched && (
+                    {isReceived && watched && (
                       <p className="text-xs text-green-400 mt-1 font-medium">
                         Déjà vu
                       </p>
@@ -269,8 +317,8 @@ export function FriendRecommendationsPage() {
 
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 px-3 pb-3 pt-0">
-                  {/* Vu en couple */}
-                  {isMovie && coupleId && (
+                  {/* Vu en couple — only for received movies */}
+                  {isReceived && isMovie && coupleId && (
                     inCouple ? (
                       <span className="flex-1 text-center text-xs text-[var(--color-text-muted)] py-1.5">
                         Vu en couple
@@ -286,8 +334,8 @@ export function FriendRecommendationsPage() {
                     )
                   )}
 
-                  {/* Vu solo */}
-                  {isMovie && (
+                  {/* Vu solo — only for received movies */}
+                  {isReceived && isMovie && (
                     inPersonal ? (
                       <span className="flex-1 text-center text-xs text-[var(--color-text-muted)] py-1.5">
                         Vu solo
@@ -341,7 +389,6 @@ export function FriendRecommendationsPage() {
         <div className="fixed inset-0 z-40 bg-[var(--color-bg)] flex flex-col">
           {/* Big movie header */}
           <div className="relative overflow-hidden">
-            {/* Backdrop */}
             {threadItem.backdropPath ? (
               <div className="h-32 relative">
                 <img
@@ -355,7 +402,6 @@ export function FriendRecommendationsPage() {
               <div className="h-20 bg-[var(--color-surface)]" />
             )}
 
-            {/* Poster + info overlay */}
             <div className="absolute bottom-0 left-0 right-0 flex items-end gap-3 px-4 pb-3">
               {threadItem.posterPath && (
                 <button
@@ -379,20 +425,19 @@ export function FriendRecommendationsPage() {
                   </p>
                 </button>
                 <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                  {threadItem.mediaType === 'movie' ? 'Film' : 'Série'} · reco de {threadItem.fromName}
+                  {threadItem.mediaType === 'movie' ? 'Film' : 'Série'} · {threadItem.direction === 'received' ? `reco de ${threadItem.otherName}` : `envoyé à ${threadItem.otherName}`}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Thread */}
           <div className="flex-1 overflow-hidden">
             <RecoThread
               recommendationId={openThreadId!}
               initialMessage={threadItem.message}
-              initialSenderName={threadItem.fromName}
+              initialSenderName={threadItem.direction === 'received' ? threadItem.otherName : 'Toi'}
               initialDate={threadItem.createdAt}
-              otherName={threadItem.fromName}
+              otherName={threadItem.otherName}
               onClose={closeThread}
             />
           </div>
