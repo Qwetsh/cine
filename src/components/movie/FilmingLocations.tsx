@@ -69,7 +69,7 @@ export function FilmingLocations({ imdbId }: Props) {
         onClick={() => setOpen(true)}
         className="text-xs px-2 py-1 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
       >
-        📍 {locations.length} lieu{locations.length > 1 ? 'x' : ''}
+        🗺️
       </button>
 
       {open && (
