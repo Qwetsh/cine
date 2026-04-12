@@ -221,11 +221,11 @@ export function WatchlistPage() {
                       {entry.movie.title}
                     </p>
                   </button>
-                  {entry.movie.release_date && (
-                    <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
-                      {new Date(entry.movie.release_date).getFullYear()}
-                    </p>
-                  )}
+                  <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
+                    {entry.movie.release_date && new Date(entry.movie.release_date).getFullYear()}
+                    {entry.movie.release_date && entry.movie.runtime ? ' · ' : ''}
+                    {entry.movie.runtime && `${Math.floor(entry.movie.runtime / 60)}h${(entry.movie.runtime % 60).toString().padStart(2, '0')}`}
+                  </p>
                   {coupleId && (
                     <p className="text-[var(--color-text-muted)] text-xs mt-2">
                       Ajouté par{' '}
