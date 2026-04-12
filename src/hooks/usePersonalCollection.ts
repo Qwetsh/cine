@@ -32,27 +32,38 @@ export function usePersonalCollection(userId: string | null) {
 
   useEffect(() => { fetchCollection() }, [fetchCollection])
 
-  async function addToPersonalCollection(movieId: string): Promise<{ error: string | null }> {
+  async function addToPersonalCollection(movieId: string, extras?: {
+    rating?: number | null
+    note?: string | null
+    emoji?: string | null
+  }): Promise<{ error: string | null }> {
     if (!userId) return { error: 'Non connecté' }
     const { error } = await supabase.from('personal_collection').insert({
       movie_id: movieId,
       user_id: userId,
       watched_at: new Date().toISOString(),
+      ...extras,
     })
     if (!error) await fetchCollection()
     return { error: error?.message ?? null }
   }
 
   async function updateRating(entryId: string, rating: number, note?: string) {
+    // Only include note in update if explicitly provided
+    const updates: Record<string, unknown> = { rating }
+    if (note !== undefined) updates.note = note
+
     // Optimistic update
     setEntries(prev => prev.map(e => {
       if (e.id !== entryId) return e
-      return { ...e, rating, note: note ?? e.note }
+      const optimistic: Record<string, unknown> = { rating }
+      if (note !== undefined) optimistic.note = note
+      return { ...e, ...optimistic }
     }))
 
     const { error } = await supabase
       .from('personal_collection')
-      .update({ rating, note: note ?? null })
+      .update(updates)
       .eq('id', entryId)
     if (error) await fetchCollection()
     return { error: error?.message ?? null }

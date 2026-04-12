@@ -12,12 +12,13 @@ import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
 import { useFriendsContext } from '../contexts/FriendsContext'
+import { MarkWatchedModal, type MarkWatchedData } from '../components/movie/MarkWatchedModal'
 import type { WatchlistMovieEntry, TvWatchlistEntry } from '../types'
 
 export function WatchlistPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { coupleId, partner } = useCoupleContext()
+  const { coupleId, partner, isUser1 } = useCoupleContext()
   const { settings } = useSettings()
   const { recos } = useFriendsContext()
   const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId, user?.id)
@@ -29,6 +30,7 @@ export function WatchlistPage() {
   const tvCollection = useTvCollection(settings.showSeries ? coupleId : null)
   const [actionId, setActionId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'couple' | 'solo'>(coupleId ? 'couple' : 'solo')
+  const [modalEntry, setModalEntry] = useState<WatchlistMovieEntry | null>(null)
 
   const activeEntries = coupleId && viewMode === 'solo' ? soloWl.entries : entries
 
@@ -37,15 +39,51 @@ export function WatchlistPage() {
     setQuery, toggleGenre, setYearRange, clearAll,
   } = useLocalFilter(activeEntries)
 
-  async function handleMarkWatched(entry: WatchlistMovieEntry) {
+  function handleMarkWatched(entry: WatchlistMovieEntry) {
+    setModalEntry(entry)
+  }
+
+  async function handleModalConfirm(data: MarkWatchedData) {
+    const entry = modalEntry
+    if (!entry) return
+    setModalEntry(null)
     setActionId(entry.id)
-    if (coupleId && viewMode === 'solo') {
-      await addToPersonalCollection(entry.movie.id)
-      await soloWl.removeFromWatchlist(entry.id)
+
+    const isSolo = !coupleId || viewMode === 'solo'
+
+    if (isSolo) {
+      await addToPersonalCollection(entry.movie.id, {
+        rating: data.myRating,
+        note: data.myNote || null,
+        emoji: data.myEmoji,
+      })
+      if (coupleId) {
+        await soloWl.removeFromWatchlist(entry.id)
+      } else {
+        await removeFromWatchlist(entry.id)
+      }
     } else {
-      const { error } = await addToCollection(entry.movie.id)
+      const extras = isUser1
+        ? {
+            rating_user1: data.myRating,
+            note_user1: data.myNote || null,
+            emoji_user1: data.myEmoji,
+            rating_user2: data.partnerRating,
+            note_user2: null as string | null,
+            emoji_user2: data.partnerEmoji,
+          }
+        : {
+            rating_user2: data.myRating,
+            note_user2: data.myNote || null,
+            emoji_user2: data.myEmoji,
+            rating_user1: data.partnerRating,
+            note_user1: null as string | null,
+            emoji_user1: data.partnerEmoji,
+          }
+      const { error } = await addToCollection(entry.movie.id, extras)
       if (!error) await removeFromWatchlist(entry.id)
     }
+
     setActionId(null)
   }
 
@@ -329,6 +367,16 @@ export function WatchlistPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {modalEntry && (
+        <MarkWatchedModal
+          movie={modalEntry.movie}
+          mode={coupleId && viewMode === 'couple' ? 'couple' : 'solo'}
+          partnerName={partner?.display_name}
+          onConfirm={handleModalConfirm}
+          onClose={() => setModalEntry(null)}
+        />
       )}
     </div>
   )
