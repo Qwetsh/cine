@@ -11,6 +11,7 @@ import { RecommendButton } from '../components/movie/RecommendButton'
 import { FriendsCard } from '../components/movie/FriendsCard'
 import { TrailerButton } from '../components/movie/TrailerButton'
 import { MovieCollection } from '../components/movie/MovieCollection'
+import { CastCrewSheet } from '../components/movie/CastCrewSheet'
 import { BookSource } from '../components/movie/BookSource'
 import { GameSource } from '../components/movie/GameSource'
 import { MusicSource } from '../components/movie/MusicSource'
@@ -27,6 +28,7 @@ export function MovieDetailPage() {
   const [inCollection, setInCollection] = useState(false)
   const [inPersonal, setInPersonal] = useState(false)
   const [actionLoading, setActionLoading] = useState<'wl-solo' | 'wl-couple' | 'collection' | 'personal' | null>(null)
+  const [showCastSheet, setShowCastSheet] = useState(false)
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
@@ -313,13 +315,33 @@ export function MovieDetailPage() {
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-[10px]">🎭</div>
                   )}
-                  <span className="text-xs text-[var(--color-text)]">{a.name}</span>
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs text-[var(--color-text)]">{a.name}</span>
+                    {a.character && (
+                      <span className="text-[10px] text-[var(--color-text-muted)] leading-tight">{a.character}</span>
+                    )}
+                  </div>
                   <span className="text-[var(--color-text-muted)] text-[10px]">›</span>
                 </button>
               ))}
+              {(movie.credits?.cast.length ?? 0) > 5 && (
+                <button
+                  onClick={() => setShowCastSheet(true)}
+                  className="inline-flex items-center justify-center bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 transition-colors text-sm text-[var(--color-text-muted)] font-medium"
+                >
+                  ···
+                </button>
+              )}
             </div>
           </div>
         )}
+
+        <CastCrewSheet
+          cast={movie.credits?.cast ?? []}
+          crew={movie.credits?.crew ?? []}
+          open={showCastSheet}
+          onClose={() => setShowCastSheet(false)}
+        />
 
         {/* Jeux vidéo liés */}
         {settings.showGames && <GameSource tmdbId={movie.id} movieTitle={movie.title} />}
