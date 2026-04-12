@@ -74,7 +74,12 @@ async function fetchFilmingLocations(imdbId: string): Promise<FilmingLocation[]>
   return [...filming, ...narrative]
 }
 
-async function fetchWikipediaFilmingSection(imdbId: string): Promise<string | null> {
+interface WikiResult {
+  text: string
+  url: string
+}
+
+async function fetchWikipediaFilmingSection(imdbId: string): Promise<WikiResult | null> {
   try {
     const sparql = `SELECT ?article WHERE {
       ?film wdt:P345 "${imdbId}" .
@@ -100,7 +105,7 @@ async function fetchWikipediaFilmingSection(imdbId: string): Promise<string | nu
   }
 }
 
-async function fetchWikiSection(articleUrl: string, lang: string): Promise<string | null> {
+async function fetchWikiSection(articleUrl: string, lang: string): Promise<WikiResult | null> {
   const title = decodeURIComponent(articleUrl.split('/wiki/')[1])
   if (!title) return null
 
@@ -137,7 +142,10 @@ async function fetchWikiSection(articleUrl: string, lang: string): Promise<strin
     .trim()
 
   if (text.length < 50) return null
-  return text.length > 2000 ? text.slice(0, 2000) + '…' : text
+  return {
+    text: text.length > 2000 ? text.slice(0, 2000) + '…' : text,
+    url: articleUrl,
+  }
 }
 
 const LocationMap = lazy(() => import('./FilmingLocationsMap'))
@@ -148,7 +156,7 @@ interface Props {
 
 export function FilmingLocations({ imdbId }: Props) {
   const [locations, setLocations] = useState<FilmingLocation[]>([])
-  const [wikiText, setWikiText] = useState<string | null>(null)
+  const [wiki, setWiki] = useState<WikiResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [showWiki, setShowWiki] = useState(false)
@@ -164,13 +172,13 @@ export function FilmingLocations({ imdbId }: Props) {
       .finally(() => { if (!cancelled) setLoading(false) })
 
     fetchWikipediaFilmingSection(imdbId)
-      .then(wiki => { if (!cancelled) setWikiText(wiki) })
+      .then(result => { if (!cancelled) setWiki(result) })
       .catch(() => {})
 
     return () => { cancelled = true }
   }, [imdbId])
 
-  if (loading || (locations.length === 0 && !wikiText)) return null
+  if (loading || (locations.length === 0 && !wiki)) return null
 
   const filmingLocs = locations.filter(l => l.type === 'filming')
   const narrativeLocs = locations.filter(l => l.type === 'narrative')
@@ -279,7 +287,7 @@ export function FilmingLocations({ imdbId }: Props) {
               )}
 
               {/* Wikipedia — behind "En savoir plus" */}
-              {wikiText && (
+              {wiki && (
                 <div className="px-4 py-3 border-t border-[var(--color-border)]">
                   {!showWiki ? (
                     <button
@@ -294,11 +302,16 @@ export function FilmingLocations({ imdbId }: Props) {
                         📖 Détails du tournage
                       </p>
                       <p className="text-xs text-[var(--color-text-muted)] leading-relaxed whitespace-pre-line">
-                        {wikiText}
+                        {wiki.text}
                       </p>
-                      <p className="text-[10px] text-[var(--color-text-muted)] opacity-50 mt-2">
-                        Source : Wikipédia
-                      </p>
+                      <a
+                        href={wiki.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block text-[11px] text-[var(--color-text-muted)] opacity-60 hover:opacity-100 hover:text-[var(--color-accent)] mt-2 transition-opacity"
+                      >
+                        Continuer sur Wikipédia →
+                      </a>
                     </>
                   )}
                 </div>
