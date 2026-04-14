@@ -235,8 +235,8 @@ export function MovieNightPage() {
         <DuelMode />
       )}
 
-      {/* Game buttons — separate section */}
-      <div className="mx-4 mt-6 mb-8 space-y-3">
+      {/* Game buttons — hidden during suggestion mode */}
+      {tab !== 'suggest' && <div className="mx-4 mt-6 mb-8 space-y-3">
         <button
           onClick={() => setShowQuiz(true)}
           className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
@@ -284,7 +284,7 @@ export function MovieNightPage() {
             </svg>
           </div>
         </button>
-      </div>
+      </div>}
     </div>
   )
 }

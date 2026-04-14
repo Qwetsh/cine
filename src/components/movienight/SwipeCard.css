@@ -200,83 +200,89 @@
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.25s ease, transform 0.25s ease, background-color 0.25s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   pointer-events: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid transparent;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid transparent;
   z-index: 5;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .swipe-zone.visible {
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 .swipe-zone.hot {
   opacity: 1;
-  transform: scale(1.1);
+  transform: translate(-50%, -50%) scale(1.15);
 }
 
 /* Zone colors */
 .swipe-zone--accept {
   color: #4ade80;
-  background: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.25);
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.15);
 }
 .swipe-zone--accept.hot {
-  background: rgba(34, 197, 94, 0.3);
-  border-color: rgba(34, 197, 94, 0.6);
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.45);
+  border-color: rgba(34, 197, 94, 0.8);
+  box-shadow: 0 0 28px rgba(34, 197, 94, 0.5), inset 0 0 12px rgba(34, 197, 94, 0.15);
 }
 
 .swipe-zone--skip {
   color: #60a5fa;
-  background: rgba(96, 165, 250, 0.15);
-  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(96, 165, 250, 0.25);
+  border-color: rgba(96, 165, 250, 0.5);
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.15);
 }
 .swipe-zone--skip.hot {
-  background: rgba(96, 165, 250, 0.3);
-  border-color: rgba(96, 165, 250, 0.6);
-  box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+  background: rgba(96, 165, 250, 0.45);
+  border-color: rgba(96, 165, 250, 0.8);
+  box-shadow: 0 0 28px rgba(96, 165, 250, 0.5), inset 0 0 12px rgba(96, 165, 250, 0.15);
 }
 
 .swipe-zone--too-recent {
   color: #fb923c;
-  background: rgba(251, 146, 60, 0.15);
-  border-color: rgba(251, 146, 60, 0.3);
+  background: rgba(251, 146, 60, 0.25);
+  border-color: rgba(251, 146, 60, 0.5);
+  box-shadow: 0 0 12px rgba(251, 146, 60, 0.15);
 }
 .swipe-zone--too-recent.hot {
-  background: rgba(251, 146, 60, 0.3);
-  border-color: rgba(251, 146, 60, 0.6);
-  box-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
+  background: rgba(251, 146, 60, 0.45);
+  border-color: rgba(251, 146, 60, 0.8);
+  box-shadow: 0 0 28px rgba(251, 146, 60, 0.5), inset 0 0 12px rgba(251, 146, 60, 0.15);
 }
 
 .swipe-zone--too-old {
   color: #c084fc;
-  background: rgba(192, 132, 252, 0.15);
-  border-color: rgba(192, 132, 252, 0.3);
+  background: rgba(192, 132, 252, 0.25);
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: 0 0 12px rgba(192, 132, 252, 0.15);
 }
 .swipe-zone--too-old.hot {
-  background: rgba(192, 132, 252, 0.3);
-  border-color: rgba(192, 132, 252, 0.6);
-  box-shadow: 0 0 20px rgba(192, 132, 252, 0.3);
+  background: rgba(192, 132, 252, 0.45);
+  border-color: rgba(192, 132, 252, 0.8);
+  box-shadow: 0 0 28px rgba(192, 132, 252, 0.5), inset 0 0 12px rgba(192, 132, 252, 0.15);
 }
 
 .swipe-zone--genre {
   color: #f472b6;
-  background: rgba(244, 114, 182, 0.15);
-  border-color: rgba(244, 114, 182, 0.3);
+  background: rgba(244, 114, 182, 0.25);
+  border-color: rgba(244, 114, 182, 0.5);
+  box-shadow: 0 0 12px rgba(244, 114, 182, 0.15);
 }
 .swipe-zone--genre.hot {
-  background: rgba(244, 114, 182, 0.3);
-  border-color: rgba(244, 114, 182, 0.6);
-  box-shadow: 0 0 20px rgba(244, 114, 182, 0.3);
+  background: rgba(244, 114, 182, 0.45);
+  border-color: rgba(244, 114, 182, 0.8);
+  box-shadow: 0 0 28px rgba(244, 114, 182, 0.5), inset 0 0 12px rgba(244, 114, 182, 0.15);
 }
 
 /* ============================================
@@ -312,4 +318,184 @@
 
 .swipe-card.dragging .swipe-card__tap-hint {
   opacity: 0;
+}
+
+/* ============================================
+   Detail overlay (card flip + info panel)
+   ============================================ */
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: detail-fade-in 0.3s ease forwards;
+}
+
+@keyframes detail-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.detail-overlay__content {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  max-width: 700px;
+  width: 100%;
+  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Mobile: stack vertically */
+@media (max-width: 640px) {
+  .detail-overlay__content {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 16px;
+  }
+}
+
+/* --- Detail card (interactive holo) --- */
+.detail-card {
+  perspective: 800px;
+  width: 200px;
+  flex-shrink: 0;
+  aspect-ratio: 2/3;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  animation: detail-card-spin 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes detail-card-spin {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) rotateY(-180deg);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotateY(0deg);
+  }
+}
+
+.detail-card__inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--rx, 0deg)) rotateX(var(--ry, 0deg));
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.35);
+  will-change: transform;
+  transition: transform 0.15s ease-out;
+}
+
+.detail-card__inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+}
+
+.detail-card__poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+/* Shine & glare reuse same styles as swipe card */
+.detail-card .swipe-card__shine {
+  opacity: 0.6;
+}
+
+.detail-card .swipe-card__glare {
+  opacity: 0.5;
+}
+
+.detail-card.interacting .swipe-card__shine {
+  opacity: 0.8;
+}
+
+.detail-card.interacting .swipe-card__glare {
+  opacity: 0.7;
+}
+
+/* --- Info panel --- */
+.detail-info {
+  flex: 1;
+  min-width: 0;
+  animation: detail-info-slide 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s both;
+}
+
+@keyframes detail-info-slide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 640px) {
+  @keyframes detail-info-slide {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Close button */
+.detail-overlay__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  z-index: 10;
+}
+
+.detail-overlay__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
 }

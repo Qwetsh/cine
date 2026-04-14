@@ -106,9 +106,10 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
 
       const data = await tmdb.discoverMovies(params)
 
-      // Filter out already excluded movies
+      // Filter out excluded movies AND movies containing excluded genres
       const candidates = data.results.filter(
-        m => !session.excludedMovieIds.has(m.id)
+        m => !session.excludedMovieIds.has(m.id) &&
+             !m.genre_ids.some(gId => session.excludedGenreIds.has(gId))
       )
 
       if (candidates.length === 0) {
@@ -117,7 +118,8 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
           params.page = 1
           const fallback = await tmdb.discoverMovies(params)
           const fallbackCandidates = fallback.results.filter(
-            m => !session.excludedMovieIds.has(m.id)
+            m => !session.excludedMovieIds.has(m.id) &&
+                 !m.genre_ids.some(gId => session.excludedGenreIds.has(gId))
           )
           if (fallbackCandidates.length > 0) {
             const pick = pickRandom(fallbackCandidates)
