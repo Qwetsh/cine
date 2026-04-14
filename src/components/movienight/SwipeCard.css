@@ -15,7 +15,7 @@
 /* --- Card (perspective container) --- */
 .swipe-card {
   perspective: 800px;
-  width: 220px;
+  width: 180px;
   aspect-ratio: 2/3;
   cursor: grab;
   user-select: none;
@@ -327,6 +327,38 @@
 }
 
 /* ============================================
+   Edge labels (zone names near borders)
+   ============================================ */
+
+.edge-label {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  color: rgb(var(--zone-rgb));
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.edge-label.hint { opacity: 0.35; }
+.edge-label.tier-1 { opacity: 0.55; }
+.edge-label.tier-2 { opacity: 0.8; }
+.edge-label.tier-3 { opacity: 1; }
+
+.edge-label--top { top: 6px; left: 50%; transform: translateX(-50%); }
+.edge-label--bottom { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.edge-label--right { right: 8px; top: 50%; transform: translateY(-50%); }
+.edge-label--left { left: 8px; top: 50%; transform: translateY(-50%); }
+.edge-label--tr { top: 6px; right: 8px; }
+.edge-label--tl { top: 6px; left: 8px; }
+.edge-label--br { bottom: 6px; right: 8px; }
+.edge-label--bl { bottom: 6px; left: 8px; }
+
+/* ============================================
    Swipe stamp (on-card zone overlay)
    ============================================ */
 
@@ -451,9 +483,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 48px 24px 32px;
+  padding: 48px 24px calc(env(safe-area-inset-bottom, 0px) + 80px);
   gap: 24px;
   overflow-y: auto;
+  background: rgba(0, 0, 0, 0.85);
 }
 
 @media (min-width: 641px) {

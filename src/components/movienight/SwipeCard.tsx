@@ -101,6 +101,21 @@ function getEdgeBandClass(angle: number): string {
   }
 }
 
+/** Map zone angle → CSS class for label positioning */
+function getEdgeLabelClass(angle: number): string {
+  switch (angle) {
+    case 0: return 'edge-label--right'
+    case 180: return 'edge-label--left'
+    case 270: return 'edge-label--top'
+    case 90: return 'edge-label--bottom'
+    case 315: return 'edge-label--tr'
+    case 225: return 'edge-label--tl'
+    case 45: return 'edge-label--br'
+    case 135: return 'edge-label--bl'
+    default: return ''
+  }
+}
+
 /** Extract 3 dominant color regions from a poster image via tiny canvas */
 function extractPosterColors(src: string): Promise<string[]> {
   const fallback = ['40,40,40', '40,40,40', '40,40,40']
@@ -423,7 +438,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
   if (loading) {
     return (
       <div className="swipe-arena">
-        <div className="w-[220px] aspect-[2/3] rounded-2xl bg-[var(--color-surface)] animate-pulse" />
+        <div className="w-[180px] aspect-[2/3] rounded-2xl bg-[var(--color-surface)] animate-pulse" />
       </div>
     )
   }
@@ -439,18 +454,26 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
       )}
 
       <div className={`swipe-arena ${detailMode ? 'swipe-arena--detail' : ''}`}>
-        {/* Edge bands — swipe mode only */}
+        {/* Edge bands + labels — swipe mode only */}
         {!detailMode && !detailClosing && zones.map(zone => {
           const isHot = hotZone === zone.id
           const bandTier = !dragging ? ''
             : isHot && tier > 0 ? `tier-${tier}`
             : 'hint'
+          const zoneStyle = { '--zone-rgb': ZONE_COLORS[zone.colorKey] } as React.CSSProperties
           return (
-            <div
-              key={`band-${zone.id}`}
-              className={`edge-band ${getEdgeBandClass(zone.angle)} ${bandTier}`}
-              style={{ '--zone-rgb': ZONE_COLORS[zone.colorKey] } as React.CSSProperties}
-            />
+            <div key={zone.id}>
+              <div
+                className={`edge-band ${getEdgeBandClass(zone.angle)} ${bandTier}`}
+                style={zoneStyle}
+              />
+              <div
+                className={`edge-label ${getEdgeLabelClass(zone.angle)} ${bandTier}`}
+                style={zoneStyle}
+              >
+                {zone.label}
+              </div>
+            </div>
           )
         })}
 
