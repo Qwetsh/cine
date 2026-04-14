@@ -157,6 +157,8 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
   const [cardPointer, setCardPointer] = useState({ mx: 50, my: 50, posx: 50, posy: 50 })
 
   const [detailMode, setDetailMode] = useState(false)
+  const [detailClosing, setDetailClosing] = useState(false)
+  const closingRef = useRef(false)
 
   // Poster dominant colors for ambient glow
   const [posterColors, setPosterColors] = useState<string[]>([])
@@ -253,11 +255,11 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     const dy = dragDelta.y
     const dist = getDistance(dx, dy)
 
-    // Tap → open detail
+    // Tap → open detail (blocked during closing animation)
     if (maxDragDist.current < TAP_THRESHOLD) {
       setDragDelta({ x: 0, y: 0 })
       setHotZone(null)
-      setDetailMode(true)
+      if (!closingRef.current) setDetailMode(true)
       return
     }
 
@@ -303,6 +305,22 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
   const handleDetailPointerLeave = useCallback(() => {
     setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
+  }, [])
+
+  /* ---------- Detail close (reverse spin) ---------- */
+
+  const handleDetailClose = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setDetailClosing(true)
+  }, [])
+
+  const handleCloseAnimEnd = useCallback((e: React.AnimationEvent) => {
+    if (e.animationName === 'detail-spin-reverse') {
+      closingRef.current = false
+      setDetailClosing(false)
+      setDetailMode(false)
+    }
   }, [])
 
   /* ---------- Computed styles ---------- */
@@ -365,8 +383,8 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
       {/* Backdrop */}
       {detailMode && (
         <div
-          className="detail-backdrop"
-          onClick={() => setDetailMode(false)}
+          className={`detail-backdrop ${detailClosing ? 'detail-closing' : ''}`}
+          onClick={detailClosing ? undefined : handleDetailClose}
         />
       )}
 
@@ -391,7 +409,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
         <div className={`swipe-card-wrapper ${detailMode ? 'swipe-card-wrapper--detail' : ''}`}>
           {/* Ambient glow behind card — detail mode only */}
           {detailMode && posterColors.length >= 3 && (
-            <div className="detail-glow" style={glowStyle} />
+            <div className={`detail-glow ${detailClosing ? 'detail-closing' : ''}`} style={glowStyle} />
           )}
 
           {/* The card */}
@@ -400,6 +418,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
             className={[
               'swipe-card',
               detailMode ? 'swipe-card--detail' : '',
+              detailClosing ? 'detail-closing' : '',
               detailMode ? '' : phaseClass,
               detailMode ? '' : activeClass,
               detailMode ? '' : snappingClass,
@@ -414,8 +433,8 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
             onPointerUp={detailMode ? undefined : handlePointerUp}
             onPointerCancel={detailMode ? undefined : handlePointerUp}
             onPointerLeave={detailMode ? handleDetailPointerLeave : undefined}
-            onClick={detailMode ? () => setDetailMode(false) : undefined}
-            onAnimationEnd={detailMode ? undefined : handleAnimationEnd}
+            onClick={detailMode && !detailClosing ? handleDetailClose : undefined}
+            onAnimationEnd={detailMode ? handleCloseAnimEnd : handleAnimationEnd}
           >
             <div className="swipe-card__inner" style={innerStyle}>
               <img
@@ -438,7 +457,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
         {/* Info panel */}
         {detailMode && (
-          <div className="detail-info" onClick={e => e.stopPropagation()}>
+          <div className={`detail-info ${detailClosing ? 'detail-closing' : ''}`} onClick={e => e.stopPropagation()}>
             <h2 className="font-bold text-xl text-white leading-tight">
               {movie.title}
             </h2>

@@ -347,6 +347,15 @@
   to { opacity: 1; }
 }
 
+.detail-backdrop.detail-closing {
+  animation: detail-fade-out 0.7s ease forwards;
+}
+
+@keyframes detail-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 /* Arena → fixed overlay, column layout (card on top, info below) */
 .swipe-arena--detail {
   position: fixed;
@@ -382,10 +391,25 @@
   }
 }
 
+/* --- Spin reverse animation on close --- */
+@keyframes detail-spin-reverse {
+  0% {
+    transform: perspective(800px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(800px) rotateY(-360deg);
+  }
+}
+
 .swipe-card--detail {
   width: 150px;
   cursor: pointer;
   animation: detail-spin 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.swipe-card--detail.detail-closing {
+  animation: detail-spin-reverse 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  width: 220px;
 }
 
 .swipe-card--detail:active {
@@ -395,6 +419,9 @@
 @media (min-width: 641px) {
   .swipe-card--detail {
     width: 180px;
+  }
+  .swipe-card--detail.detail-closing {
+    width: 220px;
   }
 }
 
@@ -452,6 +479,21 @@
   }
 }
 
+.detail-glow.detail-closing {
+  animation: glow-disappear 0.5s ease forwards;
+}
+
+@keyframes glow-disappear {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
 /* --- Card wrapper in detail positions the glow --- */
 .swipe-card-wrapper--detail {
   position: relative;
@@ -476,6 +518,16 @@
   }
 }
 
+/* Info panel close — mobile: slide down, desktop: slide left */
+.detail-info.detail-closing {
+  animation: detail-info-disappear 0.4s ease forwards;
+}
+
+@keyframes detail-info-disappear {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(24px); }
+}
+
 @media (min-width: 641px) {
   .detail-info {
     max-width: 360px;
@@ -490,6 +542,11 @@
       opacity: 1;
       transform: translateX(0);
     }
+  }
+
+  @keyframes detail-info-disappear {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(30px); }
   }
 }
 
