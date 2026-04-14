@@ -1,0 +1,315 @@
+/* ============================================
+   SwipeCard — Holographic playing-card effect
+   Inspired by pokemon-cards-css
+   ============================================ */
+
+/* --- Card wrapper (perspective container) --- */
+.swipe-card {
+  perspective: 800px;
+  width: 220px;
+  aspect-ratio: 2/3;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  position: relative;
+}
+
+.swipe-card:active {
+  cursor: grabbing;
+}
+
+/* --- Card inner (3D rotator) --- */
+.swipe-card__inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--rx, 0deg)) rotateX(var(--ry, 0deg));
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    0 12px 40px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.3s ease;
+  will-change: transform;
+}
+
+.swipe-card.dragging .swipe-card__inner {
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Poster image --- */
+.swipe-card__poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+/* --- Shine layer (holographic rainbow) --- */
+.swipe-card__shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  transform: translateZ(1px);
+  mix-blend-mode: color-dodge;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+
+  background-image:
+    repeating-linear-gradient(
+      133deg,
+      hsla(0, 0%, 100%, 0.08) 0%,
+      hsla(180, 70%, 60%, 0.12) 3%,
+      hsla(240, 70%, 60%, 0.08) 5%,
+      hsla(300, 70%, 50%, 0.12) 8%,
+      hsla(360, 70%, 60%, 0.08) 10%
+    ),
+    repeating-linear-gradient(
+      var(--shine-angle, 133deg),
+      hsl(0, 80%, 60%) 0%,
+      hsl(60, 80%, 55%) 16.66%,
+      hsl(120, 70%, 50%) 33.33%,
+      hsl(180, 70%, 55%) 50%,
+      hsl(240, 80%, 60%) 66.66%,
+      hsl(300, 70%, 55%) 83.33%,
+      hsl(360, 80%, 60%) 100%
+    ),
+    radial-gradient(
+      farthest-corner circle at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(200, 200, 200, 0.3) 30%,
+      rgba(0, 0, 0, 0.5) 100%
+    );
+
+  background-blend-mode: soft-light, screen, overlay;
+  background-size: 300% 300%, 250% 250%, 150% 150%;
+  background-position:
+    var(--posx, 50%) var(--posy, 50%),
+    calc(((50% - var(--posx, 50%)) * 2.5) + 50%) calc(((50% - var(--posy, 50%)) * 2.5) + 50%),
+    center;
+
+  filter: brightness(0.85) contrast(2.5) saturate(0.5);
+}
+
+.swipe-card.active .swipe-card__shine {
+  opacity: 0.7;
+}
+
+.swipe-card.dragging .swipe-card__shine {
+  opacity: 0.5;
+}
+
+/* --- Glare layer (radial light spot) --- */
+.swipe-card__glare {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  transform: translateZ(1.4px);
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+
+  background: radial-gradient(
+    farthest-corner circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.7) 5%,
+    rgba(255, 255, 255, 0.5) 15%,
+    rgba(0, 0, 0, 0.4) 80%
+  );
+}
+
+.swipe-card.active .swipe-card__glare {
+  opacity: 0.6;
+}
+
+.swipe-card.dragging .swipe-card__glare {
+  opacity: 0.4;
+}
+
+/* --- Card border glow --- */
+.swipe-card__inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+/* --- Entry: card dealt from deck --- */
+@keyframes card-deal {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg) translateY(40px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05) rotate(2deg) translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg) translateY(0px);
+  }
+}
+
+.swipe-card.entering {
+  animation: card-deal 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* --- Exit: fly out in drag direction --- */
+@keyframes card-exit {
+  0% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--exit-x, 0px), var(--exit-y, 0px)) rotate(var(--exit-rot, 0deg)) scale(0.7);
+  }
+}
+
+.swipe-card.exiting {
+  animation: card-exit 0.4s cubic-bezier(0.4, 0, 0.7, 0.2) forwards;
+  pointer-events: none;
+}
+
+/* --- Snap back (magnetic spring) --- */
+.swipe-card.snapping {
+  transition: transform 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* ============================================
+   Swipe zone indicators
+   ============================================ */
+
+.swipe-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease, background-color 0.25s ease;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid transparent;
+  z-index: 5;
+}
+
+.swipe-zone.visible {
+  opacity: 0.6;
+}
+
+.swipe-zone.hot {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Zone colors */
+.swipe-zone--accept {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.swipe-zone--accept.hot {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.6);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.swipe-zone--skip {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+.swipe-zone--skip.hot {
+  background: rgba(96, 165, 250, 0.3);
+  border-color: rgba(96, 165, 250, 0.6);
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+}
+
+.swipe-zone--too-recent {
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.15);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+.swipe-zone--too-recent.hot {
+  background: rgba(251, 146, 60, 0.3);
+  border-color: rgba(251, 146, 60, 0.6);
+  box-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
+}
+
+.swipe-zone--too-old {
+  color: #c084fc;
+  background: rgba(192, 132, 252, 0.15);
+  border-color: rgba(192, 132, 252, 0.3);
+}
+.swipe-zone--too-old.hot {
+  background: rgba(192, 132, 252, 0.3);
+  border-color: rgba(192, 132, 252, 0.6);
+  box-shadow: 0 0 20px rgba(192, 132, 252, 0.3);
+}
+
+.swipe-zone--genre {
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.15);
+  border-color: rgba(244, 114, 182, 0.3);
+}
+.swipe-zone--genre.hot {
+  background: rgba(244, 114, 182, 0.3);
+  border-color: rgba(244, 114, 182, 0.6);
+  box-shadow: 0 0 20px rgba(244, 114, 182, 0.3);
+}
+
+/* ============================================
+   Swipe arena (full container for zones)
+   ============================================ */
+
+.swipe-arena {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 420px;
+  overflow: visible;
+}
+
+/* Tap hint */
+.swipe-card__tap-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 3px 10px;
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+.swipe-card.dragging .swipe-card__tap-hint {
+  opacity: 0;
+}

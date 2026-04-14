@@ -9,7 +9,8 @@ import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useGenres } from '../hooks/useGenres'
 import { usePreferences } from '../hooks/usePreferences'
 import { useSmartSuggestion } from '../hooks/useSmartSuggestion'
-import { SuggestionCard } from '../components/movienight/SuggestionCard'
+import { SwipeCard } from '../components/movienight/SwipeCard'
+import { MovieDetailSheet } from '../components/movienight/MovieDetailSheet'
 import { WatchlistPicker } from '../components/movienight/WatchlistPicker'
 import { DuelMode } from '../components/movienight/DuelMode'
 import { QuizMode } from '../components/movienight/QuizMode'
@@ -35,6 +36,7 @@ export function MovieNightPage() {
   const [tab, setTab] = useState<Tab>('suggest')
   const [showQuiz, setShowQuiz] = useState(false)
   const [showTournament, setShowTournament] = useState(false)
+  const [detailMovie, setDetailMovie] = useState<TmdbMovie | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   function showToast(msg: string) {
@@ -190,16 +192,14 @@ export function MovieNightPage() {
             </div>
           )}
 
-          {smartSuggestion.loading && (
-            <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] h-64 animate-pulse" />
-          )}
-
-          {smartSuggestion.suggestion && !smartSuggestion.loading && (
-            <SuggestionCard
-              movie={smartSuggestion.suggestion}
+          {(smartSuggestion.suggestion || smartSuggestion.loading) && !smartSuggestion.noMoreResults && (
+            <SwipeCard
+              movie={smartSuggestion.suggestion ?? ({} as TmdbMovie)}
               genres={genres}
               onFeedback={smartSuggestion.giveFeedback}
               onAccept={handleAcceptSuggestion}
+              onTap={(movie) => setDetailMovie(movie)}
+              loading={smartSuggestion.loading}
             />
           )}
 
@@ -217,6 +217,13 @@ export function MovieNightPage() {
               </button>
             </div>
           )}
+
+          <MovieDetailSheet
+            movie={detailMovie ?? ({} as TmdbMovie)}
+            genres={genres}
+            open={detailMovie !== null}
+            onClose={() => setDetailMovie(null)}
+          />
         </div>
       ) : tab === 'pick' ? (
         <WatchlistPicker
