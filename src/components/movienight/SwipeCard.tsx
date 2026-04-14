@@ -98,6 +98,45 @@ function getZoneStyle(angle: number): React.CSSProperties {
   }
 }
 
+/** Extract 3 dominant color regions from a poster image via tiny canvas */
+function extractPosterColors(src: string): Promise<string[]> {
+  const fallback = ['40,40,40', '40,40,40', '40,40,40']
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const w = 10, h = 15
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { resolve(fallback); return }
+        ctx.drawImage(img, 0, 0, w, h)
+
+        const avgRegion = (startY: number, endY: number) => {
+          const data = ctx.getImageData(0, startY, w, endY - startY).data
+          let r = 0, g = 0, b = 0, count = 0
+          for (let i = 0; i < data.length; i += 4) {
+            r += data[i]; g += data[i + 1]; b += data[i + 2]; count++
+          }
+          return `${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)}`
+        }
+
+        resolve([
+          avgRegion(0, 5),   // top
+          avgRegion(5, 10),  // middle
+          avgRegion(10, 15), // bottom
+        ])
+      } catch {
+        resolve(fallback)
+      }
+    }
+    img.onerror = () => resolve(fallback)
+    img.src = src
+  })
+}
+
 /* ============================================
    Component
    ============================================ */
@@ -117,11 +156,20 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
   const [cardPointer, setCardPointer] = useState({ mx: 50, my: 50, posx: 50, posy: 50 })
 
-  // Detail mode — simple boolean toggle, CSS transitions handle the visuals
   const [detailMode, setDetailMode] = useState(false)
+
+  // Poster dominant colors for ambient glow
+  const [posterColors, setPosterColors] = useState<string[]>([])
 
   const maxDragDist = useRef(0)
   const movieKeyRef = useRef(movie.id)
+
+  // Extract poster colors when movie changes
+  useEffect(() => {
+    if (!movie.poster_path) return
+    extractPosterColors(getPosterUrl(movie.poster_path, 'small'))
+      .then(setPosterColors)
+  }, [movie.poster_path])
 
   // Reset when movie changes
   useEffect(() => {
@@ -205,7 +253,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     const dy = dragDelta.y
     const dist = getDistance(dx, dy)
 
-    // Tap → toggle detail
+    // Tap → open detail
     if (maxDragDist.current < TAP_THRESHOLD) {
       setDragDelta({ x: 0, y: 0 })
       setHotZone(null)
@@ -297,6 +345,13 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
 
+  // Glow CSS vars from poster colors
+  const glowStyle: React.CSSProperties = posterColors.length >= 3 ? {
+    '--glow-c1': posterColors[0],
+    '--glow-c2': posterColors[1],
+    '--glow-c3': posterColors[2],
+  } as React.CSSProperties : {}
+
   if (loading) {
     return (
       <div className="swipe-arena">
@@ -332,45 +387,53 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
           </div>
         ))}
 
-        {/* The card */}
-        <div
-          ref={cardRef}
-          className={[
-            'swipe-card',
-            detailMode ? 'swipe-card--detail' : '',
-            detailMode ? '' : phaseClass,
-            detailMode ? '' : activeClass,
-            detailMode ? '' : snappingClass,
-          ].filter(Boolean).join(' ')}
-          style={{
-            transform: cardTransform,
-            ...(detailMode ? {} : exitStyle),
-            ...(haloRgb ? { '--halo-rgb': haloRgb } as React.CSSProperties : {}),
-          }}
-          onPointerDown={detailMode ? undefined : handlePointerDown}
-          onPointerMove={detailMode ? handleDetailPointerMove : handlePointerMove}
-          onPointerUp={detailMode ? undefined : handlePointerUp}
-          onPointerCancel={detailMode ? undefined : handlePointerUp}
-          onPointerLeave={detailMode ? handleDetailPointerLeave : undefined}
-          onClick={detailMode ? () => setDetailMode(false) : undefined}
-          onAnimationEnd={detailMode ? undefined : handleAnimationEnd}
-        >
-          <div className="swipe-card__inner" style={innerStyle}>
-            <img
-              src={getPosterUrl(movie.poster_path, 'large')}
-              alt={movie.title}
-              className="swipe-card__poster"
-              draggable={false}
-            />
-            <div className="swipe-card__shine" />
-            <div className="swipe-card__glare" />
-          </div>
-
-          {!detailMode && (
-            <div className="swipe-card__tap-hint">
-              Appuyer pour les détails
-            </div>
+        {/* Card wrapper for glow positioning */}
+        <div className={`swipe-card-wrapper ${detailMode ? 'swipe-card-wrapper--detail' : ''}`}>
+          {/* Ambient glow behind card — detail mode only */}
+          {detailMode && posterColors.length >= 3 && (
+            <div className="detail-glow" style={glowStyle} />
           )}
+
+          {/* The card */}
+          <div
+            ref={cardRef}
+            className={[
+              'swipe-card',
+              detailMode ? 'swipe-card--detail' : '',
+              detailMode ? '' : phaseClass,
+              detailMode ? '' : activeClass,
+              detailMode ? '' : snappingClass,
+            ].filter(Boolean).join(' ')}
+            style={{
+              transform: cardTransform,
+              ...(detailMode ? {} : exitStyle),
+              ...(haloRgb ? { '--halo-rgb': haloRgb } as React.CSSProperties : {}),
+            }}
+            onPointerDown={detailMode ? undefined : handlePointerDown}
+            onPointerMove={detailMode ? handleDetailPointerMove : handlePointerMove}
+            onPointerUp={detailMode ? undefined : handlePointerUp}
+            onPointerCancel={detailMode ? undefined : handlePointerUp}
+            onPointerLeave={detailMode ? handleDetailPointerLeave : undefined}
+            onClick={detailMode ? () => setDetailMode(false) : undefined}
+            onAnimationEnd={detailMode ? undefined : handleAnimationEnd}
+          >
+            <div className="swipe-card__inner" style={innerStyle}>
+              <img
+                src={getPosterUrl(movie.poster_path, 'large')}
+                alt={movie.title}
+                className="swipe-card__poster"
+                draggable={false}
+              />
+              <div className="swipe-card__shine" />
+              <div className="swipe-card__glare" />
+            </div>
+
+            {!detailMode && (
+              <div className="swipe-card__tap-hint">
+                Appuyer pour les détails
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Info panel */}

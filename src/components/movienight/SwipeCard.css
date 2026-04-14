@@ -3,7 +3,16 @@
    Inspired by pokemon-cards-css
    ============================================ */
 
-/* --- Card wrapper (perspective container) --- */
+/* --- Card wrapper (for glow positioning) --- */
+.swipe-card-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* --- Card (perspective container) --- */
 .swipe-card {
   perspective: 800px;
   width: 220px;
@@ -14,16 +23,13 @@
   touch-action: none;
   position: relative;
   flex-shrink: 0;
-  /* Smooth transition for detail mode (width change + scale) */
-  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .swipe-card:active {
   cursor: grabbing;
 }
 
-/* Override transition during drag interactions */
 .swipe-card.dragging {
   transition: none;
 }
@@ -228,7 +234,6 @@
   transform: translate(-50%, -50%) scale(1.15);
 }
 
-/* Zone colors — maximally distinct */
 .swipe-zone--accept {
   color: #34d399;
   background: rgba(16, 185, 129, 0.25);
@@ -303,7 +308,6 @@
   overflow: visible;
 }
 
-/* Tap hint */
 .swipe-card__tap-hint {
   position: absolute;
   bottom: 8px;
@@ -325,18 +329,17 @@
 }
 
 /* ============================================
-   Detail mode — transition-based, no keyframes
-   Like pokemon-cards-css activate/retreat
+   Detail mode
    ============================================ */
 
 .detail-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  animation: detail-fade-in 0.5s ease forwards;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: detail-fade-in 0.6s ease forwards;
 }
 
 @keyframes detail-fade-in {
@@ -344,84 +347,149 @@
   to { opacity: 1; }
 }
 
-/* Arena becomes a fixed overlay in detail mode */
+/* Arena → fixed overlay, column layout (card on top, info below) */
 .swipe-arena--detail {
   position: fixed;
   inset: 0;
   z-index: 45;
   height: 100%;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 32px;
-  padding: 32px;
+  justify-content: flex-start;
+  padding: 48px 24px 32px;
+  gap: 24px;
   overflow-y: auto;
 }
 
-@media (max-width: 640px) {
+@media (min-width: 641px) {
   .swipe-arena--detail {
-    flex-direction: column;
-    gap: 24px;
-    padding: 48px 20px 32px;
+    flex-direction: row;
+    justify-content: center;
     align-items: center;
-    justify-content: flex-start;
+    gap: 36px;
+    padding: 32px;
   }
 }
 
-/* Card in detail mode — uses CSS transition (defined on .swipe-card) */
+/* --- Spin animation on open --- */
+@keyframes detail-spin {
+  0% {
+    transform: perspective(800px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(800px) rotateY(360deg);
+  }
+}
+
 .swipe-card--detail {
-  width: 200px;
+  width: 150px;
   cursor: pointer;
-  transform: scale(1.08);
+  animation: detail-spin 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .swipe-card--detail:active {
   cursor: pointer;
 }
 
-/* Elevated shadow in detail mode */
-.swipe-card--detail .swipe-card__inner {
-  box-shadow:
-    0 0 10px 0px rgba(105, 209, 233, 0.3),
-    0 0 20px 0px rgba(105, 209, 233, 0.15),
-    0 0 50px 0px rgba(105, 209, 233, 0.1),
-    0 20px 60px rgba(0, 0, 0, 0.4);
-  transition: box-shadow 0.7s ease, transform 0.15s ease-out;
-}
-
-/* Always show holo in detail mode */
-.swipe-card--detail .swipe-card__shine {
-  opacity: 0.7;
-}
-
-.swipe-card--detail .swipe-card__glare {
-  opacity: 0.55;
-}
-
-@media (max-width: 640px) {
+@media (min-width: 641px) {
   .swipe-card--detail {
-    width: 170px;
-    transform: scale(1.05);
+    width: 180px;
   }
 }
 
-/* Info panel — slides in */
+/* Holo atténué en detail — le glow ambiant fait le travail */
+.swipe-card--detail .swipe-card__shine {
+  opacity: 0.3;
+}
+
+.swipe-card--detail .swipe-card__glare {
+  opacity: 0.25;
+}
+
+/* Shadow subtile en detail */
+.swipe-card--detail .swipe-card__inner {
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 12px 40px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.7s ease, transform 0.15s ease-out;
+}
+
+/* ============================================
+   Ambient glow (poster dominant colors)
+   ============================================ */
+
+.detail-glow {
+  position: absolute;
+  width: 180%;
+  height: 180%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  animation: glow-appear 1s ease 0.3s forwards;
+  filter: blur(50px);
+  background: conic-gradient(
+    from 0deg,
+    rgba(var(--glow-c1, 40,40,40), 0.55),
+    rgba(var(--glow-c2, 40,40,40), 0.55),
+    rgba(var(--glow-c3, 40,40,40), 0.55),
+    rgba(var(--glow-c1, 40,40,40), 0.55)
+  );
+}
+
+@keyframes glow-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* --- Card wrapper in detail positions the glow --- */
+.swipe-card-wrapper--detail {
+  position: relative;
+}
+
+/* Info panel */
 .detail-info {
   flex: 1;
   min-width: 0;
   max-width: 340px;
-  animation: detail-info-appear 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+  animation: detail-info-appear 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
 }
 
 @keyframes detail-info-appear {
   from {
     opacity: 0;
-    transform: translateX(30px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 641px) {
+  .detail-info {
+    max-width: 360px;
+  }
+
+  @keyframes detail-info-appear {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 }
 
@@ -429,16 +497,5 @@
   .detail-info {
     max-width: 100%;
     text-align: center;
-  }
-
-  @keyframes detail-info-appear {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 }
