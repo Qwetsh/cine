@@ -201,97 +201,182 @@
 }
 
 /* ============================================
-   Swipe zone indicators
+   Edge bands (arena border glow per zone)
    ============================================ */
 
-.swipe-zone {
+.edge-band {
   position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   pointer-events: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1.5px solid transparent;
-  z-index: 5;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.25s ease, box-shadow 0.25s ease, width 0.25s ease, height 0.25s ease;
 }
 
-.swipe-zone.visible {
-  opacity: 0.85;
+/* Faint hint for all zones while dragging */
+.edge-band.hint { opacity: 0.12; }
+
+/* Tiered activation for the hot zone */
+.edge-band.tier-1 { opacity: 0.35; }
+.edge-band.tier-2 { opacity: 0.65; }
+.edge-band.tier-3 { opacity: 1; }
+
+/* --- Horizontal bands (top / bottom) --- */
+.edge-band--h {
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%, rgba(var(--zone-rgb), 0.6) 20%,
+    rgba(var(--zone-rgb), 1) 50%,
+    rgba(var(--zone-rgb), 0.6) 80%, transparent 100%
+  );
+  background-size: 200% 100%;
+  box-shadow:
+    0 0 8px rgba(var(--zone-rgb), 0.4),
+    0 0 20px rgba(var(--zone-rgb), 0.2);
+}
+.edge-band--h.tier-2 {
+  box-shadow:
+    0 0 15px rgba(var(--zone-rgb), 0.6),
+    0 0 35px rgba(var(--zone-rgb), 0.3);
+}
+.edge-band--h.tier-3 {
+  height: 3px;
+  box-shadow:
+    0 0 25px rgba(var(--zone-rgb), 0.8),
+    0 0 50px rgba(var(--zone-rgb), 0.4);
+  animation: wave-h 1.5s ease-in-out infinite;
+}
+.edge-band--top { top: 0; }
+.edge-band--bottom { bottom: 0; }
+
+/* --- Vertical bands (left / right) --- */
+.edge-band--v {
+  top: 10%;
+  bottom: 10%;
+  width: 2px;
+  background: linear-gradient(
+    0deg,
+    transparent 0%, rgba(var(--zone-rgb), 0.6) 20%,
+    rgba(var(--zone-rgb), 1) 50%,
+    rgba(var(--zone-rgb), 0.6) 80%, transparent 100%
+  );
+  background-size: 100% 200%;
+  box-shadow:
+    0 0 8px rgba(var(--zone-rgb), 0.4),
+    0 0 20px rgba(var(--zone-rgb), 0.2);
+}
+.edge-band--v.tier-2 {
+  box-shadow:
+    0 0 15px rgba(var(--zone-rgb), 0.6),
+    0 0 35px rgba(var(--zone-rgb), 0.3);
+}
+.edge-band--v.tier-3 {
+  width: 3px;
+  box-shadow:
+    0 0 25px rgba(var(--zone-rgb), 0.8),
+    0 0 50px rgba(var(--zone-rgb), 0.4);
+  animation: wave-v 1.5s ease-in-out infinite;
+}
+.edge-band--left { left: 0; }
+.edge-band--right { right: 0; }
+
+/* --- Corner glows (diagonal zones) --- */
+.edge-band--corner {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(var(--zone-rgb), 0.5) 0%,
+    rgba(var(--zone-rgb), 0.2) 40%,
+    transparent 70%
+  );
+  box-shadow: 0 0 12px rgba(var(--zone-rgb), 0.3);
+}
+.edge-band--corner.tier-2 {
+  width: 65px;
+  height: 65px;
+  box-shadow: 0 0 25px rgba(var(--zone-rgb), 0.5);
+}
+.edge-band--corner.tier-3 {
+  width: 80px;
+  height: 80px;
+  box-shadow:
+    0 0 40px rgba(var(--zone-rgb), 0.7),
+    0 0 80px rgba(var(--zone-rgb), 0.3);
+  animation: corner-pulse 1s ease-in-out infinite;
+}
+.edge-band--tr { top: -15px; right: -15px; }
+.edge-band--tl { top: -15px; left: -15px; }
+.edge-band--br { bottom: -15px; right: -15px; }
+.edge-band--bl { bottom: -15px; left: -15px; }
+
+@keyframes wave-h {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+}
+@keyframes wave-v {
+  0%, 100% { background-position: center 0%; }
+  50% { background-position: center 100%; }
+}
+@keyframes corner-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
-.swipe-zone.hot {
+/* ============================================
+   Swipe stamp (on-card zone overlay)
+   ============================================ */
+
+.swipe-stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  z-index: 4;
+  pointer-events: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 3px solid rgba(var(--zone-rgb), 0.8);
+  background: rgba(var(--zone-rgb), 0.15);
+  color: rgb(var(--zone-rgb));
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.swipe-stamp.tier-1 { opacity: 0.25; }
+.swipe-stamp.tier-2 { opacity: 0.6; }
+.swipe-stamp.tier-3 {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1.15);
+  transform: translate(-50%, -50%) rotate(-12deg) scale(1.08);
 }
 
-.swipe-zone--accept {
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.25);
-  border-color: rgba(16, 185, 129, 0.5);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
-}
-.swipe-zone--accept.hot {
-  background: rgba(16, 185, 129, 0.5);
-  border-color: rgba(16, 185, 129, 0.9);
-  box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 12px rgba(16, 185, 129, 0.2);
+/* ============================================
+   Tier-based card shadow enhancement
+   ============================================ */
+
+.swipe-card.dragging.tier-2 .swipe-card__inner {
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    0 0 60px rgba(var(--halo-rgb, 0,0,0), 0.6),
+    0 0 120px rgba(var(--halo-rgb, 0,0,0), 0.35);
 }
 
-.swipe-zone--skip {
-  color: #22d3ee;
-  background: rgba(6, 182, 212, 0.25);
-  border-color: rgba(6, 182, 212, 0.5);
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
-}
-.swipe-zone--skip.hot {
-  background: rgba(6, 182, 212, 0.5);
-  border-color: rgba(6, 182, 212, 0.9);
-  box-shadow: 0 0 30px rgba(6, 182, 212, 0.6), inset 0 0 12px rgba(6, 182, 212, 0.2);
-}
-
-.swipe-zone--too-recent {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.25);
-  border-color: rgba(245, 158, 11, 0.5);
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
-}
-.swipe-zone--too-recent.hot {
-  background: rgba(245, 158, 11, 0.5);
-  border-color: rgba(245, 158, 11, 0.9);
-  box-shadow: 0 0 30px rgba(245, 158, 11, 0.6), inset 0 0 12px rgba(245, 158, 11, 0.2);
-}
-
-.swipe-zone--too-old {
-  color: #a78bfa;
-  background: rgba(139, 92, 246, 0.25);
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
-}
-.swipe-zone--too-old.hot {
-  background: rgba(139, 92, 246, 0.5);
-  border-color: rgba(139, 92, 246, 0.9);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), inset 0 0 12px rgba(139, 92, 246, 0.2);
-}
-
-.swipe-zone--genre {
-  color: #fb7185;
-  background: rgba(244, 63, 94, 0.25);
-  border-color: rgba(244, 63, 94, 0.5);
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.2);
-}
-.swipe-zone--genre.hot {
-  background: rgba(244, 63, 94, 0.5);
-  border-color: rgba(244, 63, 94, 0.9);
-  box-shadow: 0 0 30px rgba(244, 63, 94, 0.6), inset 0 0 12px rgba(244, 63, 94, 0.2);
+.swipe-card.dragging.tier-3 .swipe-card__inner {
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    0 0 80px rgba(var(--halo-rgb, 0,0,0), 0.8),
+    0 0 160px rgba(var(--halo-rgb, 0,0,0), 0.5);
 }
 
 /* ============================================
@@ -304,7 +389,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: min(380px, 55vh);
+  height: min(440px, 62vh);
   overflow: visible;
 }
 

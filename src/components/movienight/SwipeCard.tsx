@@ -3,6 +3,7 @@ import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../../lib/tmdb'
 import type { FeedbackType } from '../../hooks/useSmartSuggestion'
 import { TrailerButton } from '../movie/TrailerButton'
+import { LightningCanvas } from './LightningCanvas'
 import './SwipeCard.css'
 
 /* ============================================
@@ -15,7 +16,7 @@ interface SwipeZone {
   angle: number
   feedbackType: FeedbackType
   genreId?: number
-  cssClass: string
+  colorKey: string
 }
 
 interface Props {
@@ -37,12 +38,12 @@ const TAP_THRESHOLD = 8
 const TILT_FACTOR = 12
 const DETAIL_TILT = 20
 
-const HALO_COLORS: Record<string, string> = {
-  'swipe-zone--accept': '16, 185, 129',
-  'swipe-zone--skip': '6, 182, 212',
-  'swipe-zone--too-recent': '245, 158, 11',
-  'swipe-zone--too-old': '139, 92, 246',
-  'swipe-zone--genre': '244, 63, 94',
+const ZONE_COLORS: Record<string, string> = {
+  accept: '16, 185, 129',
+  skip: '6, 182, 212',
+  recent: '245, 158, 11',
+  old: '139, 92, 246',
+  genre: '244, 63, 94',
 }
 
 /* ============================================
@@ -66,10 +67,10 @@ function angleDiff(a: number, b: number): number {
 
 function buildZones(movieGenres: TmdbGenre[]): SwipeZone[] {
   const fixed: SwipeZone[] = [
-    { id: 'accept', label: 'On regarde !', angle: 0, feedbackType: 'accept', cssClass: 'swipe-zone--accept' },
-    { id: 'skip', label: 'Pas ce film', angle: 180, feedbackType: 'same_genre_diff_movie', cssClass: 'swipe-zone--skip' },
-    { id: 'recent', label: 'Trop récent', angle: 270, feedbackType: 'too_recent', cssClass: 'swipe-zone--too-recent' },
-    { id: 'old', label: 'Trop vieux', angle: 90, feedbackType: 'too_old', cssClass: 'swipe-zone--too-old' },
+    { id: 'accept', label: 'On regarde !', angle: 0, feedbackType: 'accept', colorKey: 'accept' },
+    { id: 'skip', label: 'Pas ce film', angle: 180, feedbackType: 'same_genre_diff_movie', colorKey: 'skip' },
+    { id: 'recent', label: 'Trop récent', angle: 270, feedbackType: 'too_recent', colorKey: 'recent' },
+    { id: 'old', label: 'Trop vieux', angle: 90, feedbackType: 'too_old', colorKey: 'old' },
   ]
 
   const diagonalAngles = [315, 225, 45, 135]
@@ -79,22 +80,24 @@ function buildZones(movieGenres: TmdbGenre[]): SwipeZone[] {
     angle: diagonalAngles[i],
     feedbackType: 'exclude_genre' as FeedbackType,
     genreId: g.id,
-    cssClass: 'swipe-zone--genre',
+    colorKey: 'genre',
   }))
 
   return [...fixed, ...genreZones]
 }
 
-function getZoneStyle(angle: number): React.CSSProperties {
-  const rad = (angle * Math.PI) / 180
-  const rx = 130
-  const ry = 145
-  const x = Math.cos(rad) * rx
-  const y = Math.sin(rad) * ry
-  return {
-    left: `calc(50% + ${x}px)`,
-    top: `calc(50% + ${y}px)`,
-    transform: 'translate(-50%, -50%)',
+/** Map zone angle → CSS classes for edge band positioning */
+function getEdgeBandClass(angle: number): string {
+  switch (angle) {
+    case 0: return 'edge-band--v edge-band--right'
+    case 180: return 'edge-band--v edge-band--left'
+    case 270: return 'edge-band--h edge-band--top'
+    case 90: return 'edge-band--h edge-band--bottom'
+    case 315: return 'edge-band--corner edge-band--tr'
+    case 225: return 'edge-band--corner edge-band--tl'
+    case 45: return 'edge-band--corner edge-band--br'
+    case 135: return 'edge-band--corner edge-band--bl'
+    default: return 'edge-band--corner'
   }
 }
 
@@ -313,14 +316,11 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     if (closingRef.current || !cardRef.current) return
     closingRef.current = true
 
-    // FLIP Step 1: First — capture current position in detail layout
     const first = cardRef.current.getBoundingClientRect()
 
-    // Switch layout to swipe mode immediately, keep overlays for fade out
     setDetailMode(false)
     setDetailClosing(true)
 
-    // FLIP Step 2-4: after layout settles, animate from old → new position
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (!cardRef.current) {
@@ -337,13 +337,11 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
         const SPRING = 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
 
-        // FLIP movement + scale on card container
         cardRef.current.animate([
           { transform: `translate(${dx}px, ${dy}px) scale(${sw}, ${sh})` },
           { transform: 'translate(0, 0) scale(1)' },
         ], { duration: 900, easing: SPRING, fill: 'backwards' })
 
-        // Reverse spin on inner element
         const inner = cardRef.current.querySelector('.swipe-card__inner')
         const spinAnim = inner
           ? inner.animate([
@@ -366,7 +364,19 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     })
   }, [])
 
-  /* ---------- Computed styles ---------- */
+  /* ---------- Computed values ---------- */
+
+  const dragDist = getDistance(dragDelta.x, dragDelta.y)
+  const progress = dragDist / ZONE_THRESHOLD
+
+  // Tier: 0 (idle), 1 (amorce), 2 (tension), 3 (commit)
+  const tier = !dragging || !hotZone ? 0
+    : progress < 0.75 ? 1
+    : progress < 0.95 ? 2
+    : 3
+
+  const hotZoneObj = hotZone ? zones.find(z => z.id === hotZone) : null
+  const haloRgb = hotZoneObj ? ZONE_COLORS[hotZoneObj.colorKey] : null
 
   const tiltX = detailMode
     ? -((cardPointer.my - 50) / 50) * DETAIL_TILT
@@ -397,16 +407,13 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     '--exit-rot': `${exitVec.rot}deg`,
   } as React.CSSProperties : {}
 
-  const haloZone = hotZone ? zones.find(z => z.id === hotZone) : null
-  const haloRgb = haloZone ? HALO_COLORS[haloZone.cssClass] ?? null : null
-
   const phaseClass = phase === 'entering' ? 'entering' : phase === 'exiting' ? 'exiting' : ''
   const activeClass = dragging ? 'dragging active' : ''
   const snappingClass = !dragging && phase === 'idle' && (dragDelta.x !== 0 || dragDelta.y !== 0) ? 'snapping' : ''
+  const tierClass = tier > 0 ? `tier-${tier}` : ''
 
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
 
-  // Glow CSS vars from poster colors
   const glowStyle: React.CSSProperties = posterColors.length >= 3 ? {
     '--glow-c1': posterColors[0],
     '--glow-c2': posterColors[1],
@@ -432,21 +439,30 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
       )}
 
       <div className={`swipe-arena ${detailMode ? 'swipe-arena--detail' : ''}`}>
-        {/* Zones — swipe mode only */}
-        {!detailMode && !detailClosing && zones.map(zone => (
-          <div
-            key={zone.id}
-            className={[
-              'swipe-zone',
-              zone.cssClass,
-              dragging ? 'visible' : '',
-              hotZone === zone.id ? 'hot' : '',
-            ].join(' ')}
-            style={getZoneStyle(zone.angle)}
-          >
-            {zone.label}
-          </div>
-        ))}
+        {/* Edge bands — swipe mode only */}
+        {!detailMode && !detailClosing && zones.map(zone => {
+          const isHot = hotZone === zone.id
+          const bandTier = !dragging ? ''
+            : isHot && tier > 0 ? `tier-${tier}`
+            : 'hint'
+          return (
+            <div
+              key={`band-${zone.id}`}
+              className={`edge-band ${getEdgeBandClass(zone.angle)} ${bandTier}`}
+              style={{ '--zone-rgb': ZONE_COLORS[zone.colorKey] } as React.CSSProperties}
+            />
+          )
+        })}
+
+        {/* Lightning arcs — swipe mode only */}
+        {!detailMode && !detailClosing && (
+          <LightningCanvas
+            active={dragging && tier > 0 && !!hotZoneObj}
+            tier={tier}
+            angle={hotZoneObj?.angle ?? 0}
+            rgb={hotZoneObj ? ZONE_COLORS[hotZoneObj.colorKey] : '0,0,0'}
+          />
+        )}
 
         {/* Card wrapper for glow positioning */}
         <div className={`swipe-card-wrapper ${detailMode ? 'swipe-card-wrapper--detail' : ''}`}>
@@ -464,6 +480,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
               (detailMode || detailClosing) ? '' : phaseClass,
               (detailMode || detailClosing) ? '' : activeClass,
               (detailMode || detailClosing) ? '' : snappingClass,
+              (detailMode || detailClosing) ? '' : tierClass,
             ].filter(Boolean).join(' ')}
             style={{
               transform: cardTransform,
@@ -487,6 +504,16 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
               />
               <div className="swipe-card__shine" />
               <div className="swipe-card__glare" />
+
+              {/* Stamp overlay */}
+              {dragging && hotZoneObj && tier > 0 && (
+                <div
+                  className={`swipe-stamp tier-${tier}`}
+                  style={{ '--zone-rgb': ZONE_COLORS[hotZoneObj.colorKey] } as React.CSSProperties}
+                >
+                  {hotZoneObj.label}
+                </div>
+              )}
             </div>
 
             {!detailMode && !detailClosing && (
