@@ -378,7 +378,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
   const cardTransform = phase === 'exiting'
     ? undefined
-    : detailMode
+    : (detailMode || detailClosing)
     ? undefined
     : `translate(${dragDelta.x}px, ${dragDelta.y}px) rotate(${dragRotation}deg)`
 

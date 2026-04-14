@@ -510,8 +510,10 @@
   }
 }
 
-/* Info panel close — mobile: slide down, desktop: slide left */
+/* Info panel close — taken out of flow so it doesn't push the card */
 .detail-info.detail-closing {
+  position: fixed;
+  pointer-events: none;
   animation: detail-info-disappear 0.4s ease forwards;
 }
 
