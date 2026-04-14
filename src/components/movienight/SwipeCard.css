@@ -336,12 +336,21 @@
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  animation: detail-fade-in 0.3s ease forwards;
+  animation: detail-fade-in 0.4s ease forwards;
 }
 
 @keyframes detail-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+.detail-backdrop--closing {
+  animation: detail-fade-out 0.6s ease forwards;
+}
+
+@keyframes detail-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .swipe-arena--detail {
@@ -368,20 +377,49 @@
   }
 }
 
-/* Card in detail mode */
-@keyframes detail-spin {
-  0% { transform: rotateY(0deg); }
-  100% { transform: rotateY(360deg); }
+/* Card in detail mode — opening */
+@keyframes detail-spin-in {
+  0% {
+    transform: perspective(800px) rotateY(0deg) scale(1);
+  }
+  30% {
+    transform: perspective(800px) rotateY(140deg) scale(0.9);
+  }
+  60% {
+    transform: perspective(800px) rotateY(320deg) scale(0.95);
+  }
+  100% {
+    transform: perspective(800px) rotateY(360deg) scale(1);
+  }
 }
 
 .swipe-card--detail {
   width: 180px;
   cursor: pointer;
-  animation: detail-spin 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: detail-spin-in 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .swipe-card--detail:active {
   cursor: pointer;
+}
+
+/* Card closing — reverse spin back to swipe position */
+@keyframes detail-spin-out {
+  0% {
+    transform: perspective(800px) rotateY(0deg) scale(1);
+  }
+  40% {
+    transform: perspective(800px) rotateY(-180deg) scale(0.9);
+  }
+  100% {
+    transform: perspective(800px) rotateY(-360deg) scale(1);
+  }
+}
+
+.swipe-card--detail-closing {
+  width: 220px;
+  cursor: default;
+  animation: detail-spin-out 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .swipe-card--detail .swipe-card__inner {
@@ -410,17 +448,32 @@
   flex: 1;
   min-width: 0;
   max-width: 320px;
-  animation: detail-info-slide 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.15s both;
+  animation: detail-info-slide-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
 }
 
-@keyframes detail-info-slide {
+@keyframes detail-info-slide-in {
   from {
     opacity: 0;
-    transform: translateX(24px);
+    transform: translateX(30px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+.detail-info--closing {
+  animation: detail-info-slide-out 0.4s ease forwards;
+}
+
+@keyframes detail-info-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(30px);
   }
 }
 
@@ -430,14 +483,25 @@
     text-align: center;
   }
 
-  @keyframes detail-info-slide {
+  @keyframes detail-info-slide-in {
     from {
       opacity: 0;
-      transform: translateY(16px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes detail-info-slide-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(20px);
     }
   }
 }

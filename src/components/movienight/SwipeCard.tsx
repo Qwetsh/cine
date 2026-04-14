@@ -123,6 +123,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
   // Detail mode
   const [detailMode, setDetailMode] = useState(false)
+  const [detailClosing, setDetailClosing] = useState(false)
 
   // Track if this is a tap vs drag
   const maxDragDist = useRef(0)
@@ -137,6 +138,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
       setHotZone(null)
       setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
       setDetailMode(false)
+      setDetailClosing(false)
     }
   }, [movie.id])
 
@@ -263,6 +265,21 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
   }, [])
 
+  /** Close detail with reverse animation */
+  const closeDetail = useCallback(() => {
+    if (detailClosing) return
+    setDetailClosing(true)
+  }, [detailClosing])
+
+  /** When the closing animation finishes, actually exit detail mode */
+  const handleDetailAnimationEnd = useCallback(() => {
+    if (detailClosing) {
+      setDetailClosing(false)
+      setDetailMode(false)
+      setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
+    }
+  }, [detailClosing])
+
   /* ---------- Computed styles ---------- */
 
   // Tilt: drag-based in swipe mode, pointer-based in detail mode
@@ -319,8 +336,8 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
       {/* Detail backdrop — click outside card to close */}
       {detailMode && (
         <div
-          className="detail-backdrop"
-          onClick={() => setDetailMode(false)}
+          className={`detail-backdrop ${detailClosing ? 'detail-backdrop--closing' : ''}`}
+          onClick={closeDetail}
         />
       )}
 
@@ -346,10 +363,11 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
           ref={cardRef}
           className={[
             'swipe-card',
-            detailMode ? 'swipe-card--detail' : '',
-            phaseClass,
-            activeClass,
-            snappingClass,
+            detailMode && !detailClosing ? 'swipe-card--detail' : '',
+            detailClosing ? 'swipe-card--detail-closing' : '',
+            detailMode && !detailClosing ? '' : phaseClass,
+            detailMode ? '' : activeClass,
+            detailMode ? '' : snappingClass,
           ].filter(Boolean).join(' ')}
           style={{
             transform: cardTransform,
@@ -361,8 +379,8 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
           onPointerUp={detailMode ? undefined : handlePointerUp}
           onPointerCancel={detailMode ? undefined : handlePointerUp}
           onPointerLeave={detailMode ? handleDetailPointerLeave : undefined}
-          onClick={detailMode ? () => setDetailMode(false) : undefined}
-          onAnimationEnd={handleAnimationEnd}
+          onClick={detailMode ? closeDetail : undefined}
+          onAnimationEnd={detailClosing ? handleDetailAnimationEnd : handleAnimationEnd}
         >
           <div className="swipe-card__inner" style={innerStyle}>
             <img
@@ -384,7 +402,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
         {/* Info panel — detail mode only */}
         {detailMode && (
-          <div className="detail-info" onClick={e => e.stopPropagation()}>
+          <div className={`detail-info ${detailClosing ? 'detail-info--closing' : ''}`} onClick={e => e.stopPropagation()}>
             <h2 className="font-bold text-xl text-white leading-tight">
               {movie.title}
             </h2>
