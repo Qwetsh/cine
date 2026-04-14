@@ -307,20 +307,63 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
   }, [])
 
-  /* ---------- Detail close (reverse spin) ---------- */
+  /* ---------- Detail close (FLIP + reverse spin) ---------- */
 
   const handleDetailClose = useCallback(() => {
-    if (closingRef.current) return
+    if (closingRef.current || !cardRef.current) return
     closingRef.current = true
-    setDetailClosing(true)
-  }, [])
 
-  const handleCloseAnimEnd = useCallback((e: React.AnimationEvent) => {
-    if (e.animationName === 'detail-spin-reverse') {
-      closingRef.current = false
-      setDetailClosing(false)
-      setDetailMode(false)
-    }
+    // FLIP Step 1: First — capture current position in detail layout
+    const first = cardRef.current.getBoundingClientRect()
+
+    // Switch layout to swipe mode immediately, keep overlays for fade out
+    setDetailMode(false)
+    setDetailClosing(true)
+
+    // FLIP Step 2-4: after layout settles, animate from old → new position
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cardRef.current) {
+          closingRef.current = false
+          setDetailClosing(false)
+          return
+        }
+
+        const last = cardRef.current.getBoundingClientRect()
+        const dx = first.left + first.width / 2 - (last.left + last.width / 2)
+        const dy = first.top + first.height / 2 - (last.top + last.height / 2)
+        const sw = first.width / last.width
+        const sh = first.height / last.height
+
+        const SPRING = 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+
+        // FLIP movement + scale on card container
+        cardRef.current.animate([
+          { transform: `translate(${dx}px, ${dy}px) scale(${sw}, ${sh})` },
+          { transform: 'translate(0, 0) scale(1)' },
+        ], { duration: 900, easing: SPRING, fill: 'backwards' })
+
+        // Reverse spin on inner element
+        const inner = cardRef.current.querySelector('.swipe-card__inner')
+        const spinAnim = inner
+          ? inner.animate([
+              { transform: 'perspective(800px) rotateY(-360deg)' },
+              { transform: 'perspective(800px) rotateY(0deg)' },
+            ], { duration: 900, easing: SPRING })
+          : null
+
+        const cleanup = () => {
+          closingRef.current = false
+          setDetailClosing(false)
+        }
+
+        if (spinAnim) {
+          spinAnim.finished.then(cleanup).catch(cleanup)
+        } else {
+          setTimeout(cleanup, 900)
+        }
+      })
+    })
   }, [])
 
   /* ---------- Computed styles ---------- */
@@ -381,7 +424,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
   return (
     <>
       {/* Backdrop */}
-      {detailMode && (
+      {(detailMode || detailClosing) && (
         <div
           className={`detail-backdrop ${detailClosing ? 'detail-closing' : ''}`}
           onClick={detailClosing ? undefined : handleDetailClose}
@@ -390,7 +433,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
       <div className={`swipe-arena ${detailMode ? 'swipe-arena--detail' : ''}`}>
         {/* Zones — swipe mode only */}
-        {!detailMode && zones.map(zone => (
+        {!detailMode && !detailClosing && zones.map(zone => (
           <div
             key={zone.id}
             className={[
@@ -407,8 +450,8 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
         {/* Card wrapper for glow positioning */}
         <div className={`swipe-card-wrapper ${detailMode ? 'swipe-card-wrapper--detail' : ''}`}>
-          {/* Ambient glow behind card — detail mode only */}
-          {detailMode && posterColors.length >= 3 && (
+          {/* Ambient glow behind card */}
+          {(detailMode || detailClosing) && posterColors.length >= 3 && (
             <div className={`detail-glow ${detailClosing ? 'detail-closing' : ''}`} style={glowStyle} />
           )}
 
@@ -418,14 +461,13 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
             className={[
               'swipe-card',
               detailMode ? 'swipe-card--detail' : '',
-              detailClosing ? 'detail-closing' : '',
-              detailMode ? '' : phaseClass,
-              detailMode ? '' : activeClass,
-              detailMode ? '' : snappingClass,
+              (detailMode || detailClosing) ? '' : phaseClass,
+              (detailMode || detailClosing) ? '' : activeClass,
+              (detailMode || detailClosing) ? '' : snappingClass,
             ].filter(Boolean).join(' ')}
             style={{
               transform: cardTransform,
-              ...(detailMode ? {} : exitStyle),
+              ...(!detailMode && !detailClosing ? exitStyle : {}),
               ...(haloRgb ? { '--halo-rgb': haloRgb } as React.CSSProperties : {}),
             }}
             onPointerDown={detailMode ? undefined : handlePointerDown}
@@ -434,7 +476,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
             onPointerCancel={detailMode ? undefined : handlePointerUp}
             onPointerLeave={detailMode ? handleDetailPointerLeave : undefined}
             onClick={detailMode && !detailClosing ? handleDetailClose : undefined}
-            onAnimationEnd={detailMode ? handleCloseAnimEnd : handleAnimationEnd}
+            onAnimationEnd={(detailMode || detailClosing) ? undefined : handleAnimationEnd}
           >
             <div className="swipe-card__inner" style={innerStyle}>
               <img
@@ -447,7 +489,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
               <div className="swipe-card__glare" />
             </div>
 
-            {!detailMode && (
+            {!detailMode && !detailClosing && (
               <div className="swipe-card__tap-hint">
                 Appuyer pour les détails
               </div>
@@ -456,7 +498,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
         </div>
 
         {/* Info panel */}
-        {detailMode && (
+        {(detailMode || detailClosing) && (
           <div className={`detail-info ${detailClosing ? 'detail-closing' : ''}`} onClick={e => e.stopPropagation()}>
             <h2 className="font-bold text-xl text-white leading-tight">
               {movie.title}
