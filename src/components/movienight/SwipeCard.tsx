@@ -3,6 +3,7 @@ import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../../lib/tmdb'
 import type { FeedbackType } from '../../hooks/useSmartSuggestion'
 import { TrailerButton } from '../movie/TrailerButton'
+import { WatchProviders } from '../movie/WatchProviders'
 import { LightningCanvas } from './LightningCanvas'
 import './SwipeCard.css'
 
@@ -601,6 +602,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
                 </span>
               )}
               <TrailerButton tmdbId={movie.id} mediaType="movie" />
+              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
             </div>
 
             {movieGenres.length > 0 && (
