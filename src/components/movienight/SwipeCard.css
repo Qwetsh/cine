@@ -14,11 +14,22 @@
   touch-action: none;
   position: relative;
   flex-shrink: 0;
-  transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* Smooth transition for detail mode (width change + scale) */
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .swipe-card:active {
   cursor: grabbing;
+}
+
+/* Override transition during drag interactions */
+.swipe-card.dragging {
+  transition: none;
+}
+
+.swipe-card.snapping {
+  transition: transform 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* --- Card inner (3D rotator) --- */
@@ -33,7 +44,7 @@
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.5),
     0 12px 40px rgba(0, 0, 0, 0.3);
-  transition: box-shadow 0.3s ease, transform 0.15s ease-out;
+  transition: box-shadow 0.4s ease, transform 0.15s ease-out;
   will-change: transform;
 }
 
@@ -62,7 +73,7 @@
   transform: translateZ(1px);
   mix-blend-mode: color-dodge;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.5s ease;
   pointer-events: none;
 
   background-image:
@@ -117,7 +128,7 @@
   transform: translateZ(1.4px);
   mix-blend-mode: overlay;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.5s ease;
   pointer-events: none;
 
   background: radial-gradient(
@@ -147,10 +158,9 @@
 }
 
 /* ============================================
-   Animations
+   Swipe animations (entering/exiting)
    ============================================ */
 
-/* --- Entry: card dealt from deck --- */
 @keyframes card-deal {
   0% {
     opacity: 0;
@@ -170,14 +180,9 @@
   animation: card-deal 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-/* --- Exit: fly out in drag direction --- */
 @keyframes card-exit {
-  0% {
-    opacity: 1;
-  }
-  60% {
-    opacity: 0.6;
-  }
+  0% { opacity: 1; }
+  60% { opacity: 0.6; }
   100% {
     opacity: 0;
     transform: translate(var(--exit-x, 0px), var(--exit-y, 0px)) rotate(var(--exit-rot, 0deg)) scale(0.7);
@@ -187,11 +192,6 @@
 .swipe-card.exiting {
   animation: card-exit 0.4s cubic-bezier(0.4, 0, 0.7, 0.2) forwards;
   pointer-events: none;
-}
-
-/* --- Snap back (magnetic spring) --- */
-.swipe-card.snapping {
-  transition: transform 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* ============================================
@@ -301,7 +301,6 @@
   width: 100%;
   height: min(380px, 55vh);
   overflow: visible;
-  transition: height 0.4s ease, padding 0.4s ease;
 }
 
 /* Tap hint */
@@ -326,17 +325,18 @@
 }
 
 /* ============================================
-   Detail mode — card stays, info appears
+   Detail mode — transition-based, no keyframes
+   Like pokemon-cards-css activate/retreat
    ============================================ */
 
 .detail-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  animation: detail-fade-in 0.4s ease forwards;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: detail-fade-in 0.5s ease forwards;
 }
 
 @keyframes detail-fade-in {
@@ -344,15 +344,7 @@
   to { opacity: 1; }
 }
 
-.detail-backdrop--closing {
-  animation: detail-fade-out 0.6s ease forwards;
-}
-
-@keyframes detail-fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
+/* Arena becomes a fixed overlay in detail mode */
 .swipe-arena--detail {
   position: fixed;
   inset: 0;
@@ -362,70 +354,40 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 24px;
+  gap: 32px;
+  padding: 32px;
   overflow-y: auto;
 }
 
 @media (max-width: 640px) {
   .swipe-arena--detail {
     flex-direction: column;
-    gap: 20px;
-    padding: 40px 20px 24px;
+    gap: 24px;
+    padding: 48px 20px 32px;
     align-items: center;
     justify-content: flex-start;
   }
 }
 
-/* Card in detail mode — opening */
-@keyframes detail-spin-in {
-  0% {
-    transform: perspective(800px) rotateY(0deg) scale(1);
-  }
-  30% {
-    transform: perspective(800px) rotateY(140deg) scale(0.9);
-  }
-  60% {
-    transform: perspective(800px) rotateY(320deg) scale(0.95);
-  }
-  100% {
-    transform: perspective(800px) rotateY(360deg) scale(1);
-  }
-}
-
+/* Card in detail mode — uses CSS transition (defined on .swipe-card) */
 .swipe-card--detail {
-  width: 180px;
+  width: 200px;
   cursor: pointer;
-  animation: detail-spin-in 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform: scale(1.08);
 }
 
 .swipe-card--detail:active {
   cursor: pointer;
 }
 
-/* Card closing — reverse spin back to swipe position */
-@keyframes detail-spin-out {
-  0% {
-    transform: perspective(800px) rotateY(0deg) scale(1);
-  }
-  40% {
-    transform: perspective(800px) rotateY(-180deg) scale(0.9);
-  }
-  100% {
-    transform: perspective(800px) rotateY(-360deg) scale(1);
-  }
-}
-
-.swipe-card--detail-closing {
-  width: 220px;
-  cursor: default;
-  animation: detail-spin-out 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
+/* Elevated shadow in detail mode */
 .swipe-card--detail .swipe-card__inner {
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.6),
-    0 20px 60px rgba(0, 0, 0, 0.35);
+    0 0 10px 0px rgba(105, 209, 233, 0.3),
+    0 0 20px 0px rgba(105, 209, 233, 0.15),
+    0 0 50px 0px rgba(105, 209, 233, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.7s ease, transform 0.15s ease-out;
 }
 
 /* Always show holo in detail mode */
@@ -434,24 +396,25 @@
 }
 
 .swipe-card--detail .swipe-card__glare {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 @media (max-width: 640px) {
   .swipe-card--detail {
-    width: 160px;
+    width: 170px;
+    transform: scale(1.05);
   }
 }
 
-/* Info panel */
+/* Info panel — slides in */
 .detail-info {
   flex: 1;
   min-width: 0;
-  max-width: 320px;
-  animation: detail-info-slide-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+  max-width: 340px;
+  animation: detail-info-appear 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
 }
 
-@keyframes detail-info-slide-in {
+@keyframes detail-info-appear {
   from {
     opacity: 0;
     transform: translateX(30px);
@@ -459,21 +422,6 @@
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-.detail-info--closing {
-  animation: detail-info-slide-out 0.4s ease forwards;
-}
-
-@keyframes detail-info-slide-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(30px);
   }
 }
 
@@ -483,7 +431,7 @@
     text-align: center;
   }
 
-  @keyframes detail-info-slide-in {
+  @keyframes detail-info-appear {
     from {
       opacity: 0;
       transform: translateY(20px);
@@ -491,17 +439,6 @@
     to {
       opacity: 1;
       transform: translateY(0);
-    }
-  }
-
-  @keyframes detail-info-slide-out {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(20px);
     }
   }
 }
