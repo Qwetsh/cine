@@ -277,7 +277,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
     if (maxDragDist.current < TAP_THRESHOLD) {
       setDragDelta({ x: 0, y: 0 })
       setHotZone(null)
-      if (!closingRef.current) setDetailMode(true)
+      if (!closingRef.current) handleDetailOpen()
       return
     }
 
@@ -303,7 +303,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
     setDragDelta({ x: 0, y: 0 })
     setHotZone(null)
-  }, [dragging, dragDelta, hotZone, zones, movie, onFeedback, onAccept])
+  }, [dragging, dragDelta, hotZone, zones, movie, onFeedback, onAccept, handleDetailOpen])
 
   /* ---------- Detail pointer handlers (holo tracking) ---------- */
 
@@ -323,6 +323,51 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
 
   const handleDetailPointerLeave = useCallback(() => {
     setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
+  }, [])
+
+  /* ---------- Detail open (FLIP + spin) ---------- */
+
+  const handleDetailOpen = useCallback(() => {
+    if (closingRef.current || !cardRef.current) {
+      setDetailMode(true)
+      return
+    }
+
+    // FLIP Step 1: First — capture current position in swipe layout
+    const first = cardRef.current.getBoundingClientRect()
+
+    // Switch to detail layout
+    setDetailMode(true)
+
+    // FLIP Step 2-4: after layout settles, animate from old → new position
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cardRef.current) return
+
+        const last = cardRef.current.getBoundingClientRect()
+        const dx = first.left + first.width / 2 - (last.left + last.width / 2)
+        const dy = first.top + first.height / 2 - (last.top + last.height / 2)
+        const sw = first.width / last.width
+        const sh = first.height / last.height
+
+        const SPRING = 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+
+        // FLIP movement + scale on card container
+        cardRef.current.animate([
+          { transform: `translate(${dx}px, ${dy}px) scale(${sw}, ${sh})` },
+          { transform: 'translate(0, 0) scale(1)' },
+        ], { duration: 900, easing: SPRING, fill: 'backwards' })
+
+        // Spin on inner element (same as CSS detail-spin but via WAAPI for sync)
+        const inner = cardRef.current.querySelector('.swipe-card__inner')
+        if (inner) {
+          inner.animate([
+            { transform: 'perspective(800px) rotateY(0deg)' },
+            { transform: 'perspective(800px) rotateY(360deg)' },
+          ], { duration: 900, easing: SPRING })
+        }
+      })
+    })
   }, [])
 
   /* ---------- Detail close (FLIP + reverse spin) ---------- */

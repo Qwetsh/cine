@@ -522,7 +522,6 @@
 .swipe-card--detail {
   width: 150px;
   cursor: pointer;
-  animation: detail-spin 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .swipe-card--detail:active {
