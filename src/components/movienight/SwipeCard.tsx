@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie, TmdbGenre } from '../../lib/tmdb'
 import type { FeedbackType } from '../../hooks/useSmartSuggestion'
+import { TrailerButton } from '../movie/TrailerButton'
 import './SwipeCard.css'
 
 /* ============================================
@@ -11,7 +12,7 @@ import './SwipeCard.css'
 interface SwipeZone {
   id: string
   label: string
-  angle: number            // center angle in degrees (0=right, 90=down, etc.)
+  angle: number
   feedbackType: FeedbackType
   genreId?: number
   cssClass: string
@@ -22,7 +23,6 @@ interface Props {
   genres: TmdbGenre[]
   onFeedback: (type: FeedbackType, movie: TmdbMovie, genreId?: number) => void
   onAccept: (movie: TmdbMovie) => void
-  onTap: (movie: TmdbMovie) => void
   loading?: boolean
 }
 
@@ -30,17 +30,26 @@ interface Props {
    Constants
    ============================================ */
 
-const ZONE_THRESHOLD = 90        // px from center to activate a zone
-const ZONE_ANGLE_TOLERANCE = 30  // degrees of angular tolerance per zone
-const EXIT_DISTANCE = 500        // px for exit animation translation
-const TAP_THRESHOLD = 8          // max px movement to count as tap
-const TILT_FACTOR = 12           // max degrees of 3D tilt
+const ZONE_THRESHOLD = 90
+const ZONE_ANGLE_TOLERANCE = 30
+const EXIT_DISTANCE = 500
+const TAP_THRESHOLD = 8
+const TILT_FACTOR = 12
+const DETAIL_TILT = 20
+
+/** Halo glow colors per zone type */
+const HALO_COLORS: Record<string, string> = {
+  'swipe-zone--accept': '16, 185, 129',
+  'swipe-zone--skip': '6, 182, 212',
+  'swipe-zone--too-recent': '245, 158, 11',
+  'swipe-zone--too-old': '139, 92, 246',
+  'swipe-zone--genre': '244, 63, 94',
+}
 
 /* ============================================
    Helpers
    ============================================ */
 
-/** Angle from center in degrees: 0=right, 90=down, 180=left, 270=up */
 function getAngle(dx: number, dy: number): number {
   const rad = Math.atan2(dy, dx)
   return ((rad * 180) / Math.PI + 360) % 360
@@ -50,14 +59,12 @@ function getDistance(dx: number, dy: number): number {
   return Math.sqrt(dx * dx + dy * dy)
 }
 
-/** Shortest angular distance (0-180) */
 function angleDiff(a: number, b: number): number {
   let d = Math.abs(a - b) % 360
   if (d > 180) d = 360 - d
   return d
 }
 
-/** Build zones based on movie genres */
 function buildZones(movieGenres: TmdbGenre[]): SwipeZone[] {
   const fixed: SwipeZone[] = [
     { id: 'accept', label: 'On regarde !', angle: 0, feedbackType: 'accept', cssClass: 'swipe-zone--accept' },
@@ -66,7 +73,6 @@ function buildZones(movieGenres: TmdbGenre[]): SwipeZone[] {
     { id: 'old', label: 'Trop vieux', angle: 90, feedbackType: 'too_old', cssClass: 'swipe-zone--too-old' },
   ]
 
-  // Place genres in diagonal slots: 315 (up-right), 225 (up-left), 45 (down-right), 135 (down-left)
   const diagonalAngles = [315, 225, 45, 135]
   const genreZones: SwipeZone[] = movieGenres.slice(0, 4).map((g, i) => ({
     id: `genre-${g.id}`,
@@ -80,12 +86,10 @@ function buildZones(movieGenres: TmdbGenre[]): SwipeZone[] {
   return [...fixed, ...genreZones]
 }
 
-/** Position a zone label around the arena */
 function getZoneStyle(angle: number): React.CSSProperties {
   const rad = (angle * Math.PI) / 180
-  // Elliptical placement
-  const rx = 155  // horizontal radius from center
-  const ry = 175  // vertical radius from center
+  const rx = 130
+  const ry = 145
   const x = Math.cos(rad) * rx
   const y = Math.sin(rad) * ry
   return {
@@ -99,7 +103,7 @@ function getZoneStyle(angle: number): React.CSSProperties {
    Component
    ============================================ */
 
-export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading }: Props) {
+export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Props) {
   const movieGenres = genres.filter(g => movie.genre_ids?.includes(g.id))
   const zones = buildZones(movieGenres)
 
@@ -114,16 +118,17 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
   const [phase, setPhase] = useState<'entering' | 'idle' | 'exiting'>('entering')
   const [exitVec, setExitVec] = useState({ x: 0, y: 0, rot: 0 })
 
-  // Holo effect state (mouse/touch position on card)
+  // Holo effect state
   const [cardPointer, setCardPointer] = useState({ mx: 50, my: 50, posx: 50, posy: 50 })
+
+  // Detail mode
+  const [detailMode, setDetailMode] = useState(false)
 
   // Track if this is a tap vs drag
   const maxDragDist = useRef(0)
-
-  // Unique key to re-trigger entering animation
   const movieKeyRef = useRef(movie.id)
 
-  // Reset to entering when movie changes
+  // Reset when movie changes
   useEffect(() => {
     if (movie.id !== movieKeyRef.current) {
       movieKeyRef.current = movie.id
@@ -131,29 +136,32 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
       setDragDelta({ x: 0, y: 0 })
       setHotZone(null)
       setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
+      setDetailMode(false)
     }
   }, [movie.id])
 
-  // After entering animation completes
+  // Lock body scroll in detail mode
+  useEffect(() => {
+    if (detailMode) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
+  }, [detailMode])
+
   const handleAnimationEnd = useCallback(() => {
-    if (phase === 'entering') {
-      setPhase('idle')
-    }
-    if (phase === 'exiting') {
-      // Trigger feedback — handled in handlePointerUp
-    }
+    if (phase === 'entering') setPhase('idle')
   }, [phase])
 
-  /* ---------- Pointer handlers ---------- */
+  /* ---------- Swipe pointer handlers ---------- */
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (phase !== 'idle') return
+    if (phase !== 'idle' || detailMode) return
     e.preventDefault()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     startPos.current = { x: e.clientX, y: e.clientY }
     maxDragDist.current = 0
     setDragging(true)
-  }, [phase])
+  }, [phase, detailMode])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging) return
@@ -164,7 +172,6 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
     const dist = getDistance(dx, dy)
     if (dist > maxDragDist.current) maxDragDist.current = dist
 
-    // Update holo effect based on drag position on card
     if (cardRef.current) {
       const rect = cardRef.current.getBoundingClientRect()
       const cx = e.clientX - rect.left
@@ -178,7 +185,6 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
       })
     }
 
-    // Check hot zone
     if (dist > ZONE_THRESHOLD * 0.6) {
       const angle = getAngle(dx, dy)
       let closest: SwipeZone | null = null
@@ -204,27 +210,25 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
     const dy = dragDelta.y
     const dist = getDistance(dx, dy)
 
-    // Tap detection
+    // Tap → open detail
     if (maxDragDist.current < TAP_THRESHOLD) {
       setDragDelta({ x: 0, y: 0 })
       setHotZone(null)
-      onTap(movie)
+      setDetailMode(true)
       return
     }
 
-    // Check if we're in a zone
+    // Check zone
     if (dist > ZONE_THRESHOLD && hotZone) {
       const zone = zones.find(z => z.id === hotZone)
       if (zone) {
-        // Calculate exit direction
         const angle = (zone.angle * Math.PI) / 180
         const ex = Math.cos(angle) * EXIT_DISTANCE
         const ey = Math.sin(angle) * EXIT_DISTANCE
-        const rot = (dx / 10) // slight rotation based on horizontal drag
+        const rot = dx / 10
         setExitVec({ x: ex, y: ey, rot })
         setPhase('exiting')
 
-        // Fire feedback after exit animation
         setTimeout(() => {
           if (zone.feedbackType === 'accept') {
             onAccept(movie)
@@ -235,20 +239,45 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
       }
     }
 
-    // Snap back
     setDragDelta({ x: 0, y: 0 })
     setHotZone(null)
-  }, [dragging, dragDelta, hotZone, zones, movie, onFeedback, onAccept, onTap])
+  }, [dragging, dragDelta, hotZone, zones, movie, onFeedback, onAccept])
+
+  /* ---------- Detail pointer handlers ---------- */
+
+  const handleDetailPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const cx = e.clientX - rect.left
+    const cy = e.clientY - rect.top
+    const mx = Math.max(0, Math.min(100, (cx / rect.width) * 100))
+    const my = Math.max(0, Math.min(100, (cy / rect.height) * 100))
+    setCardPointer({
+      mx, my,
+      posx: 50 + (mx - 50) / 4,
+      posy: 50 + (my - 50) / 4,
+    })
+  }, [])
+
+  const handleDetailPointerLeave = useCallback(() => {
+    setCardPointer({ mx: 50, my: 50, posx: 50, posy: 50 })
+  }, [])
 
   /* ---------- Computed styles ---------- */
 
-  // Card transform (drag + 3D tilt)
-  const tiltX = dragging ? Math.max(-TILT_FACTOR, Math.min(TILT_FACTOR, -dragDelta.y / 15)) : 0
-  const tiltY = dragging ? Math.max(-TILT_FACTOR, Math.min(TILT_FACTOR, dragDelta.x / 15)) : 0
+  // Tilt: drag-based in swipe mode, pointer-based in detail mode
+  const tiltX = detailMode
+    ? -((cardPointer.my - 50) / 50) * DETAIL_TILT
+    : dragging ? Math.max(-TILT_FACTOR, Math.min(TILT_FACTOR, -dragDelta.y / 15)) : 0
+  const tiltY = detailMode
+    ? ((cardPointer.mx - 50) / 50) * DETAIL_TILT
+    : dragging ? Math.max(-TILT_FACTOR, Math.min(TILT_FACTOR, dragDelta.x / 15)) : 0
   const dragRotation = dragging ? dragDelta.x / 25 : 0
 
   const cardTransform = phase === 'exiting'
-    ? undefined  // handled by animation
+    ? undefined
+    : detailMode
+    ? undefined
     : `translate(${dragDelta.x}px, ${dragDelta.y}px) rotate(${dragRotation}deg)`
 
   const innerStyle: React.CSSProperties = {
@@ -266,12 +295,16 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
     '--exit-rot': `${exitVec.rot}deg`,
   } as React.CSSProperties : {}
 
-  // Phase classes
-  const phaseClass = phase === 'entering' ? 'entering'
-    : phase === 'exiting' ? 'exiting'
-    : ''
+  // Halo glow color from hot zone
+  const haloZone = hotZone ? zones.find(z => z.id === hotZone) : null
+  const haloRgb = haloZone ? HALO_COLORS[haloZone.cssClass] ?? null : null
+
+  const phaseClass = phase === 'entering' ? 'entering' : phase === 'exiting' ? 'exiting' : ''
   const activeClass = dragging ? 'dragging active' : ''
   const snappingClass = !dragging && phase === 'idle' && (dragDelta.x !== 0 || dragDelta.y !== 0) ? 'snapping' : ''
+
+  // Movie info for detail
+  const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
 
   if (loading) {
     return (
@@ -282,52 +315,111 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading 
   }
 
   return (
-    <div className="swipe-arena">
-      {/* Zone labels */}
-      {zones.map(zone => (
+    <>
+      {/* Detail backdrop — click outside card to close */}
+      {detailMode && (
         <div
-          key={zone.id}
+          className="detail-backdrop"
+          onClick={() => setDetailMode(false)}
+        />
+      )}
+
+      <div className={`swipe-arena ${detailMode ? 'swipe-arena--detail' : ''}`}>
+        {/* Zone labels — swipe mode only */}
+        {!detailMode && zones.map(zone => (
+          <div
+            key={zone.id}
+            className={[
+              'swipe-zone',
+              zone.cssClass,
+              dragging ? 'visible' : '',
+              hotZone === zone.id ? 'hot' : '',
+            ].join(' ')}
+            style={getZoneStyle(zone.angle)}
+          >
+            {zone.label}
+          </div>
+        ))}
+
+        {/* The card — same DOM element in both modes */}
+        <div
+          ref={cardRef}
           className={[
-            'swipe-zone',
-            zone.cssClass,
-            dragging ? 'visible' : '',
-            hotZone === zone.id ? 'hot' : '',
-          ].join(' ')}
-          style={getZoneStyle(zone.angle)}
+            'swipe-card',
+            detailMode ? 'swipe-card--detail' : '',
+            phaseClass,
+            activeClass,
+            snappingClass,
+          ].filter(Boolean).join(' ')}
+          style={{
+            transform: cardTransform,
+            ...(detailMode ? {} : exitStyle),
+            ...(haloRgb ? { '--halo-rgb': haloRgb } as React.CSSProperties : {}),
+          }}
+          onPointerDown={detailMode ? undefined : handlePointerDown}
+          onPointerMove={detailMode ? handleDetailPointerMove : handlePointerMove}
+          onPointerUp={detailMode ? undefined : handlePointerUp}
+          onPointerCancel={detailMode ? undefined : handlePointerUp}
+          onPointerLeave={detailMode ? handleDetailPointerLeave : undefined}
+          onClick={detailMode ? () => setDetailMode(false) : undefined}
+          onAnimationEnd={handleAnimationEnd}
         >
-          {zone.label}
-        </div>
-      ))}
+          <div className="swipe-card__inner" style={innerStyle}>
+            <img
+              src={getPosterUrl(movie.poster_path, 'large')}
+              alt={movie.title}
+              className="swipe-card__poster"
+              draggable={false}
+            />
+            <div className="swipe-card__shine" />
+            <div className="swipe-card__glare" />
+          </div>
 
-      {/* The card */}
-      <div
-        ref={cardRef}
-        className={['swipe-card', phaseClass, activeClass, snappingClass].filter(Boolean).join(' ')}
-        style={{
-          transform: cardTransform,
-          ...exitStyle,
-        }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onAnimationEnd={handleAnimationEnd}
-      >
-        <div className="swipe-card__inner" style={innerStyle}>
-          <img
-            src={getPosterUrl(movie.poster_path, 'large')}
-            alt={movie.title}
-            className="swipe-card__poster"
-            draggable={false}
-          />
-          <div className="swipe-card__shine" />
-          <div className="swipe-card__glare" />
+          {!detailMode && (
+            <div className="swipe-card__tap-hint">
+              Appuyer pour les détails
+            </div>
+          )}
         </div>
 
-        <div className="swipe-card__tap-hint">
-          Appuyer pour les détails
-        </div>
+        {/* Info panel — detail mode only */}
+        {detailMode && (
+          <div className="detail-info" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-xl text-white leading-tight">
+              {movie.title}
+            </h2>
+
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-300">
+              {year && <span>{year}</span>}
+              {movie.vote_average > 0 && (
+                <span className="text-[var(--color-gold)]">
+                  ★ {movie.vote_average.toFixed(1)}
+                </span>
+              )}
+              <TrailerButton tmdbId={movie.id} mediaType="movie" />
+            </div>
+
+            {movieGenres.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {movieGenres.map(g => (
+                  <span
+                    key={g.id}
+                    className="text-[11px] px-2.5 py-1 rounded-full bg-white/10 text-gray-300 border border-white/10"
+                  >
+                    {g.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {movie.overview && (
+              <p className="text-gray-400 text-sm leading-relaxed mt-4">
+                {movie.overview}
+              </p>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   )
 }

@@ -10,7 +10,6 @@ import { useGenres } from '../hooks/useGenres'
 import { usePreferences } from '../hooks/usePreferences'
 import { useSmartSuggestion } from '../hooks/useSmartSuggestion'
 import { SwipeCard } from '../components/movienight/SwipeCard'
-import { MovieDetailSheet } from '../components/movienight/MovieDetailSheet'
 import { WatchlistPicker } from '../components/movienight/WatchlistPicker'
 import { DuelMode } from '../components/movienight/DuelMode'
 import { QuizMode } from '../components/movienight/QuizMode'
@@ -36,7 +35,6 @@ export function MovieNightPage() {
   const [tab, setTab] = useState<Tab>('suggest')
   const [showQuiz, setShowQuiz] = useState(false)
   const [showTournament, setShowTournament] = useState(false)
-  const [detailMovie, setDetailMovie] = useState<TmdbMovie | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   function showToast(msg: string) {
@@ -198,7 +196,6 @@ export function MovieNightPage() {
               genres={genres}
               onFeedback={smartSuggestion.giveFeedback}
               onAccept={handleAcceptSuggestion}
-              onTap={(movie) => setDetailMovie(movie)}
               loading={smartSuggestion.loading}
             />
           )}
@@ -218,12 +215,6 @@ export function MovieNightPage() {
             </div>
           )}
 
-          <MovieDetailSheet
-            movie={detailMovie ?? ({} as TmdbMovie)}
-            genres={genres}
-            open={detailMovie !== null}
-            onClose={() => setDetailMovie(null)}
-          />
         </div>
       ) : tab === 'pick' ? (
         <WatchlistPicker

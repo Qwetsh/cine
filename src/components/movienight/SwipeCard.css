@@ -13,6 +13,8 @@
   -webkit-user-select: none;
   touch-action: none;
   position: relative;
+  flex-shrink: 0;
+  transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .swipe-card:active {
@@ -31,14 +33,16 @@
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.5),
     0 12px 40px rgba(0, 0, 0, 0.3);
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.15s ease-out;
   will-change: transform;
 }
 
 .swipe-card.dragging .swipe-card__inner {
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.6),
-    0 20px 60px rgba(0, 0, 0, 0.35);
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    0 0 50px rgba(var(--halo-rgb, 0,0,0), 0.5),
+    0 0 100px rgba(var(--halo-rgb, 0,0,0), 0.25);
 }
 
 /* --- Poster image --- */
@@ -200,8 +204,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 6px 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -212,7 +216,7 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1.5px solid transparent;
   z-index: 5;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .swipe-zone.visible {
@@ -224,69 +228,69 @@
   transform: translate(-50%, -50%) scale(1.15);
 }
 
-/* Zone colors */
+/* Zone colors — maximally distinct */
 .swipe-zone--accept {
-  color: #4ade80;
-  background: rgba(34, 197, 94, 0.25);
-  border-color: rgba(34, 197, 94, 0.5);
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.15);
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
 }
 .swipe-zone--accept.hot {
-  background: rgba(34, 197, 94, 0.45);
-  border-color: rgba(34, 197, 94, 0.8);
-  box-shadow: 0 0 28px rgba(34, 197, 94, 0.5), inset 0 0 12px rgba(34, 197, 94, 0.15);
+  background: rgba(16, 185, 129, 0.5);
+  border-color: rgba(16, 185, 129, 0.9);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 12px rgba(16, 185, 129, 0.2);
 }
 
 .swipe-zone--skip {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.25);
-  border-color: rgba(96, 165, 250, 0.5);
-  box-shadow: 0 0 12px rgba(96, 165, 250, 0.15);
+  color: #22d3ee;
+  background: rgba(6, 182, 212, 0.25);
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
 }
 .swipe-zone--skip.hot {
-  background: rgba(96, 165, 250, 0.45);
-  border-color: rgba(96, 165, 250, 0.8);
-  box-shadow: 0 0 28px rgba(96, 165, 250, 0.5), inset 0 0 12px rgba(96, 165, 250, 0.15);
+  background: rgba(6, 182, 212, 0.5);
+  border-color: rgba(6, 182, 212, 0.9);
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.6), inset 0 0 12px rgba(6, 182, 212, 0.2);
 }
 
 .swipe-zone--too-recent {
-  color: #fb923c;
-  background: rgba(251, 146, 60, 0.25);
-  border-color: rgba(251, 146, 60, 0.5);
-  box-shadow: 0 0 12px rgba(251, 146, 60, 0.15);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
 }
 .swipe-zone--too-recent.hot {
-  background: rgba(251, 146, 60, 0.45);
-  border-color: rgba(251, 146, 60, 0.8);
-  box-shadow: 0 0 28px rgba(251, 146, 60, 0.5), inset 0 0 12px rgba(251, 146, 60, 0.15);
+  background: rgba(245, 158, 11, 0.5);
+  border-color: rgba(245, 158, 11, 0.9);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.6), inset 0 0 12px rgba(245, 158, 11, 0.2);
 }
 
 .swipe-zone--too-old {
-  color: #c084fc;
-  background: rgba(192, 132, 252, 0.25);
-  border-color: rgba(192, 132, 252, 0.5);
-  box-shadow: 0 0 12px rgba(192, 132, 252, 0.15);
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
 }
 .swipe-zone--too-old.hot {
-  background: rgba(192, 132, 252, 0.45);
-  border-color: rgba(192, 132, 252, 0.8);
-  box-shadow: 0 0 28px rgba(192, 132, 252, 0.5), inset 0 0 12px rgba(192, 132, 252, 0.15);
+  background: rgba(139, 92, 246, 0.5);
+  border-color: rgba(139, 92, 246, 0.9);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), inset 0 0 12px rgba(139, 92, 246, 0.2);
 }
 
 .swipe-zone--genre {
-  color: #f472b6;
-  background: rgba(244, 114, 182, 0.25);
-  border-color: rgba(244, 114, 182, 0.5);
-  box-shadow: 0 0 12px rgba(244, 114, 182, 0.15);
+  color: #fb7185;
+  background: rgba(244, 63, 94, 0.25);
+  border-color: rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.2);
 }
 .swipe-zone--genre.hot {
-  background: rgba(244, 114, 182, 0.45);
-  border-color: rgba(244, 114, 182, 0.8);
-  box-shadow: 0 0 28px rgba(244, 114, 182, 0.5), inset 0 0 12px rgba(244, 114, 182, 0.15);
+  background: rgba(244, 63, 94, 0.5);
+  border-color: rgba(244, 63, 94, 0.9);
+  box-shadow: 0 0 30px rgba(244, 63, 94, 0.6), inset 0 0 12px rgba(244, 63, 94, 0.2);
 }
 
 /* ============================================
-   Swipe arena (full container for zones)
+   Swipe arena
    ============================================ */
 
 .swipe-arena {
@@ -295,8 +299,9 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 420px;
+  height: min(380px, 55vh);
   overflow: visible;
+  transition: height 0.4s ease, padding 0.4s ease;
 }
 
 /* Tap hint */
@@ -321,24 +326,16 @@
 }
 
 /* ============================================
-   Detail overlay (card flip + info panel)
+   Detail mode — card stays, info appears
    ============================================ */
 
-.detail-overlay {
+.detail-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.detail-overlay__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   animation: detail-fade-in 0.3s ease forwards;
 }
 
@@ -347,115 +344,79 @@
   to { opacity: 1; }
 }
 
-.detail-overlay__content {
-  position: relative;
+.swipe-arena--detail {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  height: 100%;
   display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  max-width: 700px;
-  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
   padding: 24px;
-  max-height: 90vh;
   overflow-y: auto;
 }
 
-/* Mobile: stack vertically */
 @media (max-width: 640px) {
-  .detail-overlay__content {
+  .swipe-arena--detail {
     flex-direction: column;
-    align-items: center;
     gap: 20px;
-    padding: 20px 16px;
+    padding: 40px 20px 24px;
+    align-items: center;
+    justify-content: flex-start;
   }
 }
 
-/* --- Detail card (interactive holo) --- */
-.detail-card {
-  perspective: 800px;
-  width: 200px;
-  flex-shrink: 0;
-  aspect-ratio: 2/3;
+/* Card in detail mode */
+@keyframes detail-spin {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
+.swipe-card--detail {
+  width: 180px;
   cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-  animation: detail-card-spin 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: detail-spin 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes detail-card-spin {
-  0% {
-    opacity: 0;
-    transform: scale(0.7) rotateY(-180deg);
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) rotateY(0deg);
-  }
+.swipe-card--detail:active {
+  cursor: pointer;
 }
 
-.detail-card__inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
-  transform-style: preserve-3d;
-  transform: rotateY(var(--rx, 0deg)) rotateX(var(--ry, 0deg));
+.swipe-card--detail .swipe-card__inner {
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.6),
     0 20px 60px rgba(0, 0, 0, 0.35);
-  will-change: transform;
-  transition: transform 0.15s ease-out;
 }
 
-.detail-card__inner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  pointer-events: none;
-}
-
-.detail-card__poster {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
-/* Shine & glare reuse same styles as swipe card */
-.detail-card .swipe-card__shine {
-  opacity: 0.6;
-}
-
-.detail-card .swipe-card__glare {
-  opacity: 0.5;
-}
-
-.detail-card.interacting .swipe-card__shine {
-  opacity: 0.8;
-}
-
-.detail-card.interacting .swipe-card__glare {
+/* Always show holo in detail mode */
+.swipe-card--detail .swipe-card__shine {
   opacity: 0.7;
 }
 
-/* --- Info panel --- */
+.swipe-card--detail .swipe-card__glare {
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .swipe-card--detail {
+    width: 160px;
+  }
+}
+
+/* Info panel */
 .detail-info {
   flex: 1;
   min-width: 0;
-  animation: detail-info-slide 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s both;
+  max-width: 320px;
+  animation: detail-info-slide 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.15s both;
 }
 
 @keyframes detail-info-slide {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(24px);
   }
   to {
     opacity: 1;
@@ -464,6 +425,11 @@
 }
 
 @media (max-width: 640px) {
+  .detail-info {
+    max-width: 100%;
+    text-align: center;
+  }
+
   @keyframes detail-info-slide {
     from {
       opacity: 0;
@@ -474,28 +440,4 @@
       transform: translateY(0);
     }
   }
-}
-
-/* Close button */
-.detail-overlay__close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  z-index: 10;
-}
-
-.detail-overlay__close:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
 }
