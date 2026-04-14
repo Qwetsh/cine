@@ -100,7 +100,7 @@ function getZoneStyle(angle: number): React.CSSProperties {
    ============================================ */
 
 export function SwipeCard({ movie, genres, onFeedback, onAccept, onTap, loading }: Props) {
-  const movieGenres = genres.filter(g => movie.genre_ids.includes(g.id))
+  const movieGenres = genres.filter(g => movie.genre_ids?.includes(g.id))
   const zones = buildZones(movieGenres)
 
   // Drag state

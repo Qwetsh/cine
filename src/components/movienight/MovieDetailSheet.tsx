@@ -12,7 +12,7 @@ interface Props {
 
 export function MovieDetailSheet({ movie, genres, open, onClose }: Props) {
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
-  const movieGenres = genres.filter(g => movie.genre_ids.includes(g.id))
+  const movieGenres = genres.filter(g => movie.genre_ids?.includes(g.id))
 
   // Lock body scroll when open
   useEffect(() => {
