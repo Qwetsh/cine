@@ -4,6 +4,7 @@ import { useCoupleContext } from '../contexts/CoupleContext'
 import { supabase } from '../lib/supabase'
 import { SettingsSection } from '../components/profile/SettingsSection'
 import { FriendsSection } from '../components/profile/FriendsSection'
+import { Avatar } from '../components/ui/Avatar'
 
 export function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -108,9 +109,7 @@ export function ProfilePage() {
       {/* Infos utilisateur */}
       <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-5">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-2xl flex-shrink-0">
-            🎬
-          </div>
+          <Avatar name={user.profile.display_name} id={user.id} size="lg" />
           <div className="min-w-0">
             <p className="font-bold text-[var(--color-text)] text-lg truncate">
               {user.profile.display_name}

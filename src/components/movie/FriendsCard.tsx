@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useFriendMovieData } from '../../hooks/useFriendMovieData'
 import { StarRating } from './StarRating'
+import { Avatar } from '../ui/Avatar'
 
 interface Props {
   tmdbId: number
@@ -23,9 +24,7 @@ export function FriendsCard({ tmdbId, mediaType }: Props) {
             onClick={() => navigate(`/friend/${entry.user_id}`)}
             className="flex items-start gap-3 w-full text-left hover:bg-[var(--color-surface-2)] -mx-2 px-2 py-1.5 rounded-lg transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-              👤
-            </div>
+            <Avatar name={entry.display_name} id={entry.user_id} size="xs" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-[var(--color-text)]">{entry.display_name}</p>
               {entry.relation === 'wants_to_watch' ? (

@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useFriendsContext } from '../../contexts/FriendsContext'
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Ciné',
@@ -7,13 +6,12 @@ const PAGE_TITLES: Record<string, string> = {
   '/watchlist': 'À regarder',
   '/collection': 'Notre collection',
   '/pick': 'Soirée Ciné',
-  '/friends': 'Mes amis',
+  '/social': 'Social',
 }
 
 export function Header() {
   const location = useLocation()
   const title = PAGE_TITLES[location.pathname] ?? 'Ciné'
-  const { friends, pendingRequests } = useFriendsContext()
 
   return (
     <header className="sticky top-0 z-10 bg-[var(--color-bg)]/90 backdrop-blur border-b border-[var(--color-border)] safe-area-top">
@@ -24,29 +22,16 @@ export function Header() {
             {title}
           </span>
         </Link>
-        <div className="flex items-center gap-2">
-          {friends.length > 0 && (
-            <Link
-              to="/friends"
-              className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-              aria-label="Amis"
-            >
-              👥
-            </Link>
-          )}
-          <Link
-            to="/profile"
-            className="relative w-8 h-8 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-            aria-label="Profil"
-          >
-            👤
-            {pendingRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
-                {pendingRequests.length}
-              </span>
-            )}
-          </Link>
-        </div>
+        <Link
+          to="/profile"
+          className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+          aria-label="Profil"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </Link>
       </div>
     </header>
   )

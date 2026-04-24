@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useFriendsContext } from '../../contexts/FriendsContext'
+import { Avatar } from '../ui/Avatar'
 
 interface Props {
   inviteCode: string | null
@@ -117,9 +118,7 @@ export function FriendsSection({ inviteCode }: Props) {
               key={req.id}
               className="flex items-center gap-3 bg-[var(--color-surface-2)] rounded-xl px-3 py-2.5"
             >
-              <div className="w-8 h-8 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-sm flex-shrink-0">
-                👤
-              </div>
+              <Avatar name={req.profile.display_name} id={req.profile.id} size="sm" />
               <span className="text-sm text-[var(--color-text)] flex-1 truncate">
                 {req.profile.display_name}
               </span>
@@ -151,9 +150,7 @@ export function FriendsSection({ inviteCode }: Props) {
               key={friend.id}
               className="flex items-center gap-3 bg-[var(--color-surface-2)] rounded-xl px-3 py-2.5"
             >
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-sm flex-shrink-0">
-                👤
-              </div>
+              <Avatar name={friend.profile.display_name} id={friend.profile.id} size="sm" />
               <span className="text-sm text-[var(--color-text)] flex-1 truncate">
                 {friend.profile.display_name}
               </span>

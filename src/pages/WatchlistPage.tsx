@@ -11,7 +11,6 @@ import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
-import { useFriendsContext } from '../contexts/FriendsContext'
 import { MarkWatchedModal, type MarkWatchedData } from '../components/movie/MarkWatchedModal'
 import type { WatchlistMovieEntry, TvWatchlistEntry } from '../types'
 
@@ -20,7 +19,6 @@ export function WatchlistPage() {
   const { user } = useAuth()
   const { coupleId, partner, isUser1 } = useCoupleContext()
   const { settings } = useSettings()
-  const { recos } = useFriendsContext()
   const { entries, loading, removeFromWatchlist } = useWatchlist(coupleId, user?.id)
   // Watchlist solo perso — utile uniquement quand on a un couple (sinon entries = solo)
   const soloWl = useWatchlist(null, coupleId ? user?.id : null)
@@ -128,8 +126,8 @@ export function WatchlistPage() {
         )}
       </div>
 
-      {/* Toggle couple / solo / recos */}
-      {coupleId ? (
+      {/* Toggle couple / solo */}
+      {coupleId && (
         <div className="px-4 mb-3">
           <div className="flex rounded-xl bg-[var(--color-surface-2)] p-1">
             <button
@@ -141,7 +139,7 @@ export function WatchlistPage() {
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
               ].join(' ')}
             >
-              👫 En couple
+              En couple
             </button>
             <button
               onClick={() => setViewMode('solo')}
@@ -152,34 +150,9 @@ export function WatchlistPage() {
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
               ].join(' ')}
             >
-              🎬 Perso {soloWl.entries.length > 0 && `(${soloWl.entries.length})`}
-            </button>
-            <button
-              onClick={() => navigate('/recommendations')}
-              className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text)] flex items-center justify-center gap-1"
-            >
-              💌 Recos
-              {recos.unseenCount > 0 && (
-                <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">
-                  {recos.unseenCount}
-                </span>
-              )}
+              Perso {soloWl.entries.length > 0 && `(${soloWl.entries.length})`}
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="px-4 mb-3">
-          <button
-            onClick={() => navigate('/recommendations')}
-            className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
-          >
-            💌 Recos de mes amis
-            {recos.unseenCount > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
-                {recos.unseenCount}
-              </span>
-            )}
-          </button>
         </div>
       )}
 

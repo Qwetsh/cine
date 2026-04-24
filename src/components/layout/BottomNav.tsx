@@ -40,12 +40,12 @@ function IconCollection({ active }: { active: boolean }) {
   )
 }
 
-function IconSoiree({ active }: { active: boolean }) {
+function IconSocial({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 20L8 4h8l4 16" />
-      <path d="M6 12h12" />
-      <circle cx="12" cy="8" r="1" fill="currentColor" stroke="none" />
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
     </svg>
   )
 }
@@ -55,7 +55,7 @@ const NAV_ITEMS = [
   { to: '/search', label: 'Rechercher', Icon: IconSearch },
   { to: '/watchlist', label: 'À voir', Icon: IconWatchlist },
   { to: '/collection', label: 'Collection', Icon: IconCollection },
-  { to: '/pick', label: 'Soirée', Icon: IconSoiree },
+  { to: '/social', label: 'Social', Icon: IconSocial },
 ]
 
 export function BottomNav() {
@@ -83,7 +83,7 @@ export function BottomNav() {
               <div className="relative flex flex-col items-center">
                 <Icon active={isActive} />
                 <span>{label}</span>
-                {to === '/watchlist' && unseenCount > 0 && (
+                {to === '/social' && unseenCount > 0 && (
                   <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                     {unseenCount}
                   </span>

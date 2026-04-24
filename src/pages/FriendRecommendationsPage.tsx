@@ -23,13 +23,14 @@ interface RecoDisplay {
   tmdbId: number
   direction: RecoTab
   otherName: string
+  otherUserId: string
   message: string | null
   createdAt: string
   seenAt: string | null
   tmdbMovie: TmdbMovie | null
 }
 
-export function FriendRecommendationsPage() {
+export function FriendRecommendationsPage({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
@@ -119,7 +120,7 @@ export function FriendRecommendationsPage() {
             const movie = await tmdb.getMovie(r.movie_id)
             return {
               id: r.id, title: movie.title, posterPath: movie.poster_path, backdropPath: movie.backdrop_path,
-              mediaType: 'movie', tmdbId: r.movie_id, direction, otherName,
+              mediaType: 'movie', tmdbId: r.movie_id, direction, otherName, otherUserId,
               message: r.message, createdAt: r.created_at, seenAt: r.seen_at, tmdbMovie: movie,
             }
           } catch { return null }
@@ -128,7 +129,7 @@ export function FriendRecommendationsPage() {
             const show = await tmdb.getTvShow(r.tv_show_id)
             return {
               id: r.id, title: show.name, posterPath: show.poster_path, backdropPath: show.backdrop_path,
-              mediaType: 'tv', tmdbId: r.tv_show_id, direction, otherName,
+              mediaType: 'tv', tmdbId: r.tv_show_id, direction, otherName, otherUserId,
               message: r.message, createdAt: r.created_at, seenAt: r.seen_at, tmdbMovie: null,
             }
           } catch { return null }
@@ -208,7 +209,7 @@ export function FriendRecommendationsPage() {
   const sentUnreadTotal = sentItems.reduce((sum, item) => sum + (unreadMessages.get(item.id) ?? 0), 0)
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-6 pb-10">
+    <div className={`max-w-2xl mx-auto px-4 ${embedded ? 'pt-2' : 'pt-6'} pb-10`}>
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white text-sm px-4 py-2 rounded-full shadow-lg">
@@ -216,7 +217,9 @@ export function FriendRecommendationsPage() {
         </div>
       )}
 
-      <h1 className="text-xl font-bold text-[var(--color-text)] mb-4">Recommandations</h1>
+      {!embedded && (
+        <h1 className="text-xl font-bold text-[var(--color-text)] mb-4">Recommandations</h1>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 bg-[var(--color-surface)] rounded-lg p-1 border border-[var(--color-border)]">
@@ -297,7 +300,14 @@ export function FriendRecommendationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-[var(--color-text)] text-sm truncate">{item.title}</p>
                     <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                      {isReceived ? `par ${item.otherName}` : `à ${item.otherName}`} · {formatDate(item.createdAt)}
+                      {isReceived ? 'par ' : 'à '}
+                      <span
+                        onClick={(e) => { e.stopPropagation(); navigate(`/friend/${item.otherUserId}`) }}
+                        className="text-[var(--color-accent)] hover:underline cursor-pointer"
+                      >
+                        {item.otherName}
+                      </span>
+                      {' · '}{formatDate(item.createdAt)}
                     </p>
                     {item.message && (
                       <p className="text-xs text-[var(--color-accent)] mt-1 truncate">

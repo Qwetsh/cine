@@ -159,10 +159,10 @@ export function SettingsSection() {
           />
         </div>
 
-        {/* Recos amis */}
+        {/* Recos amis — badges */}
         <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
           <div className="flex-1 min-w-0 pr-3">
-            <p className="font-medium text-sm text-[var(--color-text)]">Recos des amis</p>
+            <p className="font-medium text-sm text-[var(--color-text)]">Badges amis</p>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               Badge sur les affiches quand un ami a noté 4+ étoiles
             </p>
@@ -170,6 +170,20 @@ export function SettingsSection() {
           <Toggle
             checked={settings.showFriendRatings}
             onChange={(v) => update({ showFriendRatings: v })}
+          />
+        </div>
+
+        {/* Recos amis — carrousel accueil */}
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="font-medium text-sm text-[var(--color-text)]">Recos sur l'accueil</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Afficher les recommandations de tes amis sur la page d'accueil
+            </p>
+          </div>
+          <Toggle
+            checked={settings.showFriendRecos}
+            onChange={(v) => update({ showFriendRecos: v })}
           />
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useFriendCollection } from '../hooks/useFriendCollection'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
+import { Avatar } from '../components/ui/Avatar'
 import type { PersonalCollectionEntry, TvPersonalCollectionEntry } from '../types'
 
 type MediaFilter = 'all' | 'film' | 'serie'
@@ -56,9 +57,7 @@ export function FriendProfilePage() {
           Retour
         </button>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-xl flex-shrink-0">
-            👤
-          </div>
+          <Avatar name={friendName} id={userId} size="lg" />
           <div>
             <h1 className="text-xl font-bold text-[var(--color-text)]">{friendName}</h1>
             <p className="text-sm text-[var(--color-text-muted)]">

@@ -10,9 +10,13 @@ import { useWatchlist } from '../hooks/useWatchlist'
 import { useRecommendations, type RecommendationItem } from '../hooks/useRecommendations'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useCoupleContext } from '../contexts/CoupleContext'
+import { useFriendsContext } from '../contexts/FriendsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { TvProviderLogos } from '../components/movie/TvProviderLogos'
+import { Avatar } from '../components/ui/Avatar'
+import { supabase } from '../lib/supabase'
 import type { TmdbMovie, TmdbTvShow } from '../lib/tmdb'
+import type { Profile } from '../types'
 
 export function HomePage() {
   const { settings } = useSettings()
@@ -70,6 +74,56 @@ export function HomePage() {
     }
   }, [isForYou, settings.showSeries])
 
+  // Friend recos widget
+  const { recos } = useFriendsContext()
+  const [friendRecos, setFriendRecos] = useState<Array<{
+    id: string
+    title: string
+    posterPath: string | null
+    tmdbId: number
+    mediaType: 'movie' | 'tv'
+    fromName: string
+    fromUserId: string
+  }>>([])
+
+  useEffect(() => {
+    if (recos.loading || recos.received.length === 0) {
+      setFriendRecos([])
+      return
+    }
+
+    const recent = recos.received.slice(0, 8)
+
+    async function resolve() {
+      const userIds = [...new Set(recent.map(r => r.from_user_id))]
+      const profileMap = new Map<string, Profile>()
+      if (userIds.length > 0) {
+        const { data } = await supabase.from('profiles').select('*').in('id', userIds)
+        for (const p of (data ?? []) as unknown as Profile[]) profileMap.set(p.id, p)
+      }
+
+      const results = await Promise.all(recent.map(async (r) => {
+        const fromName = profileMap.get(r.from_user_id)?.display_name ?? 'Un ami'
+        if (r.movie_id) {
+          try {
+            const m = await tmdb.getMovie(r.movie_id)
+            return { id: r.id, title: m.title, posterPath: m.poster_path, tmdbId: r.movie_id, mediaType: 'movie' as const, fromName, fromUserId: r.from_user_id }
+          } catch { return null }
+        } else if (r.tv_show_id) {
+          try {
+            const s = await tmdb.getTvShow(r.tv_show_id)
+            return { id: r.id, title: s.name, posterPath: s.poster_path, tmdbId: r.tv_show_id, mediaType: 'tv' as const, fromName, fromUserId: r.from_user_id }
+          } catch { return null }
+        }
+        return null
+      }))
+
+      setFriendRecos(results.filter((r): r is NonNullable<typeof r> => r !== null))
+    }
+
+    resolve()
+  }, [recos.received, recos.loading])
+
   const hasData = collection.length > 0 || watchlist.length > 0
 
   return (
@@ -84,6 +138,24 @@ export function HomePage() {
           className="text-[var(--color-text-muted)] text-sm hover:text-[var(--color-accent)] transition-colors"
         >
           Que regardez-vous {getTimeOfDay()} ?
+        </button>
+      </div>
+
+      {/* Soirée Ciné card */}
+      <div className="px-4 mb-4">
+        <button
+          onClick={() => navigate('/pick')}
+          className="w-full bg-gradient-to-r from-[var(--color-accent)] to-purple-600 hover:from-[var(--color-accent-hover)] hover:to-purple-700 text-white rounded-2xl p-4 text-left transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-bold text-base">Soirée Ciné</p>
+              <p className="text-white/80 text-xs mt-0.5">Choisir un film ou lancer un quiz</p>
+            </div>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </div>
         </button>
       </div>
 
@@ -134,6 +206,54 @@ export function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Recos de tes amis — horizontal scroll */}
+      {settings.showFriendRecos && friendRecos.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between px-4 mb-3">
+            <h2 className="font-bold text-[var(--color-text)]">Recos de tes amis</h2>
+            <button
+              onClick={() => navigate('/social')}
+              className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
+            >
+              Tout voir
+            </button>
+          </div>
+          <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
+            {friendRecos.map(reco => (
+              <button
+                key={reco.id}
+                onClick={() => navigate(reco.mediaType === 'movie' ? `/movie/${reco.tmdbId}` : `/tv/${reco.tmdbId}`)}
+                className="flex-shrink-0 w-28 text-left group"
+              >
+                <div className="relative w-28 aspect-[2/3] rounded-xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
+                  {reco.posterPath ? (
+                    <img
+                      src={getPosterUrl(reco.posterPath, 'small')}
+                      alt={reco.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl">🎬</div>
+                  )}
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <Avatar name={reco.fromName} id={reco.fromUserId} size="xs" />
+                      <span className="text-[10px] text-white/90 font-medium truncate">
+                        {reco.fromName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--color-text)] mt-1.5 line-clamp-2 leading-tight">
+                  {reco.title}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Trending TV — horizontal scroll */}
       {settings.showSeries && trendingTv.length > 0 && (
