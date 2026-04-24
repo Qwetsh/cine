@@ -77,6 +77,34 @@ export function useFriends(userId: string | null): UseFriendsState {
     fetchFriends()
   }, [fetchFriends])
 
+  // Realtime: écouter les changements sur la table friendships
+  useEffect(() => {
+    if (!userId) return
+
+    const channel = supabase
+      .channel('friends-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friendships',
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as Record<string, string> | undefined
+          if (!row) return
+          if (row.requester_id === userId || row.addressee_id === userId) {
+            fetchFriends()
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId, fetchFriends])
+
   function withProfile(f: Friendship): FriendWithProfile {
     const otherId = f.requester_id === userId ? f.addressee_id : f.requester_id
     const profile = profiles.get(otherId) ?? {

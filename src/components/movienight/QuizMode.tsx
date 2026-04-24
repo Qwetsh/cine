@@ -10,10 +10,16 @@ import { QuizGame } from './QuizGame'
 
 type Screen = 'home' | 'solo' | '1v1-menu' | '1v1-create' | '1v1-join' | '1v1-lobby'
 
-export function QuizMode() {
+interface QuizModeProps {
+  startScreen?: 'solo' | '1v1'
+}
+
+export function QuizMode({ startScreen }: QuizModeProps) {
   const { user } = useAuth()
   const lobby = useQuizLobby(user?.id ?? null)
-  const [screen, setScreen] = useState<Screen>('home')
+  const [screen, setScreen] = useState<Screen>(
+    startScreen === '1v1' ? '1v1-menu' : startScreen === 'solo' ? 'solo' : 'home'
+  )
   const [joinCode, setJoinCode] = useState<string | null>(null)
   const [partnerLeft, setPartnerLeft] = useState(false)
   const prevSessionRef = useRef<typeof lobby.session>(null)

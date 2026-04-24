@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSettings, STREAMING_PROVIDERS, BATTLE_COLORS, KINEPOLIS_CINEMAS } from '../../hooks/useSettings'
+import { useAuth } from '../../contexts/AuthContext'
+import { usePushNotifications } from '../../hooks/usePushNotifications'
 
 const APP_URL = 'https://qwetsh.github.io/cine/'
 
@@ -14,6 +16,8 @@ interface ProviderLogo {
 
 export function SettingsSection() {
   const { settings, update, toggleProvider, toggleCinema } = useSettings()
+  const { user } = useAuth()
+  const push = usePushNotifications(user?.id ?? null)
   const [logos, setLogos] = useState<Record<number, string>>({})
   const [logoError, setLogoError] = useState(false)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
@@ -305,6 +309,27 @@ export function SettingsSection() {
           </div>
         </div>
       </div>
+
+      {/* ── Notifications ── */}
+      {push.permission !== 'unsupported' && (
+        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+          <SectionHeader label="Notifications" icon="🔔" subtitle="Alertes push sur ton appareil" />
+          <div className="px-4 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="font-medium text-sm text-[var(--color-text)]">Notifications push</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                {push.permission === 'denied'
+                  ? 'Bloquées dans les paramètres du navigateur'
+                  : 'Recos, demandes d\'ami, messages'}
+              </p>
+            </div>
+            <Toggle
+              checked={push.subscribed}
+              onChange={(v) => v ? push.subscribe() : push.unsubscribe()}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Partager ── */}
       <ShareAppCard />

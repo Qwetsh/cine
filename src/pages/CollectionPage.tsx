@@ -146,31 +146,33 @@ export function CollectionPage() {
         <h1 className="text-xl font-bold text-[var(--color-text)]">Collection</h1>
       </div>
 
-      {/* Tabs Couple / Perso */}
-      <div className="flex mx-4 mb-2 rounded-xl bg-[var(--color-surface-2)] p-1">
-        <button
-          onClick={() => { setTab('couple'); setEditingNote(null) }}
-          className={[
-            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-            tab === 'couple'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-          ].join(' ')}
-        >
-          Couple {couple.entries.length > 0 ? `(${couple.entries.length})` : ''}
-        </button>
-        <button
-          onClick={() => { setTab('perso'); setEditingNote(null) }}
-          className={[
-            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-            tab === 'perso'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-          ].join(' ')}
-        >
-          Perso {personal.entries.length > 0 ? `(${personal.entries.length})` : ''}
-        </button>
-      </div>
+      {/* Tabs Couple / Perso — only show when user has a partner */}
+      {coupleId && (
+        <div className="flex mx-4 mb-2 rounded-xl bg-[var(--color-surface-2)] p-1">
+          <button
+            onClick={() => { setTab('couple'); setEditingNote(null) }}
+            className={[
+              'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+              tab === 'couple'
+                ? 'bg-[var(--color-accent)] text-white'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+            ].join(' ')}
+          >
+            Couple {couple.entries.length > 0 ? `(${couple.entries.length})` : ''}
+          </button>
+          <button
+            onClick={() => { setTab('perso'); setEditingNote(null) }}
+            className={[
+              'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+              tab === 'perso'
+                ? 'bg-[var(--color-accent)] text-white'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+            ].join(' ')}
+          >
+            Solo {personal.entries.length > 0 ? `(${personal.entries.length})` : ''}
+          </button>
+        </div>
+      )}
 
       {/* Media filter: Films / Séries */}
       {settings.showSeries && (
@@ -197,7 +199,7 @@ export function CollectionPage() {
         {!loading && (
           <p className="text-sm text-[var(--color-text-muted)]">
             {totalCount} {mediaFilter === 'serie' ? 'série' : mediaFilter === 'film' ? 'film' : 'titre'}{totalCount !== 1 ? 's' : ''}{' '}
-            {tab === 'couple' ? 'vus ensemble' : 'vus en solo'}
+            {coupleId ? (tab === 'couple' ? 'vus ensemble' : 'vus en solo') : 'vus'}
             {currentFilter.activeCount > 0 && ` · ${entries.length + (showSeries ? tvEntries.length : 0)} affiché${(entries.length + (showSeries ? tvEntries.length : 0)) !== 1 ? 's' : ''}`}
           </p>
         )}
@@ -245,12 +247,12 @@ export function CollectionPage() {
         <div className="flex flex-col items-center py-20 text-[var(--color-text-muted)]">
           <span className="text-5xl mb-4">{tab === 'couple' ? '👫' : '🎬'}</span>
           <p className="font-medium">
-            {tab === 'couple' ? 'Aucun film vu ensemble' : 'Aucun film dans ta collection perso'}
+            {tab === 'couple' ? 'Aucun film vu ensemble' : coupleId ? 'Aucun film dans ta collection perso' : 'Aucun film dans ta collection'}
           </p>
           <p className="text-sm mt-1">
             {tab === 'couple'
               ? coupleId ? 'Marquez des films comme vus pour les ajouter' : 'Liez vos comptes depuis votre profil'
-              : 'Ajoute des films vus en solo depuis la fiche film'}
+              : coupleId ? 'Ajoute des films vus en solo depuis la fiche film' : 'Ajoute des films vus depuis la fiche film'}
           </p>
           {tab === 'couple' && !coupleId && (
             <button

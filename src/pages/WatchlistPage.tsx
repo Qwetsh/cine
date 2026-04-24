@@ -152,7 +152,7 @@ export function WatchlistPage() {
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
               ].join(' ')}
             >
-              🎬 Solo {soloWl.entries.length > 0 && `(${soloWl.entries.length})`}
+              🎬 Perso {soloWl.entries.length > 0 && `(${soloWl.entries.length})`}
             </button>
             <button
               onClick={() => navigate('/recommendations')}

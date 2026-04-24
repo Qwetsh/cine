@@ -7,12 +7,16 @@ import { FriendsSection } from '../components/profile/FriendsSection'
 
 export function ProfilePage() {
   const { user, signOut } = useAuth()
-  const { coupleId, partner, loading: coupleLoading, linkPartner } = useCoupleContext()
+  const { coupleId, partner, loading: coupleLoading, linkPartner, unlinkPartner } = useCoupleContext()
   const [partnerCode, setPartnerCode] = useState('')
   const [linkError, setLinkError] = useState<string | null>(null)
   const [linkSuccess, setLinkSuccess] = useState(false)
   const [linking, setLinking] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  const [unlinking, setUnlinking] = useState(false)
+  const [unlinkConfirm, setUnlinkConfirm] = useState(false)
+  const [unlinkError, setUnlinkError] = useState<string | null>(null)
 
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -84,6 +88,15 @@ export function ProfilePage() {
     }
   }
 
+  async function handleUnlink() {
+    setUnlinkError(null)
+    setUnlinking(true)
+    const { error } = await unlinkPartner()
+    setUnlinking(false)
+    setUnlinkConfirm(false)
+    if (error) setUnlinkError(error)
+  }
+
   async function handleSignOut() {
     await signOut()
   }
@@ -131,6 +144,38 @@ export function ProfilePage() {
                 Lié
               </span>
             </div>
+            {unlinkError && (
+              <p className="text-red-400 text-xs bg-red-400/10 px-3 py-2 rounded-lg mt-3">{unlinkError}</p>
+            )}
+            {!unlinkConfirm ? (
+              <button
+                onClick={() => setUnlinkConfirm(true)}
+                className="mt-4 w-full text-sm text-red-400 hover:text-red-300 border border-red-400/30 hover:border-red-300/50 rounded-xl py-2.5 transition-colors"
+              >
+                Supprimer le partenaire
+              </button>
+            ) : (
+              <div className="mt-4 bg-red-400/10 border border-red-400/30 rounded-xl p-4 space-y-3">
+                <p className="text-sm text-[var(--color-text)]">
+                  Supprimer le lien avec <strong>{partner.display_name}</strong> ? Cette action est irréversible.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleUnlink}
+                    disabled={unlinking}
+                    className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm rounded-xl py-2.5 font-medium transition-colors"
+                  >
+                    {unlinking ? 'Suppression…' : 'Confirmer'}
+                  </button>
+                  <button
+                    onClick={() => setUnlinkConfirm(false)}
+                    className="flex-1 text-sm text-[var(--color-text-muted)] border border-[var(--color-border)] rounded-xl py-2.5 hover:border-[var(--color-text-muted)] transition-colors"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           // Pas encore de partenaire

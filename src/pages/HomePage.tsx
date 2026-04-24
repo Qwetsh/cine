@@ -77,11 +77,14 @@ export function HomePage() {
       {/* Hero */}
       <div className="px-4 pt-6 pb-4">
         <h1 className="text-2xl font-bold text-[var(--color-text)] mb-1">
-          Bonsoir 🎬
+          {getGreeting()} {user?.profile?.display_name ?? ''}
         </h1>
-        <p className="text-[var(--color-text-muted)] text-sm">
-          Que regardez-vous ce soir ?
-        </p>
+        <button
+          onClick={() => navigate('/watchlist')}
+          className="text-[var(--color-text-muted)] text-sm hover:text-[var(--color-accent)] transition-colors"
+        >
+          Que regardez-vous {getTimeOfDay()} ?
+        </button>
       </div>
 
       {/* Prochaines sorties — horizontal scroll */}
@@ -225,6 +228,20 @@ export function HomePage() {
       </div>
     </div>
   )
+}
+
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Bonjour'
+  if (hour < 18) return 'Bon après-midi'
+  return 'Bonsoir'
+}
+
+function getTimeOfDay(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'ce matin'
+  if (hour < 18) return 'cet après-midi'
+  return 'ce soir'
 }
 
 function formatReleaseDate(dateStr: string): string {

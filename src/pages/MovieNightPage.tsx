@@ -20,6 +20,7 @@ import type { TmdbMovie } from '../lib/tmdb'
 import type { WatchlistMovieEntry } from '../types'
 
 type Tab = 'suggest' | 'pick' | 'duel'
+type Section = 'menu' | 'film' | 'quiz'
 
 export function MovieNightPage() {
   const navigate = useNavigate()
@@ -32,8 +33,10 @@ export function MovieNightPage() {
   const preferences = usePreferences(couple.entries, personal.entries)
   const smartSuggestion = useSmartSuggestion(preferences, genres)
 
+  const [section, setSection] = useState<Section>('menu')
   const [tab, setTab] = useState<Tab>('suggest')
   const [showQuiz, setShowQuiz] = useState(false)
+  const [quizStartScreen, setQuizStartScreen] = useState<'solo' | '1v1'>('solo')
   const [showTournament, setShowTournament] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -83,11 +86,11 @@ export function MovieNightPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
             </svg>
-            Soirée Ciné
+            CinéQuiz
           </button>
         </div>
         <GameErrorBoundary onReset={() => setShowQuiz(false)}>
-          <QuizMode />
+          <QuizMode startScreen={quizStartScreen} />
         </GameErrorBoundary>
       </div>
     )
@@ -105,7 +108,7 @@ export function MovieNightPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
             </svg>
-            Soirée Ciné
+            CinéQuiz
           </button>
         </div>
         <GameErrorBoundary onReset={() => setShowTournament(false)}>
@@ -125,157 +128,267 @@ export function MovieNightPage() {
       )}
 
       <div className="px-4 pt-6 pb-2">
-        <h1 className="text-xl font-bold text-[var(--color-text)]">Soirée Ciné</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          Trouvez le film parfait pour ce soir
-        </p>
+        {section === 'menu' ? (
+          <>
+            <h1 className="text-xl font-bold text-[var(--color-text)]">Soirée Ciné</h1>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">
+              Trouvez le film parfait pour ce soir
+            </p>
+          </>
+        ) : (
+          <button
+            onClick={() => setSection('menu')}
+            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors mb-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Soirée Ciné
+          </button>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex mx-4 mb-4 rounded-xl bg-[var(--color-surface-2)] p-1">
-        <button
-          onClick={() => setTab('suggest')}
-          className={[
-            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-            tab === 'suggest'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-          ].join(' ')}
-        >
-          Suggestion
-        </button>
-        <button
-          onClick={() => setTab('pick')}
-          className={[
-            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-            tab === 'pick'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-          ].join(' ')}
-        >
-          Piocher
-        </button>
-        <button
-          onClick={() => setTab('duel')}
-          className={[
-            'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-            tab === 'duel'
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-          ].join(' ')}
-        >
-          Duel
-        </button>
-      </div>
-
-      {tab === 'suggest' ? (
-        <div className="px-4 space-y-4 pb-4">
-          {!smartSuggestion.suggestion && !smartSuggestion.loading && !smartSuggestion.noMoreResults && (
-            <div className="text-center py-8">
-              <span className="text-6xl block mb-4">🎬</span>
-              <p className="text-[var(--color-text)] font-medium mb-1">
-                Laissez-nous vous suggérer un film
-              </p>
-              <p className="text-sm text-[var(--color-text-muted)] mb-6">
-                {couple.entries.length + personal.entries.length > 0
-                  ? 'Basé sur vos goûts et films déjà vus'
-                  : 'Découvrez des films populaires bien notés'}
-              </p>
-              <button
-                onClick={smartSuggestion.suggest}
-                className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white px-8 py-3 rounded-xl font-medium text-sm transition-colors"
+      {/* === MENU PRINCIPAL === */}
+      {section === 'menu' && (
+        <div className="px-4 space-y-3 pb-4">
+          <button
+            onClick={() => setSection('film')}
+            className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-5 transition-colors group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-[var(--color-accent)]/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-3xl">🎬</span>
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <p className="font-semibold text-[var(--color-text)]">Choisir un film</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                  Suggestion, pioche dans la liste ou duel
+                </p>
+              </div>
+              <svg
+                width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors flex-shrink-0"
               >
-                Suggérer un film
-              </button>
+                <path d="M9 18l6-6-6-6" />
+              </svg>
             </div>
-          )}
+          </button>
 
-          {(smartSuggestion.suggestion || smartSuggestion.loading) && !smartSuggestion.noMoreResults && (
-            <SwipeCard
-              movie={smartSuggestion.suggestion ?? ({} as TmdbMovie)}
-              genres={genres}
-              onFeedback={smartSuggestion.giveFeedback}
-              onAccept={handleAcceptSuggestion}
-              loading={smartSuggestion.loading}
-            />
-          )}
-
-          {smartSuggestion.noMoreResults && (
-            <div className="text-center py-8">
-              <span className="text-4xl block mb-3">🤷</span>
-              <p className="text-[var(--color-text-muted)] text-sm mb-4">
-                Plus de suggestions avec ces critères
-              </p>
-              <button
-                onClick={smartSuggestion.reset}
-                className="bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] px-6 py-2.5 rounded-xl text-sm font-medium border border-[var(--color-border)] transition-colors"
+          <button
+            onClick={() => setSection('quiz')}
+            className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-5 transition-colors group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-3xl">🧠</span>
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <p className="font-semibold text-[var(--color-text)]">CinéQuiz</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                  Quiz et tournoi pour tester vos connaissances
+                </p>
+              </div>
+              <svg
+                width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className="text-[var(--color-text-muted)] group-hover:text-yellow-500 transition-colors flex-shrink-0"
               >
-                Recommencer
-              </button>
+                <path d="M9 18l6-6-6-6" />
+              </svg>
             </div>
-          )}
-
+          </button>
         </div>
-      ) : tab === 'pick' ? (
-        <WatchlistPicker
-          entries={watchlist.entries}
-          loading={watchlist.loading}
-          onMarkWatched={handleMarkWatched}
-        />
-      ) : (
-        <DuelMode />
       )}
 
-      {/* Game buttons — hidden during suggestion mode */}
-      {tab !== 'suggest' && <div className="mx-4 mt-6 mb-8 space-y-3">
-        <button
-          onClick={() => setShowQuiz(true)}
-          className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[var(--color-accent)]/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-2xl">🧠</span>
-            </div>
-            <div className="text-left flex-1 min-w-0">
-              <p className="font-medium text-[var(--color-text)] text-sm">Quiz Ciné</p>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Testez vos connaissances ciné, solo ou en duo
-              </p>
-            </div>
-            <svg
-              width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors flex-shrink-0"
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
+      {/* === SECTION CHOISIR UN FILM === */}
+      {section === 'film' && (
+        <>
+          <div className="px-4 pb-2">
+            <h2 className="text-lg font-bold text-[var(--color-text)]">Choisir un film</h2>
           </div>
-        </button>
 
-        <button
-          onClick={() => setShowTournament(true)}
-          className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-2xl">🗺️</span>
-            </div>
-            <div className="text-left flex-1 min-w-0">
-              <p className="font-medium text-[var(--color-text)] text-sm">Tournoi Ciné</p>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Plateau de jeu — rues thématiques et fight final
-              </p>
-            </div>
-            <svg
-              width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className="text-[var(--color-text-muted)] group-hover:text-yellow-500 transition-colors flex-shrink-0"
+          {/* Tabs */}
+          <div className="flex mx-4 mb-4 rounded-xl bg-[var(--color-surface-2)] p-1">
+            <button
+              onClick={() => setTab('suggest')}
+              className={[
+                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+                tab === 'suggest'
+                  ? 'bg-[var(--color-accent)] text-white'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+              ].join(' ')}
             >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
+              Suggestion
+            </button>
+            <button
+              onClick={() => setTab('pick')}
+              className={[
+                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+                tab === 'pick'
+                  ? 'bg-[var(--color-accent)] text-white'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+              ].join(' ')}
+            >
+              Piocher
+            </button>
+            <button
+              onClick={() => setTab('duel')}
+              className={[
+                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
+                tab === 'duel'
+                  ? 'bg-[var(--color-accent)] text-white'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+              ].join(' ')}
+            >
+              Duel
+            </button>
           </div>
-        </button>
-      </div>}
+
+          {tab === 'suggest' ? (
+            <div className="px-4 space-y-4 pb-4">
+              {!smartSuggestion.suggestion && !smartSuggestion.loading && !smartSuggestion.noMoreResults && (
+                <div className="text-center py-8">
+                  <span className="text-6xl block mb-4">🎬</span>
+                  <p className="text-[var(--color-text)] font-medium mb-1">
+                    Laissez-nous vous suggérer un film
+                  </p>
+                  <p className="text-sm text-[var(--color-text-muted)] mb-6">
+                    {couple.entries.length + personal.entries.length > 0
+                      ? 'Basé sur vos goûts et films déjà vus'
+                      : 'Découvrez des films populaires bien notés'}
+                  </p>
+                  <button
+                    onClick={smartSuggestion.suggest}
+                    className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white px-8 py-3 rounded-xl font-medium text-sm transition-colors"
+                  >
+                    Suggérer un film
+                  </button>
+                </div>
+              )}
+
+              {(smartSuggestion.suggestion || smartSuggestion.loading) && !smartSuggestion.noMoreResults && (
+                <SwipeCard
+                  movie={smartSuggestion.suggestion ?? ({} as TmdbMovie)}
+                  genres={genres}
+                  onFeedback={smartSuggestion.giveFeedback}
+                  onAccept={handleAcceptSuggestion}
+                  loading={smartSuggestion.loading}
+                />
+              )}
+
+              {smartSuggestion.noMoreResults && (
+                <div className="text-center py-8">
+                  <span className="text-4xl block mb-3">🤷</span>
+                  <p className="text-[var(--color-text-muted)] text-sm mb-4">
+                    Plus de suggestions avec ces critères
+                  </p>
+                  <button
+                    onClick={smartSuggestion.reset}
+                    className="bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] px-6 py-2.5 rounded-xl text-sm font-medium border border-[var(--color-border)] transition-colors"
+                  >
+                    Recommencer
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : tab === 'pick' ? (
+            <WatchlistPicker
+              entries={watchlist.entries}
+              loading={watchlist.loading}
+              onMarkWatched={handleMarkWatched}
+            />
+          ) : (
+            <DuelMode />
+          )}
+        </>
+      )}
+
+      {/* === SECTION CINÉQUIZ === */}
+      {section === 'quiz' && (
+        <>
+          <div className="px-4 pb-2">
+            <h2 className="text-lg font-bold text-[var(--color-text)]">CinéQuiz</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">
+              Testez vos connaissances cinéma
+            </p>
+          </div>
+
+          <div className="px-4 space-y-3 pb-4">
+            <button
+              onClick={() => { setShowQuiz(true); setQuizStartScreen('solo') }}
+              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--color-accent)]/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">🧠</span>
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-[var(--color-text)] text-sm">Quiz Solo</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    Testez vos connaissances seul
+                  </p>
+                </div>
+                <svg
+                  width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors flex-shrink-0"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </div>
+            </button>
+
+            <button
+              onClick={() => { setShowQuiz(true); setQuizStartScreen('1v1') }}
+              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">⚔️</span>
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-[var(--color-text)] text-sm">Quiz 1v1</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    Défiez un ami en temps réel
+                  </p>
+                </div>
+                <svg
+                  width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  className="text-[var(--color-text-muted)] group-hover:text-purple-500 transition-colors flex-shrink-0"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowTournament(true)}
+              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">🗺️</span>
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-[var(--color-text)] text-sm">Tournoi Ciné</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    Plateau de jeu — rues thématiques et fight final
+                  </p>
+                </div>
+                <svg
+                  width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  className="text-[var(--color-text-muted)] group-hover:text-yellow-500 transition-colors flex-shrink-0"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

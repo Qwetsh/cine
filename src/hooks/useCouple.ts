@@ -9,6 +9,7 @@ export interface CoupleState {
   isUser1: boolean
   loading: boolean
   linkPartner: (partnerUserId: string) => Promise<{ error: string | null }>
+  unlinkPartner: () => Promise<{ error: string | null }>
   refresh: () => Promise<void>
 }
 
@@ -50,6 +51,34 @@ export function useCouple(userId: string | null): CoupleState {
   useEffect(() => {
     fetchCouple()
   }, [fetchCouple])
+
+  // Realtime: écouter les changements sur la table couples
+  useEffect(() => {
+    if (!userId) return
+
+    const channel = supabase
+      .channel('couple-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'couples',
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as Record<string, string> | undefined
+          if (!row) return
+          if (row.user1_id === userId || row.user2_id === userId) {
+            fetchCouple()
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId, fetchCouple])
 
   async function linkPartner(partnerCode: string): Promise<{ error: string | null }> {
     if (!userId) return { error: 'Non connecté' }
@@ -117,6 +146,28 @@ export function useCouple(userId: string | null): CoupleState {
     return { error: null }
   }
 
+  async function unlinkPartner(): Promise<{ error: string | null }> {
+    if (!userId || !couple) return { error: 'Aucun partenaire à supprimer' }
+
+    const partnerId = couple.user1_id === userId ? couple.user2_id : couple.user1_id
+
+    // Supprimer le couple
+    const { error: deleteError } = await supabase
+      .from('couples')
+      .delete()
+      .eq('id', couple.id)
+
+    if (deleteError) return { error: 'Impossible de supprimer le lien. Réessayez.' }
+
+    // Retirer partner_id des deux profils
+    await supabase.rpc('unlink_partners', { user_a: userId, user_b: partnerId })
+
+    setCouple(null)
+    setPartner(null)
+
+    return { error: null }
+  }
+
   const isUser1 = couple?.user1_id === userId
 
   return {
@@ -126,6 +177,7 @@ export function useCouple(userId: string | null): CoupleState {
     isUser1,
     loading,
     linkPartner,
+    unlinkPartner,
     refresh: fetchCouple,
   }
 }

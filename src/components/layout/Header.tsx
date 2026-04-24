@@ -13,7 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
 export function Header() {
   const location = useLocation()
   const title = PAGE_TITLES[location.pathname] ?? 'Ciné'
-  const { friends } = useFriendsContext()
+  const { friends, pendingRequests } = useFriendsContext()
 
   return (
     <header className="sticky top-0 z-10 bg-[var(--color-bg)]/90 backdrop-blur border-b border-[var(--color-border)] safe-area-top">
@@ -36,10 +36,15 @@ export function Header() {
           )}
           <Link
             to="/profile"
-            className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+            className="relative w-8 h-8 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
             aria-label="Profil"
           >
             👤
+            {pendingRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                {pendingRequests.length}
+              </span>
+            )}
           </Link>
         </div>
       </div>
