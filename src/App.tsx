@@ -17,8 +17,6 @@ import { PersonPage } from './pages/PersonPage'
 import { TvDetailPage } from './pages/TvDetailPage'
 import { TvSeasonDetailPage } from './pages/TvSeasonDetailPage'
 import { TvEpisodeDetailPage } from './pages/TvEpisodeDetailPage'
-import { FriendRecommendationsPage } from './pages/FriendRecommendationsPage'
-import { FriendsListPage } from './pages/FriendsListPage'
 import { FriendProfilePage } from './pages/FriendProfilePage'
 import { SocialPage } from './pages/SocialPage'
 
