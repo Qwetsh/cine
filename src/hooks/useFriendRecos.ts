@@ -57,6 +57,40 @@ export function useFriendRecos(userId: string | null): UseFriendRecosState {
     fetchRecos()
   }, [fetchRecos])
 
+  // Realtime : une reco reçue pendant la session apparaît sans reload
+  useEffect(() => {
+    if (!userId) return
+
+    const channel = supabase
+      .channel('recos-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recommendations',
+        },
+        (payload) => {
+          // Sur DELETE, payload.old ne contient que la clé primaire
+          // (REPLICA IDENTITY DEFAULT) : refetch systématique.
+          if (payload.eventType === 'DELETE') {
+            fetchRecos()
+            return
+          }
+          const row = payload.new as { from_user_id?: string; to_user_id?: string } | undefined
+          if (!row) return
+          if (row.from_user_id === userId || row.to_user_id === userId) {
+            fetchRecos()
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId, fetchRecos])
+
   const unseenCount = received.filter(r => r.seen_at === null).length
 
   async function sendRecommendation(

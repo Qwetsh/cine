@@ -120,6 +120,7 @@ export function useFriends(userId: string | null): UseFriendsState {
       display_name: 'Utilisateur',
       avatar_url: null,
       partner_id: null,
+      invite_code: null,
       created_at: '',
       updated_at: '',
     }

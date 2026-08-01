@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
-import { supabase } from '../lib/supabase'
+import { useInviteCode } from '../hooks/useInviteCode'
 import { SettingsSection } from '../components/profile/SettingsSection'
 import { FriendsSection } from '../components/profile/FriendsSection'
 import { Avatar } from '../components/ui/Avatar'
@@ -19,52 +19,8 @@ export function ProfilePage() {
   const [unlinkConfirm, setUnlinkConfirm] = useState(false)
   const [unlinkError, setUnlinkError] = useState<string | null>(null)
 
-  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const inviteCode = useInviteCode(user?.id)
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  // Générer ou récupérer un code d'invitation aléatoire (pas l'UUID auth)
-  useEffect(() => {
-    if (!user?.id) return
-    let cancelled = false
-
-    async function loadOrCreateCode() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('invite_code')
-        .eq('id', user!.id)
-        .single()
-
-      if (cancelled) return
-
-      if (error) {
-        // Ne pas générer de nouveau code sur une erreur de lecture :
-        // on risquerait d'écraser un code déjà partagé
-        return
-      }
-
-      if (data?.invite_code) {
-        setInviteCode(data.invite_code)
-      } else {
-        // Génère un code court aléatoire et le persiste.
-        // Le select() relit la ligne : si un autre appareil a généré un code
-        // entre-temps, on affiche la valeur réellement en base.
-        const code = crypto.randomUUID().slice(0, 8).toUpperCase()
-        const { data: updated, error: updateError } = await supabase
-          .from('profiles')
-          .update({ invite_code: code })
-          .eq('id', user!.id)
-          .select('invite_code')
-          .single()
-        if (cancelled) return
-        // N'afficher le code que s'il est réellement persisté : sinon l'ami
-        // qui le saisit obtiendrait « Code invalide »
-        if (!updateError && updated?.invite_code) setInviteCode(updated.invite_code)
-      }
-    }
-
-    loadOrCreateCode()
-    return () => { cancelled = true }
-  }, [user?.id])
 
   // Cleanup timer
   useEffect(() => {

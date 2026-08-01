@@ -1,4 +1,6 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { storePendingInviteCode } from './lib/invite'
 import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { AuthProvider } from './contexts/AuthContext'
 import { CoupleProvider } from './contexts/CoupleContext'
@@ -20,6 +22,29 @@ import { TvEpisodeDetailPage } from './pages/TvEpisodeDetailPage'
 import { FriendProfilePage } from './pages/FriendProfilePage'
 import { SocialPage } from './pages/SocialPage'
 
+// Capture le ?invite=CODE d'un lien d'invitation sur n'importe quelle route,
+// AVANT que ProtectedRoute ne redirige vers /login (ce qui perdrait le param).
+// Le code survit au login/signup via localStorage et sera consommé par
+// FriendsListPage (via la redirection d'AppLayout).
+function InviteCapture() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const code = params.get('invite')
+    if (!code) return
+    storePendingInviteCode(code.trim().toUpperCase())
+    params.delete('invite')
+    navigate(
+      { pathname: location.pathname, search: params.toString() },
+      { replace: true },
+    )
+  }, [location.search, location.pathname, navigate])
+
+  return null
+}
+
 export function App() {
   return (
     <ErrorBoundary>
@@ -27,6 +52,7 @@ export function App() {
       <CoupleProvider>
       <FriendsProvider>
         <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <InviteCapture />
           <Routes>
             {/* Route publique */}
             <Route path="/login" element={<LoginPage />} />

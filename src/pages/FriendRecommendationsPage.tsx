@@ -5,8 +5,11 @@ import { useCoupleContext } from '../contexts/CoupleContext'
 import { useFriendsContext } from '../contexts/FriendsContext'
 import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
+import { useWatchlist } from '../hooks/useWatchlist'
+import { useTvWatchlist } from '../hooks/useTvWatchlist'
 import { tmdb, getPosterUrl, getBackdropUrl } from '../lib/tmdb'
 import { ensureMovie } from '../lib/movies'
+import { ensureTvShow } from '../lib/tvShows'
 import { supabase } from '../lib/supabase'
 import { RecoThread } from '../components/chat/RecoThread'
 import type { Profile } from '../types'
@@ -27,6 +30,7 @@ interface RecoDisplay {
   message: string | null
   createdAt: string
   seenAt: string | null
+  watchedAt: string | null
   tmdbMovie: TmdbMovie | null
 }
 
@@ -38,6 +42,8 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
   const { recos, unreadMessages, markMessagesRead } = useFriendsContext()
   const couple = useCollection(coupleId)
   const personal = usePersonalCollection(user?.id ?? null)
+  const watchlist = useWatchlist(coupleId, user?.id)
+  const tvWatchlist = useTvWatchlist(coupleId, user?.id)
   const [receivedItems, setReceivedItems] = useState<RecoDisplay[]>([])
   const [sentItems, setSentItems] = useState<RecoDisplay[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,7 +116,7 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
 
       // Helper to resolve a reco into a RecoDisplay
       async function resolveReco(
-        r: { id: string; movie_id: number | null; tv_show_id: number | null; message: string | null; created_at: string; seen_at: string | null },
+        r: { id: string; movie_id: number | null; tv_show_id: number | null; message: string | null; created_at: string; seen_at: string | null; watched_at: string | null },
         direction: RecoTab,
         otherUserId: string,
       ): Promise<RecoDisplay | null> {
@@ -123,7 +129,7 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
             return {
               id: r.id, title: movie.title, posterPath: movie.poster_path, backdropPath: movie.backdrop_path,
               mediaType: 'movie', tmdbId: r.movie_id, direction, otherName, otherUserId,
-              message: r.message, createdAt: r.created_at, seenAt: r.seen_at, tmdbMovie: movie,
+              message: r.message, createdAt: r.created_at, seenAt: r.seen_at, watchedAt: r.watched_at, tmdbMovie: movie,
             }
           } catch { return null }
         } else if (r.tv_show_id) {
@@ -132,7 +138,7 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
             return {
               id: r.id, title: show.name, posterPath: show.poster_path, backdropPath: show.backdrop_path,
               mediaType: 'tv', tmdbId: r.tv_show_id, direction, otherName, otherUserId,
-              message: r.message, createdAt: r.created_at, seenAt: r.seen_at, tmdbMovie: null,
+              message: r.message, createdAt: r.created_at, seenAt: r.seen_at, watchedAt: r.watched_at, tmdbMovie: null,
             }
           } catch { return null }
         }
@@ -173,6 +179,36 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
   function isAlreadyWatched(item: RecoDisplay): boolean {
     if (item.mediaType !== 'movie') return false
     return isAlreadyInCouple(item.tmdbId) || isAlreadyInPersonal(item.tmdbId)
+  }
+
+  function isInWatchlist(item: RecoDisplay): boolean {
+    if (item.mediaType === 'movie') {
+      return watchlist.entries.some(e => e.movie.tmdb_id === item.tmdbId)
+    }
+    return tvWatchlist.entries.some(e => e.tv_show.tmdb_id === item.tmdbId)
+  }
+
+  async function handleAddToWatchlist(item: RecoDisplay) {
+    if (!user || actionLoading) return
+    setActionLoading(item.id)
+    try {
+      if (item.mediaType === 'movie') {
+        if (!item.tmdbMovie) return
+        const movieDbId = await ensureMovie(item.tmdbMovie)
+        const { error } = await watchlist.addToWatchlist(movieDbId, user.id)
+        if (!error) showToast(coupleId ? 'Ajouté à votre liste !' : 'Ajouté à ta liste !')
+      } else {
+        const show = await tmdb.getTvShow(item.tmdbId)
+        const tvDbId = await ensureTvShow(show)
+        const { error } = await tvWatchlist.addToTvWatchlist(tvDbId, 1, user.id)
+        if (!error) showToast(coupleId ? 'Ajouté à votre liste !' : 'Ajouté à ta liste !')
+      }
+    } catch (e) {
+      console.error(e)
+      showToast("Échec de l'ajout, réessaie")
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   async function handleMarkWatchedCouple(item: RecoDisplay) {
@@ -277,6 +313,7 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
             const watched = isAlreadyWatched(item)
             const inCouple = isAlreadyInCouple(item.tmdbId)
             const inPersonal = isAlreadyInPersonal(item.tmdbId)
+            const inWatchlist = isInWatchlist(item)
             const isMovie = item.mediaType === 'movie'
             const isLoading = actionLoading === item.id
             const unread = unreadMessages.get(item.id) ?? 0
@@ -325,6 +362,11 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
                         Déjà vu
                       </p>
                     )}
+                    {!isReceived && item.watchedAt && (
+                      <p className="text-xs text-green-400 mt-1 font-medium">
+                        ✓ Vu le {formatDate(item.watchedAt)}
+                      </p>
+                    )}
                   </div>
                   <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0">
                     {item.mediaType === 'movie' ? '🎬' : '📺'}
@@ -333,6 +375,23 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
 
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 px-3 pb-3 pt-0">
+                  {/* À voir — received, not watched yet */}
+                  {isReceived && !watched && (
+                    inWatchlist ? (
+                      <span className="flex-1 text-center text-xs text-[var(--color-text-muted)] py-1.5">
+                        Dans la liste
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleAddToWatchlist(item)}
+                        disabled={isLoading}
+                        className="flex-1 bg-[var(--color-accent)]/15 hover:bg-[var(--color-accent)]/25 text-[var(--color-accent)] rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+                      >
+                        ➕ À voir
+                      </button>
+                    )
+                  )}
+
                   {/* Vu en couple — only for received movies */}
                   {isReceived && isMovie && coupleId && (
                     inCouple ? (

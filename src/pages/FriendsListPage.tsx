@@ -1,10 +1,14 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { useFriendsContext } from '../contexts/FriendsContext'
 import { Avatar } from '../components/ui/Avatar'
+import { useInviteCode } from '../hooks/useInviteCode'
+import { clearPendingInviteCode, getPendingInviteCode, shareInviteLink } from '../lib/invite'
 
 export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { friends, pendingRequests, loading, addFriend, acceptRequest, rejectRequest, removeFriend } = useFriendsContext()
   const [friendCode, setFriendCode] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
@@ -13,14 +17,15 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
   const [confirmAction, setConfirmAction] = useState<{ type: 'accept' | 'reject' | 'remove'; id: string; name: string } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
+  const inviteCode = useInviteCode(user?.id)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  async function handleAddFriend(e: React.FormEvent) {
-    e.preventDefault()
+  async function submitCode(code: string) {
     setAddError(null)
     setAddSuccess(false)
     setAdding(true)
-    const { error } = await addFriend(friendCode.trim())
+    const { error } = await addFriend(code)
     setAdding(false)
     if (error) {
       setAddError(error)
@@ -28,6 +33,34 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
       setAddSuccess(true)
       setFriendCode('')
       setTimeout(() => setAddSuccess(false), 3000)
+    }
+  }
+
+  async function handleAddFriend(e: React.FormEvent) {
+    e.preventDefault()
+    await submitCode(friendCode.trim())
+  }
+
+  // Lien d'invitation capturé (?invite=CODE) : envoyer la demande automatiquement
+  const inviteConsumedRef = useRef(false)
+  useEffect(() => {
+    if (!user || loading || inviteConsumedRef.current) return
+    const pending = getPendingInviteCode()
+    if (!pending) return
+    inviteConsumedRef.current = true
+    clearPendingInviteCode()
+    setShowAddForm(true)
+    setFriendCode(pending)
+    submitCode(pending)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading])
+
+  async function handleShareInvite() {
+    if (!inviteCode) return
+    const result = await shareInviteLink(inviteCode)
+    if (result === 'copied') {
+      setShareState('copied')
+      setTimeout(() => setShareState('idle'), 2500)
     }
   }
 
@@ -59,12 +92,21 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
       {/* Add friend button */}
       <div className="px-4 pb-3">
         {!showAddForm ? (
-          <button
-            onClick={() => { setShowAddForm(true); setTimeout(() => inputRef.current?.focus(), 100) }}
-            className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl py-3 font-medium text-sm transition-colors"
-          >
-            + Ajouter un ami
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={handleShareInvite}
+              disabled={!inviteCode}
+              className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-40 text-white rounded-xl py-3 font-medium text-sm transition-colors"
+            >
+              {shareState === 'copied' ? '✓ Lien copié !' : '📤 Inviter un ami'}
+            </button>
+            <button
+              onClick={() => { setShowAddForm(true); setTimeout(() => inputRef.current?.focus(), 100) }}
+              className="w-full flex items-center justify-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+            >
+              + J'ai un code ami
+            </button>
+          </div>
         ) : (
           <form onSubmit={handleAddFriend} className="space-y-2">
             <div className="flex gap-2">

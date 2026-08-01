@@ -97,6 +97,7 @@ export function useRecoMessages(
         sender_id: userId,
         content: content.trim(),
         created_at: new Date().toISOString(),
+        read_at: null,
       }
 
       // Optimistic add

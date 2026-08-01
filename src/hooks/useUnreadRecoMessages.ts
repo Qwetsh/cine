@@ -1,16 +1,41 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 /**
- * Tracks unread message counts per recommendation in realtime.
- * A message is "unread" if it was sent by someone else and the thread
- * hasn't been opened since.
+ * Compteurs de messages non lus par recommandation, persistés en base
+ * (colonne read_at) : les badges survivent au rechargement et aux messages
+ * reçus app fermée. Complété par le realtime pendant la session.
  */
 export function useUnreadRecoMessages(userId: string | null) {
   const [unreadMap, setUnreadMap] = useState<Map<string, number>>(new Map())
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  // Subscribe to all new messages not from me
+  // Chargement initial depuis la base (la RLS limite aux fils de mes recos)
+  const fetchUnread = useCallback(async () => {
+    if (!userId) {
+      setUnreadMap(new Map())
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('recommendation_messages')
+      .select('recommendation_id')
+      .is('read_at', null)
+      .neq('sender_id', userId)
+
+    if (error || !data) return
+
+    const map = new Map<string, number>()
+    for (const row of data as { recommendation_id: string }[]) {
+      map.set(row.recommendation_id, (map.get(row.recommendation_id) ?? 0) + 1)
+    }
+    setUnreadMap(map)
+  }, [userId])
+
+  useEffect(() => {
+    fetchUnread()
+  }, [fetchUnread])
+
+  // Realtime : incrémenter à l'arrivée d'un message pendant la session
   useEffect(() => {
     if (!userId) return
 
@@ -35,22 +60,33 @@ export function useUnreadRecoMessages(userId: string | null) {
       )
       .subscribe()
 
-    channelRef.current = channel
-
     return () => {
       channel.unsubscribe()
-      channelRef.current = null
     }
   }, [userId])
 
   const markRead = useCallback((recommendationId: string) => {
+    // Optimistic : retirer le badge tout de suite
     setUnreadMap((prev) => {
       if (!prev.has(recommendationId)) return prev
       const next = new Map(prev)
       next.delete(recommendationId)
       return next
     })
-  }, [])
+
+    // Persister (le grant colonne ne permet de modifier que read_at)
+    if (userId) {
+      supabase
+        .from('recommendation_messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('recommendation_id', recommendationId)
+        .neq('sender_id', userId)
+        .is('read_at', null)
+        .then(({ error }) => {
+          if (error) console.error('markRead error:', error)
+        })
+    }
+  }, [userId])
 
   const totalUnread = Array.from(unreadMap.values()).reduce((sum, n) => sum + n, 0)
 

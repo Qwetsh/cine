@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
 import { Header } from './Header'
 import { ScrollRestoration } from './ScrollRestoration'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { getPendingInviteCode } from '../../lib/invite'
 
 const DISMISSED_KEY = 'push-banner-dismissed'
 
@@ -12,6 +13,17 @@ export function AppLayout() {
   const { user } = useAuth()
   const push = usePushNotifications(user?.id ?? null)
   const [showBanner, setShowBanner] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Un lien d'invitation a été capturé (avant ou pendant le login) :
+  // rediriger vers l'onglet Amis qui enverra la demande automatiquement
+  useEffect(() => {
+    if (!user) return
+    if (getPendingInviteCode() && !location.pathname.startsWith('/social')) {
+      navigate('/social?view=amis', { replace: true })
+    }
+  }, [user, location.pathname, navigate])
 
   useEffect(() => {
     // Show banner after a short delay if:

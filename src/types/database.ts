@@ -13,6 +13,7 @@ export interface Database {
           display_name: string
           avatar_url: string | null
           partner_id: string | null
+          invite_code: string | null
           created_at: string
           updated_at: string
         }
@@ -22,6 +23,7 @@ export interface Database {
           display_name: string
           avatar_url?: string | null
           partner_id?: string | null
+          invite_code?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -173,6 +175,7 @@ export interface Recommendation {
   message: string | null
   created_at: string
   seen_at: string | null
+  watched_at: string | null
 }
 
 // Types messages de discussion sur les recommandations
@@ -182,4 +185,5 @@ export interface RecommendationMessage {
   sender_id: string
   content: string
   created_at: string
+  read_at: string | null
 }

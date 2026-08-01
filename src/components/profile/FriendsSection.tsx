@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useFriendsContext } from '../../contexts/FriendsContext'
 import { Avatar } from '../ui/Avatar'
+import { shareInviteLink } from '../../lib/invite'
 
 interface Props {
   inviteCode: string | null
@@ -17,6 +18,16 @@ export function FriendsSection({ inviteCode }: Props) {
   const [confirmAction, setConfirmAction] = useState<{ type: 'accept' | 'reject' | 'remove'; id: string; name: string } | null>(null)
 
   const myCode = inviteCode ?? '...'
+  const [shared, setShared] = useState(false)
+
+  async function handleShareInvite() {
+    if (!inviteCode) return
+    const result = await shareInviteLink(inviteCode)
+    if (result === 'copied') {
+      setShared(true)
+      setTimeout(() => setShared(false), 2500)
+    }
+  }
 
   async function handleCopyCode() {
     if (!inviteCode) return
@@ -75,9 +86,16 @@ export function FriendsSection({ inviteCode }: Props) {
           </code>
           <button
             onClick={handleCopyCode}
-            className="flex-shrink-0 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-xs px-3 py-2.5 rounded-xl transition-colors"
+            className="flex-shrink-0 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text)] text-xs px-3 py-2.5 rounded-xl border border-[var(--color-border)] transition-colors"
           >
             {copied ? '✓ Copié' : 'Copier'}
+          </button>
+          <button
+            onClick={handleShareInvite}
+            disabled={!inviteCode}
+            className="flex-shrink-0 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-40 text-white text-xs px-3 py-2.5 rounded-xl transition-colors"
+          >
+            {shared ? '✓ Copié' : '📤 Inviter'}
           </button>
         </div>
       </div>

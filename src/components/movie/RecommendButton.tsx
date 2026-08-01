@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCoupleContext } from '../../contexts/CoupleContext'
 import { useFriendsContext } from '../../contexts/FriendsContext'
 
 interface Props {
@@ -10,14 +11,26 @@ interface Props {
 
 export function RecommendButton({ movieId, tvShowId, title, onBeforeSend }: Props) {
   const { friends, recos } = useFriendsContext()
+  const { partner } = useCoupleContext()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
-  // Ne pas afficher si aucun ami
-  if (friends.length === 0) return null
+  // Destinataires possibles : le partenaire (en premier) puis les amis,
+  // sans doublon si le partenaire est aussi ami
+  const recipients: Array<{ userId: string; name: string; isPartner: boolean }> = []
+  if (partner) {
+    recipients.push({ userId: partner.id, name: partner.display_name, isPartner: true })
+  }
+  for (const friend of friends) {
+    if (friend.profile.id === partner?.id) continue
+    recipients.push({ userId: friend.profile.id, name: friend.profile.display_name, isPartner: false })
+  }
+
+  // Ne pas afficher si aucun destinataire possible
+  if (recipients.length === 0) return null
 
   // Amis déjà destinataires de cette reco
   const alreadySent = new Set(
@@ -91,17 +104,16 @@ export function RecommendButton({ movieId, tvShowId, title, onBeforeSend }: Prop
               Recommander « {title} »
             </h3>
 
-            {/* Liste d'amis */}
+            {/* Liste des destinataires (partenaire + amis) */}
             <div className="space-y-2">
-              {friends.map(friend => {
-                const friendUserId = friend.profile.id
-                const already = alreadySent.has(friendUserId)
-                const isSelected = selected.has(friendUserId)
+              {recipients.map(recipient => {
+                const already = alreadySent.has(recipient.userId)
+                const isSelected = selected.has(recipient.userId)
 
                 return (
                   <button
-                    key={friend.id}
-                    onClick={() => !already && toggleFriend(friendUserId)}
+                    key={recipient.userId}
+                    onClick={() => !already && toggleFriend(recipient.userId)}
                     disabled={already}
                     className={[
                       'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left',
@@ -113,10 +125,13 @@ export function RecommendButton({ movieId, tvShowId, title, onBeforeSend }: Prop
                     ].join(' ')}
                   >
                     <div className="w-8 h-8 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-sm flex-shrink-0">
-                      {isSelected ? '✓' : '👤'}
+                      {isSelected ? '✓' : recipient.isPartner ? '❤️' : '👤'}
                     </div>
                     <span className="text-sm text-[var(--color-text)] flex-1 truncate">
-                      {friend.profile.display_name}
+                      {recipient.name}
+                      {recipient.isPartner && (
+                        <span className="text-xs text-[var(--color-text-muted)] ml-1.5">Partenaire</span>
+                      )}
                     </span>
                     {already && (
                       <span className="text-xs text-[var(--color-text-muted)]">Déjà envoyé</span>
