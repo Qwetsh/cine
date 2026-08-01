@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useFriendsContext } from '../contexts/FriendsContext'
 import { useFriendCollection } from '../hooks/useFriendCollection'
+import { useFriendAffinity } from '../hooks/useFriendAffinity'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
@@ -17,12 +19,31 @@ export function FriendProfilePage() {
   const { friends } = useFriendsContext()
   const { settings } = useSettings()
   const { movies, tvShows, loading } = useFriendCollection(userId ?? null)
+  const { affinity } = useFriendAffinity(userId ?? null)
 
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortKey>('date')
 
   const friend = friends.find(f => f.profile.id === userId)
-  const friendName = friend?.profile.display_name ?? 'Ami'
+
+  // Hors liste d'amis (ex. partenaire), le profil reste lisible via RLS :
+  // résoudre le vrai nom plutôt qu'afficher « Ami »
+  const [resolvedName, setResolvedName] = useState<string | null>(null)
+  useEffect(() => {
+    if (!userId || friend) return
+    let cancelled = false
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.display_name) setResolvedName(data.display_name)
+      })
+    return () => { cancelled = true }
+  }, [userId, friend])
+
+  const friendName = friend?.profile.display_name ?? resolvedName ?? 'Ami'
 
   const showFilms = mediaFilter !== 'serie'
   const showSeries = settings.showSeries && mediaFilter !== 'film'
@@ -58,14 +79,65 @@ export function FriendProfilePage() {
         </button>
         <div className="flex items-center gap-3">
           <Avatar name={friendName} id={userId} size="lg" />
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-[var(--color-text)]">{friendName}</h1>
             <p className="text-sm text-[var(--color-text-muted)]">
               Collection personnelle
             </p>
           </div>
+          <button
+            onClick={() => navigate(`/pick?challenge=${userId}`)}
+            className="flex-shrink-0 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text)] text-xs font-medium px-3 py-2 rounded-xl transition-colors"
+          >
+            ⚔️ Défier
+          </button>
         </div>
       </div>
+
+      {/* Affinité */}
+      {affinity && affinity.common_count > 0 && (
+        <div className="mx-4 mt-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
+          <div className="flex items-center gap-4">
+            {affinity.affinity_pct != null && (
+              <div className="flex-shrink-0 w-16 h-16 rounded-full bg-[var(--color-accent)]/10 border-2 border-[var(--color-accent)] flex flex-col items-center justify-center">
+                <span className="text-lg font-bold text-[var(--color-accent)]">{affinity.affinity_pct}%</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              {affinity.affinity_pct != null && (
+                <p className="text-sm font-medium text-[var(--color-text)]">Affinité ciné</p>
+              )}
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                {affinity.common_count} titre{affinity.common_count > 1 ? 's' : ''} en commun
+                {affinity.rated_common_count > 0 && ` · ${affinity.rated_common_count} noté${affinity.rated_common_count > 1 ? 's' : ''} par vous deux`}
+              </p>
+            </div>
+          </div>
+
+          {/* Titres en commun */}
+          <div className="flex gap-3 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {affinity.common.slice(0, 12).map(item => (
+              <button
+                key={`${item.media_type}-${item.tmdb_id}`}
+                onClick={() => navigate(item.media_type === 'movie' ? `/movie/${item.tmdb_id}` : `/tv/${item.tmdb_id}`)}
+                className="flex-shrink-0 w-16 text-left"
+              >
+                <img
+                  src={getPosterUrl(item.poster_path, 'small')}
+                  alt={item.title}
+                  className="w-16 h-24 rounded-lg object-cover bg-[var(--color-surface-2)]"
+                  loading="lazy"
+                />
+                <div className="mt-1 text-[10px] leading-tight text-[var(--color-text-muted)]">
+                  {item.my_rating != null && <span>Toi ★{item.my_rating}</span>}
+                  {item.my_rating != null && item.friend_rating != null && <span> · </span>}
+                  {item.friend_rating != null && <span>{friendName.split(' ')[0]} ★{item.friend_rating}</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Media filter */}
       {settings.showSeries && (

@@ -7,14 +7,19 @@ import { generateQuizQuestions, createEmptyQuizData } from '../../lib/quiz'
 import type { QuizData } from '../../lib/quiz'
 import { LobbyPicking } from './LobbyPicking'
 import { QuizGame } from './QuizGame'
+import { supabase } from '../../lib/supabase'
 
 type Screen = 'home' | 'solo' | '1v1-menu' | '1v1-create' | '1v1-join' | '1v1-lobby'
 
 interface QuizModeProps {
   startScreen?: 'solo' | '1v1'
+  /** Code de lobby à rejoindre automatiquement (deep link ?join=CODE d'un défi) */
+  initialJoinCode?: string | null
+  /** Ami à défier : crée le lobby et envoie l'invitation push automatiquement */
+  challengeUserId?: string | null
 }
 
-export function QuizMode({ startScreen }: QuizModeProps) {
+export function QuizMode({ startScreen, initialJoinCode, challengeUserId }: QuizModeProps) {
   const { user } = useAuth()
   const lobby = useQuizLobby(user?.id ?? null)
   const [screen, setScreen] = useState<Screen>(
@@ -40,7 +45,65 @@ export function QuizMode({ startScreen }: QuizModeProps) {
     }
   }, [lobby.session?.status])
 
-  const opponentName = lobby.session?.player2_id ? 'Adversaire' : null
+  // Défi reçu (push → ?join=CODE) : rejoindre automatiquement
+  const autoJoinRef = useRef(false)
+  useEffect(() => {
+    if (!initialJoinCode || !user || autoJoinRef.current) return
+    autoJoinRef.current = true
+    lobby.joinByCode(initialJoinCode).then(ok => {
+      if (ok) {
+        setJoinCode(initialJoinCode)
+        setScreen('1v1-lobby')
+      } else {
+        // Code expiré/invalide : afficher l'écran de saisie avec l'erreur
+        setScreen('1v1-join')
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialJoinCode, user])
+
+  // Défi envoyé (bouton ⚔️ sur un ami) : créer le lobby + invitation push
+  const challengeRef = useRef(false)
+  useEffect(() => {
+    if (!challengeUserId || !user || challengeRef.current) return
+    challengeRef.current = true
+    lobby.create('classic').then(async code => {
+      if (!code) return
+      setJoinCode(code)
+      setScreen('1v1-lobby')
+      const { error } = await supabase.from('game_invites').insert({
+        from_user_id: user.id,
+        to_user_id: challengeUserId,
+        join_code: code,
+      })
+      if (error) console.error('game_invites insert error:', error)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeUserId, user])
+
+  // Résoudre le vrai nom de l'adversaire (lisible via RLS si ami/partenaire)
+  const [opponentDisplayName, setOpponentDisplayName] = useState<string | null>(null)
+  const opponentId = lobby.session
+    ? (lobby.isUser1 ? lobby.session.player2_id : lobby.session.created_by)
+    : null
+  useEffect(() => {
+    if (!opponentId) {
+      setOpponentDisplayName(null)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', opponentId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.display_name) setOpponentDisplayName(data.display_name)
+      })
+    return () => { cancelled = true }
+  }, [opponentId])
+
+  const opponentName = opponentId ? (opponentDisplayName ?? 'Adversaire') : null
 
   // ── Solo ──
   if (screen === 'solo') {

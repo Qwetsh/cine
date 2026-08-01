@@ -161,7 +161,7 @@ export interface Friendship {
   id: string
   requester_id: string
   addressee_id: string
-  status: 'pending' | 'accepted'
+  status: 'pending' | 'accepted' | 'rejected'
   created_at: string
 }
 

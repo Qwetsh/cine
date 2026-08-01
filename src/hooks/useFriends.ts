@@ -151,11 +151,25 @@ export function useFriends(userId: string | null): UseFriendsState {
     if (targetId === userId) return { error: 'Tu ne peux pas t\'ajouter toi-même' }
 
     // Vérifier doublon dans le state local (les deux sens)
-    const exists = allFriendships.some(f =>
+    const existing = allFriendships.find(f =>
       (f.requester_id === userId && f.addressee_id === targetId) ||
       (f.requester_id === targetId && f.addressee_id === userId)
     )
-    if (exists) return { error: 'Une relation existe déjà avec cet utilisateur' }
+    if (existing) {
+      // Cas particulier : j'avais refusé sa demande (rejected où je suis
+      // l'addressee) — je peux repartir de zéro en la remplaçant.
+      // Dans l'autre sens (il m'a refusé), on bloque : anti-spam.
+      if (existing.status === 'rejected' && existing.addressee_id === userId) {
+        const { error: cleanupError } = await supabase
+          .from('friendships')
+          .delete()
+          .eq('id', existing.id)
+        if (cleanupError) return { error: cleanupError.message }
+        setAllFriendships(prev => prev.filter(f => f.id !== existing.id))
+      } else {
+        return { error: 'Une relation existe déjà avec cet utilisateur' }
+      }
+    }
 
     // Insert
     const { data: inserted, error: insertError } = await supabase
@@ -212,17 +226,21 @@ export function useFriends(userId: string | null): UseFriendsState {
   }
 
   async function rejectRequest(friendshipId: string): Promise<{ error: string | null }> {
-    // Optimistic remove
-    setAllFriendships(prev => prev.filter(f => f.id !== friendshipId))
+    // Refus persistant ('rejected', pas DELETE) : le demandeur ne peut pas
+    // re-spammer — la ligne reste et bloque toute nouvelle demande.
+    // Optimistic : la ligne sort des demandes en attente
+    setAllFriendships(prev =>
+      prev.map(f => f.id !== friendshipId ? f : { ...f, status: 'rejected' as const })
+    )
 
-    const { error: deleteError } = await supabase
+    const { error: updateError } = await supabase
       .from('friendships')
-      .delete()
+      .update({ status: 'rejected' })
       .eq('id', friendshipId)
 
-    if (deleteError) {
+    if (updateError) {
       await fetchFriends()
-      return { error: deleteError.message }
+      return { error: updateError.message }
     }
 
     return { error: null }

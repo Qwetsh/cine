@@ -217,6 +217,14 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
                   </div>
                 </button>
                 <button
+                  onClick={() => navigate(`/pick?challenge=${friend.profile.id}`)}
+                  className="text-base hover:scale-110 transition-transform flex-shrink-0 px-1.5 py-1"
+                  aria-label={`Défier ${friend.profile.display_name} au quiz`}
+                  title="Défier au CinéQuiz"
+                >
+                  ⚔️
+                </button>
+                <button
                   onClick={() => setConfirmAction({ type: 'remove', id: friend.id, name: friend.profile.display_name })}
                   className="text-xs text-[var(--color-text-muted)] hover:text-red-400 transition-colors flex-shrink-0 px-2 py-1"
                 >

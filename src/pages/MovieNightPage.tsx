@@ -1,6 +1,6 @@
-import { Component, useState } from 'react'
+import { Component, useEffect, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useWatchlist } from '../hooks/useWatchlist'
@@ -37,6 +37,21 @@ export function MovieNightPage() {
   const [showQuiz, setShowQuiz] = useState(false)
   const [quizStartScreen, setQuizStartScreen] = useState<'solo' | '1v1'>('solo')
   const [toast, setToast] = useState<string | null>(null)
+
+  // Deep links de défi quiz : ?join=CODE (défi reçu via push) et
+  // ?challenge=USERID (bouton ⚔️ sur un ami). Capturés une fois puis
+  // retirés de l'URL.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [quizJoinCode] = useState(() => searchParams.get('join'))
+  const [challengeUserId] = useState(() => searchParams.get('challenge'))
+  useEffect(() => {
+    if (quizJoinCode || challengeUserId) {
+      setShowQuiz(true)
+      setQuizStartScreen('1v1')
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -98,7 +113,11 @@ export function MovieNightPage() {
           </button>
         </div>
         <GameErrorBoundary onReset={() => setShowQuiz(false)}>
-          <QuizMode startScreen={quizStartScreen} />
+          <QuizMode
+            startScreen={quizStartScreen}
+            initialJoinCode={quizJoinCode}
+            challengeUserId={challengeUserId}
+          />
         </GameErrorBoundary>
       </div>
     )
