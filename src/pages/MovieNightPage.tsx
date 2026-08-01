@@ -13,7 +13,6 @@ import { SwipeCard } from '../components/movienight/SwipeCard'
 import { WatchlistPicker } from '../components/movienight/WatchlistPicker'
 import { DuelMode } from '../components/movienight/DuelMode'
 import { QuizMode } from '../components/movienight/QuizMode'
-import { TournamentMode } from '../components/tournament/TournamentMode'
 import { ensureMovie } from '../lib/movies'
 import { supabase } from '../lib/supabase'
 import type { TmdbMovie } from '../lib/tmdb'
@@ -37,7 +36,6 @@ export function MovieNightPage() {
   const [tab, setTab] = useState<Tab>('suggest')
   const [showQuiz, setShowQuiz] = useState(false)
   const [quizStartScreen, setQuizStartScreen] = useState<'solo' | '1v1'>('solo')
-  const [showTournament, setShowTournament] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   function showToast(msg: string) {
@@ -50,17 +48,27 @@ export function MovieNightPage() {
       navigate('/profile')
       return
     }
+    if (watchlist.entries.some(e => e.movie.tmdb_id === movie.id)) {
+      showToast('Déjà dans la liste')
+      smartSuggestion.reset()
+      return
+    }
     try {
       const movieDbId = await ensureMovie(movie)
-      await supabase.from('watchlist').insert({
+      const { error } = await supabase.from('watchlist').insert({
         movie_id: movieDbId,
         added_by: user.id,
         couple_id: coupleId,
       })
+      if (error) {
+        showToast(error.code === '23505' ? 'Déjà dans la liste' : "Échec de l'ajout, réessaie")
+        return
+      }
       showToast('Ajouté à la liste !')
       smartSuggestion.reset()
     } catch (e) {
       console.error(e)
+      showToast("Échec de l'ajout, réessaie")
     }
   }
 
@@ -91,28 +99,6 @@ export function MovieNightPage() {
         </div>
         <GameErrorBoundary onReset={() => setShowQuiz(false)}>
           <QuizMode startScreen={quizStartScreen} />
-        </GameErrorBoundary>
-      </div>
-    )
-  }
-
-  // Tournament mode takes over the whole page
-  if (showTournament) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <div className="px-4 pt-6 pb-4">
-          <button
-            onClick={() => setShowTournament(false)}
-            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            CinéQuiz
-          </button>
-        </div>
-        <GameErrorBoundary onReset={() => setShowTournament(false)}>
-          <TournamentMode />
         </GameErrorBoundary>
       </div>
     )
@@ -186,7 +172,7 @@ export function MovieNightPage() {
               <div className="text-left flex-1 min-w-0">
                 <p className="font-semibold text-[var(--color-text)]">CinéQuiz</p>
                 <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  Quiz et tournoi pour tester vos connaissances
+                  Quiz pour tester vos connaissances
                 </p>
               </div>
               <svg
@@ -363,29 +349,6 @@ export function MovieNightPage() {
               </div>
             </button>
 
-            <button
-              onClick={() => setShowTournament(true)}
-              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-2xl p-4 transition-colors group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">🗺️</span>
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <p className="font-medium text-[var(--color-text)] text-sm">Tournoi Ciné</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                    Plateau de jeu — rues thématiques et fight final
-                  </p>
-                </div>
-                <svg
-                  width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  className="text-[var(--color-text-muted)] group-hover:text-yellow-500 transition-colors flex-shrink-0"
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </div>
-            </button>
           </div>
         </>
       )}

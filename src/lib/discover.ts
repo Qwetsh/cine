@@ -55,7 +55,7 @@ export async function fetchRandomPages(
   return results.flatMap(r => r.results)
 }
 
-/** Discover movies by theme — shared between quiz and tournament */
+/** Discover movies by theme */
 export async function discoverMoviesByTheme(
   theme: DiscoverTheme,
   themeValue: string | null,

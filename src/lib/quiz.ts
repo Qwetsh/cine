@@ -98,7 +98,7 @@ export interface QuizData {
   phase: 'generating' | 'countdown' | 'question' | 'reveal' | 'results'
 }
 
-// ── Helpers (exported for reuse by tournament) ──
+// ── Helpers ──
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -522,13 +522,10 @@ const MULTI_GENERATORS: { type: QuestionType; gen: MultiMovieGen }[] = [
   { type: 'connect_movies', gen: connectMoviesQuestion },
 ]
 
-// Keep old GENERATORS array for backward compat (tournament-questions.ts)
-const GENERATORS: ((movie: TmdbMovieDetail) => QuizQuestion | null)[] = SINGLE_GENERATORS
-
-/** Generate all possible questions from a single movie (legacy, used by tournament) */
-export function generateQuestions(movie: TmdbMovieDetail): QuizQuestion[] {
+/** Generate all possible questions from a single movie */
+function generateQuestions(movie: TmdbMovieDetail): QuizQuestion[] {
   const questions: QuizQuestion[] = []
-  for (const gen of GENERATORS) {
+  for (const gen of SINGLE_GENERATORS) {
     const q = gen(movie)
     if (q) questions.push(q)
   }
@@ -755,7 +752,7 @@ export async function generateQuizQuestions(config: {
   // Fight mode
   film1TmdbId?: number
   film2TmdbId?: number
-  // Legacy config (for backward compat with old QuizMode/tournament)
+  // Legacy config (for backward compat with old QuizMode)
   type?: 'classic' | 'fight'
   theme?: string | null
   themeValue?: string | null
