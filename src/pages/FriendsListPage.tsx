@@ -11,6 +11,7 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
   const [addSuccess, setAddSuccess] = useState(false)
   const [adding, setAdding] = useState(false)
   const [confirmAction, setConfirmAction] = useState<{ type: 'accept' | 'reject' | 'remove'; id: string; name: string } | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -32,10 +33,16 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
 
   async function handleConfirm() {
     if (!confirmAction) return
-    if (confirmAction.type === 'accept') await acceptRequest(confirmAction.id)
-    else if (confirmAction.type === 'reject') await rejectRequest(confirmAction.id)
-    else if (confirmAction.type === 'remove') await removeFriend(confirmAction.id)
+    setActionError(null)
+    let result: { error: string | null } = { error: null }
+    if (confirmAction.type === 'accept') result = await acceptRequest(confirmAction.id)
+    else if (confirmAction.type === 'reject') result = await rejectRequest(confirmAction.id)
+    else if (confirmAction.type === 'remove') result = await removeFriend(confirmAction.id)
     setConfirmAction(null)
+    if (result.error) {
+      setActionError("L'action a échoué, réessaie. (" + result.error + ')')
+      setTimeout(() => setActionError(null), 5000)
+    }
   }
 
   return (
@@ -95,6 +102,12 @@ export function FriendsListPage({ embedded = false }: { embedded?: boolean }) {
           </form>
         )}
       </div>
+
+      {actionError && (
+        <div className="px-4 pb-3">
+          <p className="text-red-400 text-xs bg-red-400/10 px-3 py-2 rounded-lg">{actionError}</p>
+        </div>
+      )}
 
       {/* Pending requests */}
       {pendingRequests.length > 0 && (

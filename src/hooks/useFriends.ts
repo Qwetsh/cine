@@ -91,7 +91,14 @@ export function useFriends(userId: string | null): UseFriendsState {
           table: 'friendships',
         },
         (payload) => {
-          const row = (payload.new ?? payload.old) as Record<string, string> | undefined
+          // Sur DELETE, payload.old ne contient que la clé primaire
+          // (REPLICA IDENTITY DEFAULT) : impossible de filtrer par user,
+          // on refetch systématiquement.
+          if (payload.eventType === 'DELETE') {
+            fetchFriends()
+            return
+          }
+          const row = payload.new as Record<string, string> | undefined
           if (!row) return
           if (row.requester_id === userId || row.addressee_id === userId) {
             fetchFriends()

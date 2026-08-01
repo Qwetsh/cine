@@ -87,11 +87,15 @@ export function HomePage() {
   }>>([])
 
   useEffect(() => {
-    if (recos.loading || recos.received.length === 0) {
+    // Pendant un rechargement des recos, garder l'affichage courant
+    // plutôt que de vider le carrousel (évite le clignotement)
+    if (recos.loading) return
+    if (recos.received.length === 0) {
       setFriendRecos([])
       return
     }
 
+    let cancelled = false
     const recent = recos.received.slice(0, 8)
 
     async function resolve() {
@@ -118,10 +122,14 @@ export function HomePage() {
         return null
       }))
 
+      // Une résolution plus lente lancée pour un état antérieur ne doit pas
+      // écraser celle du dernier état des recos
+      if (cancelled) return
       setFriendRecos(results.filter((r): r is NonNullable<typeof r> => r !== null))
     }
 
     resolve()
+    return () => { cancelled = true }
   }, [recos.received, recos.loading])
 
   const hasData = collection.length > 0 || watchlist.length > 0

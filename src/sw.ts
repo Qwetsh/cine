@@ -32,6 +32,17 @@ registerRoute(
   }),
 )
 
+// L'app est servie sous une base ('/cine/' sur GitHub Pages) : les chemins
+// absolus type '/profile' ou '/icons/…' sortiraient du scope → 404
+const BASE = import.meta.env.BASE_URL
+
+/** Résout un chemin app ('/profile') en URL absolue sous la base ('/cine/profile') */
+function withBase(path: string): string {
+  return BASE.replace(/\/$/, '') + (path.startsWith('/') ? path : '/' + path)
+}
+
+const ICON = withBase('/icons/icon-192x192.png')
+
 // Push notifications
 self.addEventListener('push', (event) => {
   if (!event.data) return
@@ -41,9 +52,9 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification(data.title, {
         body: data.body,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-192x192.png',
-        data: { url: data.url ?? '/' },
+        icon: ICON,
+        badge: ICON,
+        data: { url: withBase(data.url ?? '/') },
       }),
     )
   } catch {
@@ -51,7 +62,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('Ciné', {
         body: event.data.text(),
-        icon: '/icons/icon-192x192.png',
+        icon: ICON,
       }),
     )
   }
@@ -60,16 +71,23 @@ self.addEventListener('push', (event) => {
 // Click on notification — open/focus the app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data?.url as string) ?? '/'
+  const url = (event.notification.data?.url as string) ?? withBase('/')
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ('focus' in client) {
-          client.focus()
-          client.navigate(url)
-          return
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      // Ne naviguer que dans un client de notre app (même origine, sous la base)
+      const appClient = clients.find(
+        c => 'focus' in c && new URL(c.url).origin === self.location.origin,
+      )
+      if (appClient) {
+        await appClient.focus()
+        try {
+          await appClient.navigate(url)
+        } catch {
+          // navigate() peut échouer sur un client non contrôlé
+          await self.clients.openWindow(url)
         }
+        return
       }
       return self.clients.openWindow(url)
     }),

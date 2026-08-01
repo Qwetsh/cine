@@ -39,3 +39,7 @@ workbox-*.js
 # Claude Code & BMad (config locale)
 .claude/
 _bmad/
+_bmad-output/
+
+# Supabase CLI (temp local)
+supabase/.temp/

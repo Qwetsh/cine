@@ -27,7 +27,10 @@ export function WatchlistPage() {
   const tvWatchlist = useTvWatchlist(settings.showSeries ? coupleId : null, settings.showSeries ? user?.id : null)
   const tvCollection = useTvCollection(settings.showSeries ? coupleId : null)
   const [actionId, setActionId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'couple' | 'solo'>(coupleId ? 'couple' : 'solo')
+  // coupleId est encore null pendant le chargement du CoupleProvider : tant
+  // que l'utilisateur n'a pas choisi de vue, on suit la valeur résolue
+  const [userViewMode, setViewMode] = useState<'couple' | 'solo' | null>(null)
+  const viewMode: 'couple' | 'solo' = userViewMode ?? (coupleId ? 'couple' : 'solo')
   const [modalEntry, setModalEntry] = useState<WatchlistMovieEntry | null>(null)
 
   const activeEntries = coupleId && viewMode === 'solo' ? soloWl.entries : entries

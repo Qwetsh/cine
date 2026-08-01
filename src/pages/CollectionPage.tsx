@@ -41,7 +41,10 @@ export function CollectionPage() {
   const tvCol = useTvCollection(settings.showSeries ? coupleId : null)
   const tvRatings = useTvCollectionRatings(settings.showSeries ? coupleId : null)
   const tvPerso = useTvPersonalCollection(settings.showSeries ? user?.id ?? null : null)
-  const [tab, setTab] = useState<Tab>(coupleId ? 'couple' : 'perso')
+  // coupleId est encore null pendant le chargement du CoupleProvider : tant
+  // que l'utilisateur n'a pas choisi d'onglet, on suit la valeur résolue
+  const [userTab, setTab] = useState<Tab | null>(null)
+  const tab: Tab = userTab ?? (coupleId ? 'couple' : 'perso')
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortKey>('date')
   const [editingNote, setEditingNote] = useState<string | null>(null)

@@ -25,21 +25,30 @@ export function useCouple(userId: string | null): CoupleState {
     }
     setLoading(true)
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('couples')
       .select('*')
       .or('user1_id.eq.' + userId + ',user2_id.eq.' + userId)
+      .limit(1)
       .maybeSingle()
+
+    if (error) {
+      // Erreur réseau/serveur : on garde l'état connu plutôt que d'afficher
+      // à tort « pas de couple » (et le formulaire d'invitation)
+      setLoading(false)
+      return
+    }
 
     if (data) {
       setCouple(data)
       const partnerId = data.user1_id === userId ? data.user2_id : data.user1_id
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', partnerId)
-        .single()
-      setPartner(profile)
+        .maybeSingle()
+      // Ne pas écraser le partenaire connu si la requête échoue
+      if (!profileError) setPartner(profile)
     } else {
       setCouple(null)
       setPartner(null)
@@ -66,7 +75,14 @@ export function useCouple(userId: string | null): CoupleState {
           table: 'couples',
         },
         (payload) => {
-          const row = (payload.new ?? payload.old) as Record<string, string> | undefined
+          // Sur DELETE, payload.old ne contient que la clé primaire
+          // (REPLICA IDENTITY DEFAULT) : impossible de filtrer par user,
+          // on refetch systématiquement.
+          if (payload.eventType === 'DELETE') {
+            fetchCouple()
+            return
+          }
+          const row = payload.new as Record<string, string> | undefined
           if (!row) return
           if (row.user1_id === userId || row.user2_id === userId) {
             fetchCouple()
@@ -160,10 +176,15 @@ export function useCouple(userId: string | null): CoupleState {
     if (deleteError) return { error: 'Impossible de supprimer le lien. Réessayez.' }
 
     // Retirer partner_id des deux profils
-    await supabase.rpc('unlink_partners', { user_a: userId, user_b: partnerId })
+    const { error: unlinkError } = await supabase
+      .rpc('unlink_partners', { user_a: userId, user_b: partnerId })
 
     setCouple(null)
     setPartner(null)
+
+    if (unlinkError) {
+      return { error: 'Lien supprimé, mais la mise à jour des profils a échoué. Recharge la page.' }
+    }
 
     return { error: null }
   }

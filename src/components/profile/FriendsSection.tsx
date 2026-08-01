@@ -48,10 +48,16 @@ export function FriendsSection({ inviteCode }: Props) {
 
   async function handleConfirm() {
     if (!confirmAction) return
-    if (confirmAction.type === 'accept') await acceptRequest(confirmAction.id)
-    else if (confirmAction.type === 'reject') await rejectRequest(confirmAction.id)
-    else if (confirmAction.type === 'remove') await removeFriend(confirmAction.id)
+    setAddError(null)
+    let result: { error: string | null } = { error: null }
+    if (confirmAction.type === 'accept') result = await acceptRequest(confirmAction.id)
+    else if (confirmAction.type === 'reject') result = await rejectRequest(confirmAction.id)
+    else if (confirmAction.type === 'remove') result = await removeFriend(confirmAction.id)
     setConfirmAction(null)
+    if (result.error) {
+      setAddError("L'action a échoué, réessaie. (" + result.error + ')')
+      setTimeout(() => setAddError(null), 5000)
+    }
   }
 
   return (

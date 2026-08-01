@@ -86,6 +86,8 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
   useEffect(() => {
     if (recos.loading) return
 
+    let cancelled = false
+
     async function resolve() {
       setLoading(true)
 
@@ -143,12 +145,16 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
         Promise.all(recos.sent.map(r => resolveReco(r, 'sent', r.to_user_id))),
       ])
 
+      // Une résolution lancée pour un état antérieur des recos ne doit pas
+      // écraser celle du dernier état
+      if (cancelled) return
       setReceivedItems(receivedResults.filter((r): r is RecoDisplay => r !== null))
       setSentItems(sentResults.filter((r): r is RecoDisplay => r !== null))
       setLoading(false)
     }
 
     resolve()
+    return () => { cancelled = true }
   }, [recos.received, recos.sent, recos.loading])
 
   function formatDate(iso: string) {

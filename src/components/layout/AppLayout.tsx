@@ -23,7 +23,12 @@ export function AppLayout() {
       push.permission === 'unsupported' ||
       push.permission === 'denied' ||
       push.subscribed
-    ) return
+    ) {
+      // Si l'abonnement est détecté après coup (getSubscription est async),
+      // retirer la bannière déjà affichée
+      setShowBanner(false)
+      return
+    }
 
     const dismissed = localStorage.getItem(DISMISSED_KEY)
     if (dismissed) return
@@ -33,6 +38,8 @@ export function AppLayout() {
   }, [push.permission, push.subscribed])
 
   async function handleAccept() {
+    // En cas d'échec (prompt fermé, erreur), on cache la bannière pour cette
+    // session mais sans poser DISMISSED_KEY : elle reviendra au prochain lancement
     await push.subscribe()
     setShowBanner(false)
   }
