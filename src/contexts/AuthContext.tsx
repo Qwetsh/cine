@@ -9,6 +9,7 @@ interface AuthContextValue {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: Error | null }>
+  signInWithGoogle: () => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -84,12 +85,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error }
   }
 
+  async function signInWithGoogle() {
+    // Redirection complète : Supabase renvoie vers l'app après le consentement
+    // Google, supabase-js détecte la session dans l'URL au retour.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + import.meta.env.BASE_URL,
+      },
+    })
+    return { error }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
