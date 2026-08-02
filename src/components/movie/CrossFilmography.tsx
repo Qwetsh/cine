@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tmdb, getPosterUrl, type TmdbMovie, type TmdbPerson } from '../../lib/tmdb'
+import { HoldablePoster } from '../hold/HoldablePoster'
 
 interface Props {
   personId: number
@@ -187,10 +188,10 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
             {sharedMovies.map(movie => {
               const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
               return (
+                <HoldablePoster key={movie.id} movie={movie} className="flex-shrink-0">
                 <button
-                  key={movie.id}
                   onClick={() => navigate(`/movie/${movie.id}`)}
-                  className="flex-shrink-0 w-20 text-left group"
+                  className="w-20 text-left group"
                 >
                   <div className="relative aspect-[2/3] rounded-lg overflow-hidden border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
                     <img
@@ -208,6 +209,7 @@ export function CrossFilmography({ personId, personMovieIds }: Props) {
                   <p className="text-[10px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-tight">{movie.title}</p>
                   {year && <p className="text-[9px] text-[var(--color-text-muted)]">{year}</p>}
                 </button>
+                </HoldablePoster>
               )
             })}
           </div>

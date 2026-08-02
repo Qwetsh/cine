@@ -2,6 +2,37 @@ import { supabase } from './supabase'
 import type { TmdbMovie, TmdbMovieDetail } from './tmdb'
 
 /**
+ * Construit un TmdbMovie « d'affichage » depuis une ligne de la table movies
+ * (entrées collection/watchlist). À utiliser avec un movieDbId connu pour que
+ * le menu d'appui long n'écrase pas la ligne existante via ensureMovie.
+ */
+export function posterMovieFromDb(m: {
+  tmdb_id: number
+  title: string
+  original_title?: string | null
+  overview?: string | null
+  poster_path: string | null
+  backdrop_path?: string | null
+  release_date?: string | null
+  vote_average?: number | null
+}): TmdbMovie {
+  return {
+    id: m.tmdb_id,
+    title: m.title,
+    original_title: m.original_title ?? m.title,
+    overview: m.overview ?? '',
+    poster_path: m.poster_path,
+    backdrop_path: m.backdrop_path ?? null,
+    release_date: m.release_date ?? '',
+    vote_average: m.vote_average ?? 0,
+    vote_count: 0,
+    genre_ids: [],
+    popularity: 0,
+    adult: false,
+  }
+}
+
+/**
  * Upsert un film TMDB dans la table movies locale et retourne son UUID.
  * Utilise tmdb_id comme clé de déduplication.
  */

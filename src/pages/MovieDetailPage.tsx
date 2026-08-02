@@ -12,6 +12,7 @@ import { FriendsCard } from '../components/movie/FriendsCard'
 import { TrailerButton } from '../components/movie/TrailerButton'
 import { MovieCollection } from '../components/movie/MovieCollection'
 import { CastCrewSheet } from '../components/movie/CastCrewSheet'
+import { HoldablePerson } from '../components/hold/HoldablePerson'
 import { BookSource } from '../components/movie/BookSource'
 import { GameSource } from '../components/movie/GameSource'
 import { MusicSource } from '../components/movie/MusicSource'
@@ -279,6 +280,7 @@ export function MovieDetailPage() {
         {director && (
           <div className="mt-4">
             <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Réalisé par</p>
+            <HoldablePerson personId={director.id} personName={director.name} profilePath={director.profile_path} className="inline-flex" radius={8}>
             <button
               onClick={() => navigate(`/person/${director.id}`)}
               className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 transition-colors"
@@ -295,6 +297,7 @@ export function MovieDetailPage() {
               <span className="text-sm font-medium text-[var(--color-text)]">{director.name}</span>
               <span className="text-[var(--color-text-muted)] text-xs">›</span>
             </button>
+            </HoldablePerson>
           </div>
         )}
 
@@ -303,8 +306,8 @@ export function MovieDetailPage() {
             <h2 className="font-semibold text-[var(--color-text)] mb-2">Avec</h2>
             <div className="flex flex-wrap gap-2">
               {cast.map(a => (
+                <HoldablePerson key={a.id} personId={a.id} personName={a.name} profilePath={a.profile_path} className="inline-flex" radius={8}>
                 <button
-                  key={a.id}
                   onClick={() => navigate(`/person/${a.id}`)}
                   className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 transition-colors"
                 >
@@ -325,6 +328,7 @@ export function MovieDetailPage() {
                   </div>
                   <span className="text-[var(--color-text-muted)] text-[10px]">›</span>
                 </button>
+                </HoldablePerson>
               ))}
               {(movie.credits?.cast.length ?? 0) > 5 && (
                 <button

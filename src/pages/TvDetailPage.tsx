@@ -8,6 +8,7 @@ import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
 import { useTvSeasonStatus } from '../hooks/useTvSeasonStatus'
 import { useToast } from '../hooks/useToast'
 import { WatchProviders } from '../components/movie/WatchProviders'
+import { HoldablePerson } from '../components/hold/HoldablePerson'
 import { RecommendButton } from '../components/movie/RecommendButton'
 import { FriendsCard } from '../components/movie/FriendsCard'
 import { TrailerButton } from '../components/movie/TrailerButton'
@@ -234,8 +235,8 @@ export function TvDetailPage() {
             <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Créé par</p>
             <div className="flex flex-wrap gap-2">
               {creators.map(c => (
+                <HoldablePerson key={c.id} personId={c.id} personName={c.name} profilePath={c.profile_path} className="inline-flex" radius={8}>
                 <button
-                  key={c.id}
                   onClick={() => navigate(`/person/${c.id}`)}
                   className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 transition-colors"
                 >
@@ -250,6 +251,7 @@ export function TvDetailPage() {
                   )}
                   <span className="text-sm font-medium text-[var(--color-text)]">{c.name}</span>
                 </button>
+                </HoldablePerson>
               ))}
             </div>
           </div>
@@ -260,8 +262,8 @@ export function TvDetailPage() {
             <h2 className="font-semibold text-[var(--color-text)] mb-2">Avec</h2>
             <div className="flex flex-wrap gap-2">
               {cast.map(a => (
+                <HoldablePerson key={a.id} personId={a.id} personName={a.name} profilePath={a.profile_path} className="inline-flex" radius={8}>
                 <button
-                  key={a.id}
                   onClick={() => navigate(`/person/${a.id}`)}
                   className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 transition-colors"
                 >
@@ -274,8 +276,14 @@ export function TvDetailPage() {
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-[10px]">🎭</div>
                   )}
-                  <span className="text-xs text-[var(--color-text)]">{a.name}</span>
+                  <div className="flex flex-col items-start">
+                    <span className="text-xs text-[var(--color-text)]">{a.name}</span>
+                    {a.character && (
+                      <span className="text-[10px] text-[var(--color-text-muted)] leading-tight">{a.character}</span>
+                    )}
+                  </div>
                 </button>
+                </HoldablePerson>
               ))}
             </div>
           </div>

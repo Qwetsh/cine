@@ -11,6 +11,8 @@ import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
+import { HoldablePoster } from '../components/hold/HoldablePoster'
+import { posterMovieFromDb } from '../lib/movies'
 import { MarkWatchedModal, type MarkWatchedData } from '../components/movie/MarkWatchedModal'
 import type { WatchlistMovieEntry, TvWatchlistEntry } from '../types'
 
@@ -214,9 +216,10 @@ export function WatchlistPage() {
               className="bg-[var(--color-surface)] rounded-xl overflow-hidden border border-[var(--color-border)]"
             >
               <div className="flex gap-3 p-3">
+                <HoldablePoster movie={posterMovieFromDb(entry.movie)} movieDbId={entry.movie.id} className="flex-shrink-0">
                 <button
                   onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-                  className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+                  className="w-16 h-24 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
                 >
                   <img
                     src={getPosterUrl(entry.movie.poster_path, 'small')}
@@ -225,6 +228,7 @@ export function WatchlistPage() {
                     loading="lazy"
                   />
                 </button>
+                </HoldablePoster>
 
                 <div className="flex-1 min-w-0">
                   <button

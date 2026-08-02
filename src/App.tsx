@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { AuthProvider } from './contexts/AuthContext'
 import { CoupleProvider } from './contexts/CoupleContext'
 import { FriendsProvider } from './contexts/FriendsContext'
+import { HoldMenuProvider } from './contexts/HoldMenuContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
@@ -51,6 +52,7 @@ export function App() {
     <AuthProvider>
       <CoupleProvider>
       <FriendsProvider>
+      <HoldMenuProvider>
         <BrowserRouter basename={import.meta.env.BASE_URL}>
           <InviteCapture />
           <Routes>
@@ -80,6 +82,7 @@ export function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+      </HoldMenuProvider>
       </FriendsProvider>
       </CoupleProvider>
     </AuthProvider>

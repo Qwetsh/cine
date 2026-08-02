@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbCastMember, TmdbCrewMember } from '../../lib/tmdb'
+import { HoldablePerson } from '../hold/HoldablePerson'
 
 const JOB_LABELS: Record<string, string> = {
   'Director of Photography': 'Photographie',
@@ -87,8 +88,8 @@ export function CastCrewSheet({ cast, crew, open, onClose }: Props) {
               <p className="text-xs text-[var(--color-text-muted)] mb-2">🎭 Casting</p>
               <div className="space-y-1">
                 {cast.map(a => (
+                  <HoldablePerson key={a.id} personId={a.id} personName={a.name} profilePath={a.profile_path} radius={8}>
                   <button
-                    key={a.id}
                     onClick={() => handleNavigate(a.id)}
                     className="w-full flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--color-surface-2)] transition-colors"
                   >
@@ -109,6 +110,7 @@ export function CastCrewSheet({ cast, crew, open, onClose }: Props) {
                     </div>
                     <span className="text-[var(--color-text-muted)] text-xs flex-shrink-0">›</span>
                   </button>
+                  </HoldablePerson>
                 ))}
               </div>
             </div>
@@ -120,8 +122,8 @@ export function CastCrewSheet({ cast, crew, open, onClose }: Props) {
               <p className="text-xs text-[var(--color-text-muted)] mb-2">🎬 Équipe technique</p>
               <div className="space-y-1">
                 {keyCrew.map(c => (
+                  <HoldablePerson key={`${c.id}-${c.job}`} personId={c.id} personName={c.name} profilePath={c.profile_path} radius={8}>
                   <button
-                    key={`${c.id}-${c.job}`}
                     onClick={() => handleNavigate(c.id)}
                     className="w-full flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--color-surface-2)] transition-colors"
                   >
@@ -140,6 +142,7 @@ export function CastCrewSheet({ cast, crew, open, onClose }: Props) {
                     </div>
                     <span className="text-[var(--color-text-muted)] text-xs flex-shrink-0">›</span>
                   </button>
+                  </HoldablePerson>
                 ))}
               </div>
             </div>

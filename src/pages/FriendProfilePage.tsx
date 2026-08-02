@@ -6,7 +6,10 @@ import { useFriendCollection } from '../hooks/useFriendCollection'
 import { useFriendAffinity } from '../hooks/useFriendAffinity'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
+import type { TmdbMovie } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
+import { HoldablePoster } from '../components/hold/HoldablePoster'
+import { posterMovieFromDb } from '../lib/movies'
 import { Avatar } from '../components/ui/Avatar'
 import type { PersonalCollectionEntry, TvPersonalCollectionEntry } from '../types'
 
@@ -117,10 +120,29 @@ export function FriendProfilePage() {
           {/* Titres en commun */}
           <div className="flex gap-3 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
             {affinity.common.slice(0, 12).map(item => (
-              <button
+              <HoldablePoster
                 key={`${item.media_type}-${item.tmdb_id}`}
+                movie={{
+                  id: item.tmdb_id,
+                  title: item.title,
+                  original_title: item.title,
+                  overview: '',
+                  poster_path: item.poster_path,
+                  backdrop_path: null,
+                  release_date: '',
+                  vote_average: 0,
+                  vote_count: 0,
+                  genre_ids: [],
+                  popularity: 0,
+                  adult: false,
+                  media_type: item.media_type,
+                } as TmdbMovie}
+                partial
+                className="flex-shrink-0"
+              >
+              <button
                 onClick={() => navigate(item.media_type === 'movie' ? `/movie/${item.tmdb_id}` : `/tv/${item.tmdb_id}`)}
-                className="flex-shrink-0 w-16 text-left"
+                className="w-16 text-left"
               >
                 <img
                   src={getPosterUrl(item.poster_path, 'small')}
@@ -134,6 +156,7 @@ export function FriendProfilePage() {
                   {item.friend_rating != null && <span>{friendName.split(' ')[0]} ★{item.friend_rating}</span>}
                 </div>
               </button>
+              </HoldablePoster>
             ))}
           </div>
         </div>
@@ -221,9 +244,10 @@ function MovieEntry({ entry, navigate }: { entry: PersonalCollectionEntry; navig
   return (
     <li className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
       <div className="flex gap-3 p-3">
+        <HoldablePoster movie={posterMovieFromDb(entry.movie)} movieDbId={entry.movie.id} className="flex-shrink-0">
         <button
           onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-          className="w-14 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+          className="w-14 h-20 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
         >
           <img
             src={getPosterUrl(entry.movie.poster_path, 'small')}
@@ -232,6 +256,7 @@ function MovieEntry({ entry, navigate }: { entry: PersonalCollectionEntry; navig
             loading="lazy"
           />
         </button>
+        </HoldablePoster>
         <div className="flex-1 min-w-0">
           <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
             <p className="font-semibold text-[var(--color-text)] text-sm hover:text-[var(--color-accent)] transition-colors">

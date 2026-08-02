@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie } from '../../lib/tmdb'
+import { HoldablePoster } from '../hold/HoldablePoster'
+import { HoldablePerson } from '../hold/HoldablePerson'
 
 interface Props {
   movies: TmdbMovie[]
@@ -122,6 +124,7 @@ export function DirectorFrequentActors({ movies }: Props) {
         <div className="space-y-1">
           {actors.map(({ actor, movies: actorMovies }) => (
             <div key={actor.id}>
+              <HoldablePerson personId={actor.id} personName={actor.name} profilePath={actor.profile_path}>
               <button
                 onClick={() => setExpandedActorId(expandedActorId === actor.id ? null : actor.id)}
                 className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[var(--color-surface-2)] transition-colors text-left"
@@ -145,6 +148,7 @@ export function DirectorFrequentActors({ movies }: Props) {
                   {expandedActorId === actor.id ? '▲' : '▼'}
                 </span>
               </button>
+              </HoldablePerson>
 
               {expandedActorId === actor.id && (
                 <div className="flex gap-2 overflow-x-auto pb-1 pl-14 pr-2 scrollbar-hide mt-1">
@@ -153,10 +157,10 @@ export function DirectorFrequentActors({ movies }: Props) {
                     .map(movie => {
                       const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
                       return (
+                        <HoldablePoster key={movie.id} movie={movie} className="flex-shrink-0">
                         <button
-                          key={movie.id}
                           onClick={() => navigate(`/movie/${movie.id}`)}
-                          className="flex-shrink-0 w-16 text-left group"
+                          className="w-16 text-left group"
                         >
                           <div className="relative aspect-[2/3] rounded-lg overflow-hidden border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
                             <img
@@ -169,6 +173,7 @@ export function DirectorFrequentActors({ movies }: Props) {
                           <p className="text-[9px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-tight">{movie.title}</p>
                           {year && <p className="text-[8px] text-[var(--color-text-muted)]">{year}</p>}
                         </button>
+                        </HoldablePoster>
                       )
                     })}
                 </div>

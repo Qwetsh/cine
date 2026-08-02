@@ -13,6 +13,8 @@ import { getPosterUrl } from '../lib/tmdb'
 import { StarRating } from '../components/movie/StarRating'
 import { CollectionFilterPanel } from '../components/filters/CollectionFilterPanel'
 import { SwipeToDelete } from '../components/ui/SwipeToDelete'
+import { HoldablePoster } from '../components/hold/HoldablePoster'
+import { posterMovieFromDb } from '../lib/movies'
 import { TvProviderLogos } from '../components/movie/TvProviderLogos'
 import type { CollectionMovieEntry, PersonalCollectionEntry } from '../types'
 
@@ -338,12 +340,14 @@ export function CollectionPage() {
                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
                   <div className="flex gap-3 p-3">
                     <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                      <HoldablePoster movie={posterMovieFromDb(entry.movie)} movieDbId={entry.movie.id}>
                       <button
                         onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
                         className="w-16 h-24 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
                       >
                         <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
                       </button>
+                      </HoldablePoster>
                       <button
                         onClick={() => document.getElementById(`emoji-couple-${entry.id}`)?.classList.toggle('hidden')}
                         className="flex gap-1.5 items-center hover:scale-105 transition-transform"
@@ -474,12 +478,14 @@ export function CollectionPage() {
                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
                   <div className="flex gap-3 p-3">
                     <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                      <HoldablePoster movie={posterMovieFromDb(entry.movie)} movieDbId={entry.movie.id}>
                       <button
                         onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
                         className="w-16 h-24 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
                       >
                         <img src={getPosterUrl(entry.movie.poster_path, 'small')} alt={entry.movie.title} className="w-full h-full object-cover" loading="lazy" />
                       </button>
+                      </HoldablePoster>
                       <button
                         onClick={() => document.getElementById(`emoji-perso-${entry.id}`)?.classList.toggle('hidden')}
                         className="flex gap-0.5 hover:scale-110 transition-transform"

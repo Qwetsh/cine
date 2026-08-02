@@ -155,6 +155,29 @@ export interface TmdbPersonDetail extends TmdbPerson {
   homepage: string | null
 }
 
+/** Crédit d'une personne (combined_credits) : film ou série */
+export interface TmdbPersonCredit {
+  id: number
+  media_type: 'movie' | 'tv'
+  /** Titre film */
+  title?: string
+  /** Titre série */
+  name?: string
+  poster_path: string | null
+  release_date?: string
+  first_air_date?: string
+  vote_average: number
+  vote_count: number
+  popularity: number
+  character?: string
+}
+
+export interface TmdbPersonCombinedCredits {
+  id: number
+  cast: TmdbPersonCredit[]
+  crew: (TmdbPersonCredit & { job: string; department: string })[]
+}
+
 export interface TmdbExternalIds {
   imdb_id: string | null
   facebook_id: string | null
@@ -390,6 +413,9 @@ export const tmdb = {
 
   getPersonExternalIds: (id: number) =>
     tmdbFetch<TmdbExternalIds>(`/person/${id}/external_ids`),
+
+  getPersonCombinedCredits: (id: number) =>
+    tmdbFetch<TmdbPersonCombinedCredits>(`/person/${id}/combined_credits`),
 
   getWatchProviders: (id: number) =>
     tmdbFetch<WatchProviderResult>(`/movie/${id}/watch/providers`),

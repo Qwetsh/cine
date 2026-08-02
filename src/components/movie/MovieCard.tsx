@@ -2,6 +2,7 @@ import { useFriendsContext } from '../../contexts/FriendsContext'
 import { useSettings } from '../../hooks/useSettings'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie } from '../../lib/tmdb'
+import { HoldablePoster } from '../hold/HoldablePoster'
 
 interface MovieCardProps {
   movie: TmdbMovie
@@ -48,7 +49,8 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
       onClick={onClick}
       className="group flex flex-col text-left rounded-lg overflow-hidden bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] transition-colors"
     >
-      {/* Affiche */}
+      {/* Affiche — appui long pour le menu d'actions rapides */}
+      <HoldablePoster movie={movie}>
       <div className="relative aspect-[2/3] bg-[var(--color-surface-2)] overflow-hidden">
         <img
           src={getPosterUrl(movie.poster_path, 'medium')}
@@ -82,6 +84,7 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
           </div>
         )}
       </div>
+      </HoldablePoster>
 
       {/* Infos */}
       <div className="p-2">

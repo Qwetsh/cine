@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { TmdbPersonDetail } from '../../lib/tmdb'
+import { HoldablePerson } from '../hold/HoldablePerson'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p'
 
@@ -25,6 +26,7 @@ export function PersonCard({ person, filmCount }: Props) {
   const age = getAge(person.birthday, person.deathday)
 
   return (
+    <HoldablePerson personId={person.id} personName={person.name} profilePath={person.profile_path} radius={16} className="block">
     <div className="mt-1 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
       <div className="flex items-center gap-3 p-3">
         {person.profile_path ? (
@@ -55,5 +57,6 @@ export function PersonCard({ person, filmCount }: Props) {
         </button>
       </div>
     </div>
+    </HoldablePerson>
   )
 }

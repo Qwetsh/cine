@@ -1,0 +1,234 @@
+/* ─────────────────────────────────────────────────────────────
+   Appui long — liseré "red light", menu radial d'affiche,
+   peek filmographie. Même langage visuel que SwipeCard :
+   spring cubic-bezier(0.175, 0.885, 0.32, 1.275), zones colorées.
+   ───────────────────────────────────────────────────────────── */
+
+/* ── Liseré de charge autour de la cible ── */
+.hold-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.hold-ring rect {
+  fill: none;
+}
+
+.hold-ring__track {
+  stroke: rgba(229, 9, 20, 0.18);
+  stroke-width: 3;
+}
+
+.hold-ring__bar {
+  stroke: var(--color-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(229, 9, 20, 0.9)) drop-shadow(0 0 9px rgba(229, 9, 20, 0.55));
+  animation: hold-ring-fill linear forwards;
+  /* animation-duration injectée en inline style */
+}
+
+@keyframes hold-ring-fill {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* ── Fond commun (menu radial + peek) ── */
+@keyframes hold-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes hold-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes hold-pop {
+  0% { opacity: 0; transform: scale(0); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Menu radial d'affiche ── */
+.hold-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: hold-fade-in 0.25s ease forwards;
+  touch-action: none;
+}
+
+.hold-menu.closing {
+  animation: hold-fade-out 0.2s ease forwards;
+  pointer-events: none;
+}
+
+/* Conteneur de drag : suit le doigt (translate/rotate en inline style) */
+.hold-menu__poster-drag {
+  position: fixed;
+  z-index: 1;
+  transition: transform 0.08s linear;
+  will-change: transform;
+}
+
+/* Retour élastique à la position d'origine (annulation) — spring SwipeCard */
+.hold-menu__poster-drag.snapping {
+  transition: transform 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Clone de l'affiche, mis en avant à sa position d'origine */
+.hold-menu__poster {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 18px rgba(229, 9, 20, 0.55), 0 0 54px rgba(229, 9, 20, 0.28);
+  animation: hold-poster-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.hold-menu__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes hold-poster-pop {
+  from { transform: scale(1); }
+  to { transform: scale(1.07); }
+}
+
+/* Slot positionné (coins + haut) — le slot gère la position,
+   la bulle gère ses propres transforms sans conflit */
+.hold-zone-slot {
+  position: fixed;
+  z-index: 2;
+}
+
+.hold-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 13px;
+  border-radius: 16px;
+  max-width: 128px;
+  text-align: center;
+  background: rgba(18, 18, 18, 0.88);
+  border: 1.5px solid rgba(var(--zone-c), 0.5);
+  box-shadow: 0 0 12px rgba(var(--zone-c), 0.22);
+  animation: hold-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  /* animation-delay (stagger) injecté en inline style */
+  transition: transform 0.15s ease, opacity 0.15s ease,
+    box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.hold-zone__emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.hold-zone__label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+/* Tiers de proximité pendant le glisser (cf. SwipeCard) */
+.hold-zone.dimmed { opacity: 0.35; }
+.hold-zone.t1 {
+  transform: scale(1.05);
+  border-color: rgba(var(--zone-c), 0.8);
+}
+.hold-zone.t2 {
+  transform: scale(1.12);
+  border-color: rgb(var(--zone-c));
+  box-shadow: 0 0 18px rgba(var(--zone-c), 0.5);
+}
+.hold-zone.t3 {
+  border-color: rgb(var(--zone-c));
+  box-shadow: 0 0 28px rgba(var(--zone-c), 0.85);
+  background: rgba(var(--zone-c), 0.22);
+  animation: hold-zone-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes hold-zone-pulse {
+  0%, 100% { transform: scale(1.18); }
+  50% { transform: scale(1.28); }
+}
+
+.hold-menu__hint {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: rgba(240, 240, 240, 0.65);
+  white-space: nowrap;
+  animation: hold-fade-in 0.4s ease 0.25s both;
+}
+
+/* ── Peek filmographie (appui long sur une personne) ── */
+.person-peek {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: hold-fade-in 0.25s ease forwards;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.person-peek.closing {
+  animation: hold-fade-out 0.18s ease forwards;
+  pointer-events: none;
+}
+
+.person-peek__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  animation: hold-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.person-peek__viewport {
+  overflow: hidden;
+  width: 100%;
+}
+
+.person-peek__strip {
+  display: flex;
+  gap: 12px;
+  padding: 0 24px;
+  width: max-content;
+  will-change: transform;
+}
+
+.person-peek__card {
+  width: 96px;
+  flex-shrink: 0;
+  animation: hold-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  /* animation-delay (stagger) injecté en inline style */
+}
+
+.person-peek__hint {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(240, 240, 240, 0.65);
+  animation: hold-fade-in 0.4s ease 0.3s both;
+}

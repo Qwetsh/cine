@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { tmdb } from '../lib/tmdb'
 import { getPosterUrl } from '../lib/tmdb'
 import { MovieGrid } from '../components/movie/MovieGrid'
+import { HoldablePoster } from '../components/hold/HoldablePoster'
 import { useSettings } from '../hooks/useSettings'
 import { useGenres } from '../hooks/useGenres'
 import { useCollection } from '../hooks/useCollection'
@@ -184,10 +185,10 @@ export function HomePage() {
         ) : (
           <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
             {upcoming.map(movie => (
+              <HoldablePoster key={movie.id} movie={movie} className="flex-shrink-0" radius={12}>
               <button
-                key={movie.id}
                 onClick={() => navigate(`/movie/${movie.id}`)}
-                className="flex-shrink-0 w-28 text-left group"
+                className="w-28 text-left group"
               >
                 <div className="relative w-28 aspect-[2/3] rounded-xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
                   {movie.poster_path ? (
@@ -210,6 +211,7 @@ export function HomePage() {
                   {movie.title}
                 </p>
               </button>
+              </HoldablePoster>
             ))}
           </div>
         )}
@@ -229,10 +231,30 @@ export function HomePage() {
           </div>
           <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
             {friendRecos.map(reco => (
-              <button
+              <HoldablePoster
                 key={reco.id}
+                movie={{
+                  id: reco.tmdbId,
+                  title: reco.title,
+                  original_title: reco.title,
+                  overview: '',
+                  poster_path: reco.posterPath,
+                  backdrop_path: null,
+                  release_date: '',
+                  vote_average: 0,
+                  vote_count: 0,
+                  genre_ids: [],
+                  popularity: 0,
+                  adult: false,
+                  media_type: reco.mediaType,
+                } as TmdbMovie}
+                partial
+                className="flex-shrink-0"
+                radius={12}
+              >
+              <button
                 onClick={() => navigate(reco.mediaType === 'movie' ? `/movie/${reco.tmdbId}` : `/tv/${reco.tmdbId}`)}
-                className="flex-shrink-0 w-28 text-left group"
+                className="w-28 text-left group"
               >
                 <div className="relative w-28 aspect-[2/3] rounded-xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
                   {reco.posterPath ? (
@@ -258,6 +280,7 @@ export function HomePage() {
                   {reco.title}
                 </p>
               </button>
+              </HoldablePoster>
             ))}
           </div>
         </div>

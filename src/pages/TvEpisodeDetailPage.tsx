@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useTvEpisodeRatings } from '../hooks/useTvEpisodeRatings'
 import { StarRating } from '../components/movie/StarRating'
+import { HoldablePerson } from '../components/hold/HoldablePerson'
 import { supabase } from '../lib/supabase'
 import type { TmdbEpisode, TmdbTvShowDetail } from '../lib/tmdb'
 
@@ -182,8 +183,8 @@ export function TvEpisodeDetailPage() {
             <h2 className="font-semibold text-[var(--color-text)] mb-2">Guest stars</h2>
             <div className="flex flex-wrap gap-2">
               {guestStars.map(a => (
+                <HoldablePerson key={a.id} personId={a.id} personName={a.name} profilePath={a.profile_path} className="inline-flex" radius={8}>
                 <button
-                  key={a.id}
                   onClick={() => navigate(`/person/${a.id}`)}
                   className="inline-flex items-center gap-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 transition-colors"
                 >
@@ -203,6 +204,7 @@ export function TvEpisodeDetailPage() {
                     )}
                   </div>
                 </button>
+                </HoldablePerson>
               ))}
             </div>
           </div>

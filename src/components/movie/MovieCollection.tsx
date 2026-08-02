@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tmdb, getPosterUrl, type TmdbMovie, type TmdbCollectionDetail } from '../../lib/tmdb'
+import { HoldablePoster } from '../hold/HoldablePoster'
 
 interface Props {
   collectionId: number
@@ -30,14 +31,15 @@ export function MovieCollection({ collectionId, currentMovieId }: Props) {
       <h2 className="font-semibold text-[var(--color-text)] mb-3">{collection.name}</h2>
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
         {sorted.map(movie => (
-          <SagaCard
-            key={movie.id}
-            movie={movie}
-            isCurrent={movie.id === currentMovieId}
-            onClick={() => {
-              if (movie.id !== currentMovieId) navigate(`/movie/${movie.id}`)
-            }}
-          />
+          <HoldablePoster key={movie.id} movie={movie} className="flex-shrink-0">
+            <SagaCard
+              movie={movie}
+              isCurrent={movie.id === currentMovieId}
+              onClick={() => {
+                if (movie.id !== currentMovieId) navigate(`/movie/${movie.id}`)
+              }}
+            />
+          </HoldablePoster>
         ))}
       </div>
     </div>
@@ -51,7 +53,7 @@ function SagaCard({ movie, isCurrent, onClick }: { movie: TmdbMovie; isCurrent: 
     <button
       onClick={onClick}
       className={[
-        'flex-shrink-0 w-24 text-left transition-all',
+        'w-24 text-left transition-all',
         isCurrent ? 'opacity-100' : 'opacity-70 hover:opacity-100',
       ].join(' ')}
     >
