@@ -4,17 +4,16 @@ import { PersonCard } from '../components/search/PersonCard'
 import { useTmdbSearch } from '../hooks/useTmdbSearch'
 import { useGenres } from '../hooks/useGenres'
 import { useSettings } from '../hooks/useSettings'
-import { TvCard } from '../components/movie/TvCard'
 import { MovieGrid } from '../components/movie/MovieGrid'
 import { SegmentedControl } from '../components/search/SegmentedControl'
 import { GenreChips } from '../components/search/GenreChips'
 import { YearFilter } from '../components/search/YearFilter'
 import { CountryChips } from '../components/search/CountryChips'
 import { ActiveFilters } from '../components/search/ActiveFilters'
-import type { TmdbTvShow } from '../lib/tmdb'
+import { detailPath } from '../lib/media'
 
 const PLACEHOLDERS: Record<string, string> = {
-  title: 'Rechercher un film…',
+  title: 'Rechercher un film, une série…',
   actor: 'Nom de l\'acteur…',
   director: 'Nom du réalisateur…',
 }
@@ -31,15 +30,15 @@ function getSavedQuery(): string {
 export function SearchPage() {
   const [query, setQuery] = useState(getSavedQuery)
   const { settings } = useSettings()
+  const includeSeries = !settings.hideSeries
   const {
-    results, tvResults, loading, hasMore, filters, matchedPerson,
-    search, loadMore, setMode, setMediaType, toggleGenre, setYearRange, setCountry, clearFilters, clear, saveState,
-  } = useTmdbSearch(settings.showSeries)
-  const { genres, tvGenres } = useGenres()
+    results, loading, hasMore, filters, matchedPerson,
+    search, loadMore, setMode, toggleGenre, setYearRange, setCountry, clearFilters, clear, saveState,
+  } = useTmdbSearch(includeSeries)
+  const { genres } = useGenres()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const navigate = useNavigate()
-  const isTvMode = filters.mediaType === 'tv'
 
   const hasFilters = filters.genres.length > 0 || filters.yearRange !== null || filters.country !== null
 
@@ -67,55 +66,20 @@ export function SearchPage() {
   }
 
   function getSectionTitle() {
-    if (isTvMode) {
-      if (query.trim()) return `Séries pour "${query}"`
-      if (hasFilters) return 'Séries filtrées'
-      return 'Séries tendances'
-    }
+    const noun = includeSeries ? 'Titres' : 'Films'
     if (query.trim() && filters.mode === 'title') return `Résultats pour "${query}"`
     if (query.trim() && filters.mode === 'actor') return `Films avec "${query}"`
     if (query.trim() && filters.mode === 'director') return `Films de "${query}"`
-    if (hasFilters) return 'Films filtrés'
-    if (!query.trim() && results.length > 0) return 'Films populaires'
-    return 'Films populaires'
+    if (hasFilters) return `${noun} filtrés`
+    return `${noun} populaires`
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Sticky search header — compact: toggles + input only */}
+      {/* Sticky search header — compact: mode + input only */}
       <div className="sticky top-14 z-10 bg-[var(--color-bg)]/90 backdrop-blur px-4 pt-0 pb-2 space-y-2">
-        {/* Media type toggle — Films / Séries */}
-        {settings.showSeries && (
-          <div className="flex rounded-xl bg-[var(--color-surface-2)] p-1">
-            <button
-              onClick={() => setMediaType('movie')}
-              className={[
-                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-                filters.mediaType === 'movie'
-                  ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
-                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-              ].join(' ')}
-            >
-              Films
-            </button>
-            <button
-              onClick={() => setMediaType('tv')}
-              className={[
-                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-                filters.mediaType === 'tv'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-              ].join(' ')}
-            >
-              Séries
-            </button>
-          </div>
-        )}
-
-        {/* Search mode — only for movies */}
-        {filters.mediaType === 'movie' && (
-          <SegmentedControl value={filters.mode} onChange={setMode} />
-        )}
+        {/* Search mode — Titre / Acteur / Réalisateur */}
+        <SegmentedControl value={filters.mode} onChange={setMode} />
 
         {/* Search input */}
         <div className="relative">
@@ -127,7 +91,7 @@ export function SearchPage() {
             type="text"
             value={query}
             onChange={e => handleQueryChange(e.target.value)}
-            placeholder={isTvMode ? 'Rechercher une série…' : PLACEHOLDERS[filters.mode]}
+            placeholder={filters.mode === 'title' && !includeSeries ? 'Rechercher un film…' : PLACEHOLDERS[filters.mode]}
             className="w-full bg-[var(--color-surface)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] pl-10 pr-10 py-3 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] text-sm"
           />
           {query && (
@@ -140,11 +104,11 @@ export function SearchPage() {
           )}
         </div>
 
-        {/* Filters — only in title/TV mode, not actor/director */}
-        {(isTvMode || filters.mode === 'title') && (
+        {/* Filters — only in title mode, not actor/director */}
+        {filters.mode === 'title' && (
           <>
             <GenreChips
-              genres={isTvMode ? tvGenres : genres}
+              genres={genres}
               selected={filters.genres}
               onToggle={toggleGenre}
             />
@@ -160,7 +124,7 @@ export function SearchPage() {
         )}
 
         {/* Person info card — inside sticky to stay visible */}
-        {matchedPerson && !isTvMode && (
+        {matchedPerson && (
           <PersonCard person={matchedPerson} filmCount={results.length} />
         )}
       </div>
@@ -168,7 +132,7 @@ export function SearchPage() {
       {/* Active filter pills */}
       <ActiveFilters
         filters={filters}
-        genres={isTvMode ? tvGenres : genres}
+        genres={genres}
         onRemoveGenre={toggleGenre}
         onRemoveYearRange={() => setYearRange(null)}
         onRemoveCountry={() => setCountry(null)}
@@ -182,20 +146,12 @@ export function SearchPage() {
         </p>
       </div>
 
-      {/* Results grid */}
-      {isTvMode ? (
-        <TvGrid
-          shows={tvResults}
-          loading={loading}
-          onClick={show => { saveState(); navigate(`/tv/${show.id}`) }}
-        />
-      ) : (
-        <MovieGrid
-          movies={results}
-          loading={loading}
-          onMovieClick={movie => { saveState(); navigate(`/movie/${movie.id}`) }}
-        />
-      )}
+      {/* Results grid — mixte films + séries */}
+      <MovieGrid
+        movies={results}
+        loading={loading}
+        onMovieClick={item => { saveState(); navigate(detailPath(item)) }}
+      />
 
       {/* Load more */}
       {hasMore && !loading && (
@@ -208,47 +164,6 @@ export function SearchPage() {
           </button>
         </div>
       )}
-    </div>
-  )
-}
-
-function TvGrid({
-  shows,
-  loading,
-  onClick,
-}: {
-  shows: TmdbTvShow[]
-  loading: boolean
-  onClick: (s: TmdbTvShow) => void
-}) {
-  if (loading && shows.length === 0) {
-    return (
-      <div className="grid grid-cols-3 gap-3 p-4">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <div key={i} className="aspect-[2/3] bg-[var(--color-surface-2)] rounded-lg animate-pulse" />
-        ))}
-      </div>
-    )
-  }
-
-  if (!loading && shows.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-muted)]">
-        <span className="text-4xl mb-3">📺</span>
-        <p>Aucune série trouvée</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-3 gap-3 p-4">
-      {shows.map(show => (
-        <TvCard
-          key={show.id}
-          show={show}
-          onClick={() => onClick(show)}
-        />
-      ))}
     </div>
   )
 }

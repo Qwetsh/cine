@@ -1,13 +1,15 @@
 import { useCallback, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
-import type { TmdbMovie, TmdbGenre } from '../lib/tmdb'
+import { tvToMovie, mediaKey, movieGenresToTv } from '../lib/media'
+import type { MediaItem } from '../lib/media'
+import type { TmdbGenre } from '../lib/tmdb'
 import type { Preferences } from './usePreferences'
 import { useSettings, getStreamingDiscoverParams } from './useSettings'
 
 export type FeedbackType = 'too_old' | 'too_recent' | 'not_this_genre' | 'exclude_genre' | 'same_genre_diff_movie' | 'accept'
 
 interface SessionState {
-  excludedMovieIds: Set<number>
+  excludedKeys: Set<string> // mediaKey — un film et une série peuvent partager un id
   excludedGenreIds: Set<number>
   preferredGenreIds: Set<number>
   yearMin: number
@@ -23,8 +25,8 @@ function genreNameToId(name: string, genres: TmdbGenre[]): number | null {
   return g?.id ?? null
 }
 
-export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGenre[]) {
-  const [suggestion, setSuggestion] = useState<TmdbMovie | null>(null)
+export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGenre[], includeSeries = false) {
+  const [suggestion, setSuggestion] = useState<MediaItem | null>(null)
   const [loading, setLoading] = useState(false)
   const [noMoreResults, setNoMoreResults] = useState(false)
   const sessionRef = useRef<SessionState | null>(null)
@@ -42,7 +44,7 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
       }
 
       sessionRef.current = {
-        excludedMovieIds: new Set(),
+        excludedKeys: new Set(),
         excludedGenreIds: new Set(),
         preferredGenreIds: preferredIds,
         yearMin: Math.max(preferences.yearRange[0] - 5, 1920),
@@ -87,43 +89,49 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
       // Lower vote threshold for older films (fewer votes on TMDB)
       const voteThreshold = session.yearMax < 1990 ? '10' : session.yearMax < 2000 ? '30' : '50'
 
+      // ~30 % de séries dans le flux quand elles sont activées
+      const tvGenreIds = movieGenresToTv(selectedGenres)
+      const suggestTv = includeSeries && Math.random() < 0.3 && (selectedGenres.length === 0 || tvGenreIds.length > 0)
+
       const params: Record<string, string | number | undefined> = {
         'vote_count.gte': voteThreshold,
         'vote_average.gte': '6',
         sort_by: 'popularity.desc',
         page,
-        'primary_release_date.gte': `${session.yearMin}-01-01`,
-        'primary_release_date.lte': `${session.yearMax}-12-31`,
       }
-
-      if (selectedGenres.length > 0) {
-        params.with_genres = selectedGenres.join(',')
+      if (suggestTv) {
+        params['first_air_date.gte'] = `${session.yearMin}-01-01`
+        params['first_air_date.lte'] = `${session.yearMax}-12-31`
+        if (tvGenreIds.length > 0) params.with_genres = tvGenreIds.join(',')
+      } else {
+        params['primary_release_date.gte'] = `${session.yearMin}-01-01`
+        params['primary_release_date.lte'] = `${session.yearMax}-12-31`
+        if (selectedGenres.length > 0) params.with_genres = selectedGenres.join(',')
       }
 
       // Apply streaming platform filter from user settings
       const streamingParams = getStreamingDiscoverParams(settings)
       Object.assign(params, streamingParams)
 
-      const data = await tmdb.discoverMovies(params)
+      const fetchCandidates = async (p: Record<string, string | number | undefined>): Promise<MediaItem[]> => {
+        const items: MediaItem[] = suggestTv
+          ? (await tmdb.discoverTv(p)).results.map(tvToMovie)
+          : (await tmdb.discoverMovies(p)).results.map(m => ({ ...m, media_type: 'movie' as const }))
+        return items.filter(
+          m => !session.excludedKeys.has(mediaKey(m)) &&
+               !m.genre_ids.some(gId => session.excludedGenreIds.has(gId))
+        )
+      }
 
-      // Filter out excluded movies AND movies containing excluded genres
-      const candidates = data.results.filter(
-        m => !session.excludedMovieIds.has(m.id) &&
-             !m.genre_ids.some(gId => session.excludedGenreIds.has(gId))
-      )
+      const candidates = await fetchCandidates(params)
 
       if (candidates.length === 0) {
         // Try page 1 as fallback
         if (page !== 1) {
-          params.page = 1
-          const fallback = await tmdb.discoverMovies(params)
-          const fallbackCandidates = fallback.results.filter(
-            m => !session.excludedMovieIds.has(m.id) &&
-                 !m.genre_ids.some(gId => session.excludedGenreIds.has(gId))
-          )
+          const fallbackCandidates = await fetchCandidates({ ...params, page: 1 })
           if (fallbackCandidates.length > 0) {
             const pick = pickRandom(fallbackCandidates)
-            session.excludedMovieIds.add(pick.id)
+            session.excludedKeys.add(mediaKey(pick))
             setSuggestion(pick)
             return
           }
@@ -134,7 +142,7 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
       }
 
       const pick = pickRandom(candidates)
-      session.excludedMovieIds.add(pick.id)
+      session.excludedKeys.add(mediaKey(pick))
       setSuggestion(pick)
     } catch (err) {
       console.error('Suggestion error:', err)
@@ -142,9 +150,9 @@ export function useSmartSuggestion(preferences: Preferences, tmdbGenres: TmdbGen
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferences, tmdbGenres])
+  }, [preferences, tmdbGenres, includeSeries])
 
-  const giveFeedback = useCallback((type: FeedbackType, movie: TmdbMovie, genreId?: number) => {
+  const giveFeedback = useCallback((type: FeedbackType, movie: MediaItem, genreId?: number) => {
     const session = getOrInitSession()
 
     switch (type) {

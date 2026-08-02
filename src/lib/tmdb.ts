@@ -261,9 +261,10 @@ export interface TmdbMultiSearchResult {
 
 export type MediaType = 'movie' | 'tv'
 
+// La recherche est mixte films+séries : plus de mediaType dans les filtres,
+// les ids de genres sont ceux du référentiel FILM (traduits pour la TV)
 export interface SearchFilters {
   mode: SearchMode
-  mediaType: MediaType
   genres: number[]
   yearRange: [number, number] | null
   country: string | null

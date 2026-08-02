@@ -62,7 +62,7 @@ export interface TvShowWithPoster {
 
 export interface TvWatchlistEntry {
   id: string
-  season_number: number
+  season_number: number | null
   added_by: string
   note: string | null
   created_at: string
@@ -72,6 +72,13 @@ export interface TvWatchlistEntry {
 export interface TvCollectionEntry {
   id: string
   created_at: string
+  watched_at: string
+  rating_user1: number | null
+  rating_user2: number | null
+  note_user1: string | null
+  note_user2: string | null
+  emoji_user1: string | null
+  emoji_user2: string | null
   tv_show: TvShowWithPoster
 }
 
@@ -80,7 +87,28 @@ export interface TvPersonalCollectionEntry {
   watched_at: string
   rating: number | null
   note: string | null
+  emoji: string | null
   tv_show: TvShowWithPoster
+}
+
+// Entrées unifiées films + séries pour les listes mixtes.
+// Le champ movie porte la forme normalisée (title = name pour une série).
+export type MediaTypeTag = 'movie' | 'tv'
+
+export interface UnifiedWatchlistEntry extends WatchlistMovieEntry {
+  media_type: MediaTypeTag
+  season_number?: number | null
+  number_of_seasons?: number | null
+}
+
+export interface UnifiedCollectionEntry extends CollectionMovieEntry {
+  media_type: MediaTypeTag
+  number_of_seasons?: number | null
+}
+
+export interface UnifiedPersonalCollectionEntry extends PersonalCollectionEntry {
+  media_type: MediaTypeTag
+  number_of_seasons?: number | null
 }
 
 export interface TvEpisodeRatingEntry {

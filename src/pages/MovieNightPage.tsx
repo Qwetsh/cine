@@ -1,4 +1,4 @@
-import { Component, useEffect, useState } from 'react'
+import { Component, useEffect, useMemo, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,17 +6,23 @@ import { useCoupleContext } from '../contexts/CoupleContext'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
+import { useTvWatchlist } from '../hooks/useTvWatchlist'
+import { useTvCollection } from '../hooks/useTvCollection'
 import { useGenres } from '../hooks/useGenres'
 import { usePreferences } from '../hooks/usePreferences'
+import { useSettings } from '../hooks/useSettings'
 import { useSmartSuggestion } from '../hooks/useSmartSuggestion'
 import { SwipeCard } from '../components/movienight/SwipeCard'
 import { WatchlistPicker } from '../components/movienight/WatchlistPicker'
 import { DuelMode } from '../components/movienight/DuelMode'
 import { QuizMode } from '../components/movienight/QuizMode'
 import { ensureMovie } from '../lib/movies'
+import { ensureTvShow } from '../lib/tvShows'
+import { tvShowToPosterMovie } from '../lib/media'
 import { supabase } from '../lib/supabase'
+import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie } from '../lib/tmdb'
-import type { WatchlistMovieEntry } from '../types'
+import type { UnifiedWatchlistEntry } from '../types'
 
 type Tab = 'suggest' | 'pick' | 'duel'
 type Section = 'menu' | 'film' | 'quiz'
@@ -25,12 +31,31 @@ export function MovieNightPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { coupleId } = useCoupleContext()
+  const { settings } = useSettings()
+  const includeSeries = !settings.hideSeries
   const watchlist = useWatchlist(coupleId)
   const couple = useCollection(coupleId)
   const personal = usePersonalCollection(user?.id ?? null)
+  const tvWatchlist = useTvWatchlist(includeSeries ? coupleId : null)
+  const tvCollection = useTvCollection(coupleId)
   const { genres } = useGenres()
   const preferences = usePreferences(couple.entries, personal.entries)
-  const smartSuggestion = useSmartSuggestion(preferences, genres)
+  const smartSuggestion = useSmartSuggestion(preferences, genres, includeSeries)
+
+  // Watchlist mixte films + séries pour la pioche
+  const unifiedWatchlist: UnifiedWatchlistEntry[] = useMemo(() => [
+    ...watchlist.entries.map(e => ({ ...e, media_type: 'movie' as const })),
+    ...tvWatchlist.entries.map(e => ({
+      id: e.id,
+      added_by: e.added_by,
+      note: e.note,
+      created_at: e.created_at,
+      movie: tvShowToPosterMovie(e.tv_show),
+      media_type: 'tv' as const,
+      season_number: e.season_number,
+      number_of_seasons: e.tv_show.number_of_seasons,
+    })),
+  ], [watchlist.entries, tvWatchlist.entries])
 
   const [section, setSection] = useState<Section>('menu')
   const [tab, setTab] = useState<Tab>('suggest')
@@ -63,18 +88,33 @@ export function MovieNightPage() {
       navigate('/profile')
       return
     }
-    if (watchlist.entries.some(e => e.movie.tmdb_id === movie.id)) {
+    const isTv = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv'
+    const alreadyIn = isTv
+      ? tvWatchlist.entries.some(e => e.tv_show.tmdb_id === movie.id)
+      : watchlist.entries.some(e => e.movie.tmdb_id === movie.id)
+    if (alreadyIn) {
       showToast('Déjà dans la liste')
       smartSuggestion.reset()
       return
     }
     try {
-      const movieDbId = await ensureMovie(movie)
-      const { error } = await supabase.from('watchlist').insert({
-        movie_id: movieDbId,
-        added_by: user.id,
-        couple_id: coupleId,
-      })
+      let error: { code?: string } | null
+      if (isTv) {
+        // Objet normalisé : refetch de la fiche TV brute avant insertion
+        const tvDbId = await ensureTvShow(await tmdb.getTvShow(movie.id))
+        ;({ error } = await supabase.from('tv_watchlist').insert({
+          tv_show_id: tvDbId,
+          added_by: user.id,
+          couple_id: coupleId,
+        }))
+      } else {
+        const movieDbId = await ensureMovie(movie)
+        ;({ error } = await supabase.from('watchlist').insert({
+          movie_id: movieDbId,
+          added_by: user.id,
+          couple_id: coupleId,
+        }))
+      }
       if (error) {
         showToast(error.code === '23505' ? 'Déjà dans la liste' : "Échec de l'ajout, réessaie")
         return
@@ -87,13 +127,15 @@ export function MovieNightPage() {
     }
   }
 
-  async function handleMarkWatched(entry: WatchlistMovieEntry) {
+  async function handleMarkWatched(entry: UnifiedWatchlistEntry) {
     if (!coupleId) return
-    const { addToCollection } = couple
-    const { error } = await addToCollection(entry.movie.id)
+    const { error } = entry.media_type === 'tv'
+      ? await tvCollection.addToTvCollection(entry.movie.id)
+      : await couple.addToCollection(entry.movie.id)
     if (!error) {
-      await watchlist.removeFromWatchlist(entry.id)
-      showToast('Bon film !')
+      if (entry.media_type === 'tv') await tvWatchlist.removeFromTvWatchlist(entry.id)
+      else await watchlist.removeFromWatchlist(entry.id)
+      showToast(entry.media_type === 'tv' ? 'Bonne série !' : 'Bon film !')
     }
   }
 
@@ -299,8 +341,8 @@ export function MovieNightPage() {
             </div>
           ) : tab === 'pick' ? (
             <WatchlistPicker
-              entries={watchlist.entries}
-              loading={watchlist.loading}
+              entries={unifiedWatchlist}
+              loading={watchlist.loading || tvWatchlist.loading}
               onMarkWatched={handleMarkWatched}
             />
           ) : (

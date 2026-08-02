@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFriendsContext } from '../contexts/FriendsContext'
@@ -7,13 +7,13 @@ import { useFriendAffinity } from '../hooks/useFriendAffinity'
 import { useSettings } from '../hooks/useSettings'
 import { getPosterUrl } from '../lib/tmdb'
 import type { TmdbMovie } from '../lib/tmdb'
+import { detailPath, tvShowToPosterMovie } from '../lib/media'
 import { StarRating } from '../components/movie/StarRating'
 import { HoldablePoster } from '../components/hold/HoldablePoster'
 import { posterMovieFromDb } from '../lib/movies'
 import { Avatar } from '../components/ui/Avatar'
-import type { PersonalCollectionEntry, TvPersonalCollectionEntry } from '../types'
+import type { UnifiedPersonalCollectionEntry } from '../types'
 
-type MediaFilter = 'all' | 'film' | 'serie'
 type SortKey = 'date' | 'rating' | 'title'
 
 export function FriendProfilePage() {
@@ -24,8 +24,8 @@ export function FriendProfilePage() {
   const { movies, tvShows, loading } = useFriendCollection(userId ?? null)
   const { affinity } = useFriendAffinity(userId ?? null)
 
-  const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortKey>('date')
+  const showSeries = !settings.hideSeries
 
   const friend = friends.find(f => f.profile.id === userId)
 
@@ -48,24 +48,36 @@ export function FriendProfilePage() {
 
   const friendName = friend?.profile.display_name ?? resolvedName ?? 'Ami'
 
-  const showFilms = mediaFilter !== 'serie'
-  const showSeries = settings.showSeries && mediaFilter !== 'film'
+  // Liste unifiée films + séries, tri commun
+  const unified: UnifiedPersonalCollectionEntry[] = useMemo(() => {
+    const films: UnifiedPersonalCollectionEntry[] = movies.map(e => ({ ...e, media_type: 'movie' as const }))
+    const series: UnifiedPersonalCollectionEntry[] = showSeries
+      ? tvShows.map(e => ({
+          id: e.id,
+          watched_at: e.watched_at,
+          rating: e.rating,
+          note: e.note,
+          emoji: e.emoji ?? null,
+          movie: tvShowToPosterMovie(e.tv_show),
+          media_type: 'tv' as const,
+          number_of_seasons: e.tv_show.number_of_seasons,
+        }))
+      : []
+    return [...films, ...series]
+  }, [movies, tvShows, showSeries])
 
-  const sortedMovies = [...movies].sort((a, b) => {
+  const sortedEntries = useMemo(() => [...unified].sort((a, b) => {
     if (sort === 'date') return b.watched_at.localeCompare(a.watched_at)
     if (sort === 'title') return a.movie.title.localeCompare(b.movie.title)
     if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
     return 0
-  })
+  }), [unified, sort])
 
-  const sortedTv = [...tvShows].sort((a, b) => {
-    if (sort === 'date') return b.watched_at.localeCompare(a.watched_at)
-    if (sort === 'title') return a.tv_show.name.localeCompare(b.tv_show.name)
-    if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
-    return 0
-  })
+  const totalCount = unified.length
 
-  const totalCount = (showFilms ? movies.length : 0) + (showSeries ? tvShows.length : 0)
+  const affinityCommon = (affinity?.common ?? []).filter(
+    item => showSeries || item.media_type !== 'tv'
+  )
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -119,7 +131,7 @@ export function FriendProfilePage() {
 
           {/* Titres en commun */}
           <div className="flex gap-3 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
-            {affinity.common.slice(0, 12).map(item => (
+            {affinityCommon.slice(0, 12).map(item => (
               <HoldablePoster
                 key={`${item.media_type}-${item.tmdb_id}`}
                 movie={{
@@ -162,26 +174,6 @@ export function FriendProfilePage() {
         </div>
       )}
 
-      {/* Media filter */}
-      {settings.showSeries && (
-        <div className="flex mx-4 mt-4 mb-2 rounded-xl bg-[var(--color-surface-2)] p-1">
-          {(['all', 'film', 'serie'] as MediaFilter[]).map(key => (
-            <button
-              key={key}
-              onClick={() => setMediaFilter(key)}
-              className={[
-                'flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-                mediaFilter === key
-                  ? 'bg-[var(--color-accent)] text-white'
-                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-              ].join(' ')}
-            >
-              {key === 'all' ? 'Tout' : key === 'film' ? 'Films' : 'Séries'}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Stats */}
       {!loading && (
         <div className="px-4 py-2">
@@ -220,19 +212,13 @@ export function FriendProfilePage() {
         <div className="text-center py-16">
           <span className="text-5xl block mb-4">🎬</span>
           <p className="text-[var(--color-text-muted)]">
-            {friendName} n'a pas encore de films dans sa collection
+            {friendName} n'a pas encore de titres dans sa collection
           </p>
         </div>
       ) : (
         <ul className="px-4 space-y-3 pb-8">
-          {/* TV shows */}
-          {showSeries && sortedTv.map(entry => (
-            <TvEntry key={`tv-${entry.id}`} entry={entry} navigate={navigate} />
-          ))}
-
-          {/* Movies */}
-          {showFilms && sortedMovies.map(entry => (
-            <MovieEntry key={entry.id} entry={entry} navigate={navigate} />
+          {sortedEntries.map(entry => (
+            <CollectionEntry key={`${entry.media_type}-${entry.id}`} entry={entry} navigate={navigate} />
           ))}
         </ul>
       )}
@@ -240,14 +226,20 @@ export function FriendProfilePage() {
   )
 }
 
-function MovieEntry({ entry, navigate }: { entry: PersonalCollectionEntry; navigate: (path: string) => void }) {
+function CollectionEntry({ entry, navigate }: { entry: UnifiedPersonalCollectionEntry; navigate: (path: string) => void }) {
+  const isTv = entry.media_type === 'tv'
+  const path = detailPath({ id: entry.movie.tmdb_id, media_type: entry.media_type })
   return (
     <li className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
       <div className="flex gap-3 p-3">
-        <HoldablePoster movie={posterMovieFromDb(entry.movie)} movieDbId={entry.movie.id} className="flex-shrink-0">
+        <HoldablePoster
+          movie={{ ...posterMovieFromDb(entry.movie), media_type: entry.media_type }}
+          movieDbId={entry.movie.id}
+          className="flex-shrink-0"
+        >
         <button
-          onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)}
-          className="w-14 h-20 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
+          onClick={() => navigate(path)}
+          className="relative w-14 h-20 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
         >
           <img
             src={getPosterUrl(entry.movie.poster_path, 'small')}
@@ -255,60 +247,27 @@ function MovieEntry({ entry, navigate }: { entry: PersonalCollectionEntry; navig
             className="w-full h-full object-cover"
             loading="lazy"
           />
+          {isTv && (
+            <div className="absolute top-1 right-1 bg-purple-600/90 text-white text-[7px] font-bold px-1 py-0.5 rounded">
+              Série
+            </div>
+          )}
         </button>
         </HoldablePoster>
         <div className="flex-1 min-w-0">
-          <button onClick={() => navigate(`/movie/${entry.movie.tmdb_id}`)} className="text-left">
+          <button onClick={() => navigate(path)} className="text-left">
             <p className="font-semibold text-[var(--color-text)] text-sm hover:text-[var(--color-accent)] transition-colors">
               {entry.movie.title}
             </p>
           </button>
           <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
             Vu le {new Date(entry.watched_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {isTv && entry.number_of_seasons
+              ? ` · ${entry.number_of_seasons} saison${entry.number_of_seasons > 1 ? 's' : ''}`
+              : ''}
           </p>
           <div className="flex items-center gap-2 mt-1.5">
             {entry.emoji && <span className="text-base">{entry.emoji}</span>}
-            {entry.rating != null && <StarRating value={entry.rating} readOnly size="sm" />}
-          </div>
-          {entry.note && (
-            <p className="text-xs text-[var(--color-text-muted)] italic mt-1 line-clamp-2">
-              « {entry.note} »
-            </p>
-          )}
-        </div>
-      </div>
-    </li>
-  )
-}
-
-function TvEntry({ entry, navigate }: { entry: TvPersonalCollectionEntry; navigate: (path: string) => void }) {
-  return (
-    <li className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">
-      <div className="flex gap-3 p-3">
-        <button
-          onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)}
-          className="relative w-14 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-        >
-          <img
-            src={getPosterUrl(entry.tv_show.poster_path, 'small')}
-            alt={entry.tv_show.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute top-1 right-1 bg-purple-600/90 text-white text-[7px] font-bold px-1 py-0.5 rounded">
-            Série
-          </div>
-        </button>
-        <div className="flex-1 min-w-0">
-          <button onClick={() => navigate(`/tv/${entry.tv_show.tmdb_id}`)} className="text-left">
-            <p className="font-semibold text-[var(--color-text)] text-sm hover:text-[var(--color-accent)] transition-colors">
-              {entry.tv_show.name}
-            </p>
-          </button>
-          <p className="text-[var(--color-text-muted)] text-xs mt-0.5">
-            {entry.tv_show.number_of_seasons} saison{(entry.tv_show.number_of_seasons ?? 0) > 1 ? 's' : ''}
-          </p>
-          <div className="flex items-center gap-2 mt-1.5">
             {entry.rating != null && <StarRating value={entry.rating} readOnly size="sm" />}
           </div>
           {entry.note && (

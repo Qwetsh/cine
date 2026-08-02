@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tmdb } from '../lib/tmdb'
 import { getPosterUrl } from '../lib/tmdb'
@@ -8,23 +8,27 @@ import { useSettings } from '../hooks/useSettings'
 import { useGenres } from '../hooks/useGenres'
 import { useCollection } from '../hooks/useCollection'
 import { useWatchlist } from '../hooks/useWatchlist'
-import { useRecommendations, type RecommendationItem } from '../hooks/useRecommendations'
+import { useTvCollection } from '../hooks/useTvCollection'
+import { useTvWatchlist } from '../hooks/useTvWatchlist'
+import { useTvPersonalCollection } from '../hooks/useTvPersonalCollection'
+import { useRecommendations } from '../hooks/useRecommendations'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useCoupleContext } from '../contexts/CoupleContext'
 import { useFriendsContext } from '../contexts/FriendsContext'
 import { useAuth } from '../contexts/AuthContext'
-import { TvProviderLogos } from '../components/movie/TvProviderLogos'
+import { detailPath, mergeByPopularity, tvShowToPosterMovie } from '../lib/media'
+import type { MediaItem } from '../lib/media'
 import { Avatar } from '../components/ui/Avatar'
 import { supabase } from '../lib/supabase'
-import type { TmdbMovie, TmdbTvShow } from '../lib/tmdb'
+import type { TmdbMovie } from '../lib/tmdb'
 import type { Profile } from '../types'
 
 export function HomePage() {
   const { settings } = useSettings()
   const isForYou = settings.homeMode === 'forYou'
+  const includeSeries = !settings.hideSeries
 
-  const [trending, setTrending] = useState<TmdbMovie[]>([])
-  const [trendingTv, setTrendingTv] = useState<TmdbTvShow[]>([])
+  const [trending, setTrending] = useState<MediaItem[]>([])
   const [upcoming, setUpcoming] = useState<TmdbMovie[]>([])
   const [loadingTrending, setLoadingTrending] = useState(true)
   const [loadingUpcoming, setLoadingUpcoming] = useState(true)
@@ -37,9 +41,55 @@ export function HomePage() {
   const { entries: collection } = useCollection(coupleId)
   const { entries: watchlist } = useWatchlist(coupleId)
   const { entries: personalCollection } = usePersonalCollection(user?.id ?? null)
+  const tvCollection = useTvCollection(includeSeries && isForYou ? coupleId : null)
+  const tvWatchlist = useTvWatchlist(includeSeries && isForYou ? coupleId : null)
+  const tvPersonal = useTvPersonalCollection(includeSeries && isForYou ? user?.id ?? null : null)
+
+  // Le profil de goûts et les exclusions intègrent aussi les séries
+  const unifiedCollection = useMemo(() => [
+    ...collection.map(e => ({ ...e, media_type: 'movie' as const })),
+    ...tvCollection.entries.map(e => ({
+      id: e.id,
+      watched_at: e.watched_at ?? e.created_at,
+      rating_user1: e.rating_user1,
+      rating_user2: e.rating_user2,
+      note_user1: e.note_user1,
+      note_user2: e.note_user2,
+      emoji_user1: e.emoji_user1,
+      emoji_user2: e.emoji_user2,
+      movie: tvShowToPosterMovie(e.tv_show),
+      media_type: 'tv' as const,
+    })),
+  ], [collection, tvCollection.entries])
+
+  const unifiedWatchlist = useMemo(() => [
+    ...watchlist.map(e => ({ ...e, media_type: 'movie' as const })),
+    ...tvWatchlist.entries.map(e => ({
+      id: e.id,
+      added_by: e.added_by,
+      note: e.note,
+      created_at: e.created_at,
+      movie: tvShowToPosterMovie(e.tv_show),
+      media_type: 'tv' as const,
+    })),
+  ], [watchlist, tvWatchlist.entries])
+
+  const unifiedPersonal = useMemo(() => [
+    ...personalCollection.map(e => ({ ...e, media_type: 'movie' as const })),
+    ...tvPersonal.entries.map(e => ({
+      id: e.id,
+      watched_at: e.watched_at,
+      rating: e.rating,
+      note: e.note,
+      emoji: e.emoji,
+      movie: tvShowToPosterMovie(e.tv_show),
+      media_type: 'tv' as const,
+    })),
+  ], [personalCollection, tvPersonal.entries])
+
   const { results: recommended, loading: loadingReco, refresh: refreshReco } = useRecommendations(
-    collection, watchlist, genres, isForYou, personalCollection,
-    settings.showSeries && settings.suggestSeries,
+    unifiedCollection, unifiedWatchlist, genres, isForYou, unifiedPersonal,
+    includeSeries,
   )
 
   useEffect(() => {
@@ -57,23 +107,21 @@ export function HomePage() {
       .catch(console.error)
       .finally(() => setLoadingUpcoming(false))
 
-    // Only fetch trending if in trending mode
+    // Only fetch trending if in trending mode — mixte films + séries
     if (!isForYou) {
-      tmdb.getTrending('week')
-        .then(data => setTrending(data.results.slice(0, 9)))
+      Promise.all([
+        tmdb.getTrending('week'),
+        includeSeries ? tmdb.getTrendingTv('week') : Promise.resolve({ results: [] }),
+      ])
+        .then(([movies, shows]) => {
+          setTrending(mergeByPopularity(movies.results, shows.results).slice(0, 12))
+        })
         .catch(console.error)
         .finally(() => setLoadingTrending(false))
     } else {
       setLoadingTrending(false)
     }
-
-    // Fetch trending TV if series enabled
-    if (settings.showSeries) {
-      tmdb.getTrendingTv('week')
-        .then(data => setTrendingTv(data.results.slice(0, 10)))
-        .catch(console.error)
-    }
-  }, [isForYou, settings.showSeries])
+  }, [isForYou, includeSeries])
 
   // Friend recos widget
   const { recos } = useFriendsContext()
@@ -133,7 +181,7 @@ export function HomePage() {
     return () => { cancelled = true }
   }, [recos.received, recos.loading])
 
-  const hasData = collection.length > 0 || watchlist.length > 0
+  const hasData = unifiedCollection.length > 0 || unifiedWatchlist.length > 0
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -286,46 +334,6 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Trending TV — horizontal scroll */}
-      {settings.showSeries && trendingTv.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between px-4 mb-3">
-            <h2 className="font-bold text-[var(--color-text)]">Séries tendances</h2>
-          </div>
-          <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
-            {trendingTv.map(show => (
-              <button
-                key={show.id}
-                onClick={() => navigate(`/tv/${show.id}`)}
-                className="flex-shrink-0 w-28 text-left group"
-              >
-                <div className="relative w-28 aspect-[2/3] rounded-xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
-                  {show.poster_path ? (
-                    <img
-                      src={getPosterUrl(show.poster_path, 'small')}
-                      alt={show.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl">📺</div>
-                  )}
-                  <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-                    Série
-                  </div>
-                  <div className="absolute bottom-1.5 left-1.5">
-                    <TvProviderLogos tmdbId={show.id} overlay />
-                  </div>
-                </div>
-                <p className="text-xs text-[var(--color-text)] mt-1.5 line-clamp-2 leading-tight">
-                  {show.name}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Main section: Tendances OR Pour vous */}
       <div>
         <div className="flex items-center justify-between px-4 mb-3">
@@ -362,10 +370,7 @@ export function HomePage() {
           <MovieGrid
             movies={recommended}
             loading={loadingReco}
-            onMovieClick={movie => {
-              const item = movie as RecommendationItem
-              navigate(item.media_type === 'tv' ? `/tv/${movie.id}` : `/movie/${movie.id}`)
-            }}
+            onMovieClick={movie => navigate(detailPath(movie))}
           />
         )}
 
@@ -373,7 +378,7 @@ export function HomePage() {
           <MovieGrid
             movies={trending}
             loading={loadingTrending}
-            onMovieClick={movie => navigate(`/movie/${movie.id}`)}
+            onMovieClick={movie => navigate(detailPath(movie))}
           />
         )}
       </div>

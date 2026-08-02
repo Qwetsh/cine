@@ -13,8 +13,8 @@ interface FriendsContextValue extends UseFriendsState {
   /** Map "movie-{tmdbId}" or "tv-{tmdbId}" → friend count who want to watch */
   friendsWantMap: Map<string, number>
   getFriendsWantCount: (tmdbId: number, mediaType: 'movie' | 'tv') => number
-  /** Get list of friend names who rated this movie ≥ 4 stars */
-  getFriendsWhoLoved: (tmdbId: number) => string[]
+  /** Get list of friend names who rated this title ≥ 4 stars */
+  getFriendsWhoLoved: (tmdbId: number, mediaType?: 'movie' | 'tv') => string[]
   /** Unread message counts per recommendation */
   unreadMessages: Map<string, number>
   totalUnreadMessages: number
@@ -36,8 +36,8 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     return wantMap.get(`${mediaType}-${tmdbId}`) ?? 0
   }, [wantMap])
 
-  const getFriendsWhoLoved = useCallback((tmdbId: number) => {
-    return ratingMap.get(tmdbId) ?? []
+  const getFriendsWhoLoved = useCallback((tmdbId: number, mediaType: 'movie' | 'tv' = 'movie') => {
+    return ratingMap.get(`${mediaType}-${tmdbId}`) ?? []
   }, [ratingMap])
 
   const value = useMemo<FriendsContextValue>(() => ({

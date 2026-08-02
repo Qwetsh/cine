@@ -21,7 +21,9 @@ export function TvDetailPage() {
   const [loading, setLoading] = useState(true)
   const [inCollection, setInCollection] = useState(false)
   const [inPersonal, setInPersonal] = useState(false)
-  const [actionLoading, setActionLoading] = useState<'collection' | 'personal' | null>(null)
+  const [onWatchlistSolo, setOnWatchlistSolo] = useState(false)
+  const [onWatchlistCouple, setOnWatchlistCouple] = useState(false)
+  const [actionLoading, setActionLoading] = useState<'collection' | 'personal' | 'wl-solo' | 'wl-couple' | null>(null)
   const [dbId, setDbId] = useState<string | null>(null)
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -53,26 +55,66 @@ export function TvDetailPage() {
       if (tvRow) {
         setDbId(tvRow.id)
         if (coupleId) {
-          const { data } = await supabase
-            .from('tv_collection')
-            .select('id')
-            .eq('couple_id', coupleId)
-            .eq('tv_show_id', tvRow.id)
-            .maybeSingle()
-          setInCollection(!!data)
+          const [col, wl] = await Promise.all([
+            supabase.from('tv_collection').select('id').eq('couple_id', coupleId).eq('tv_show_id', tvRow.id).maybeSingle(),
+            supabase.from('tv_watchlist').select('id').eq('couple_id', coupleId).eq('tv_show_id', tvRow.id).limit(1).maybeSingle(),
+          ])
+          setInCollection(!!col.data)
+          setOnWatchlistCouple(!!wl.data)
         }
         if (user) {
-          const { data } = await supabase
-            .from('tv_personal_collection')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('tv_show_id', tvRow.id)
-            .maybeSingle()
-          setInPersonal(!!data)
+          const [perso, wlSolo] = await Promise.all([
+            supabase.from('tv_personal_collection').select('id').eq('user_id', user.id).eq('tv_show_id', tvRow.id).maybeSingle(),
+            supabase.from('tv_watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('tv_show_id', tvRow.id).limit(1).maybeSingle(),
+          ])
+          setInPersonal(!!perso.data)
+          setOnWatchlistSolo(!!wlSolo.data)
         }
       }
     })()
   }, [show, coupleId, user])
+
+  async function handleToggleWatchlistSolo() {
+    if (!user) { navigate('/login'); return }
+    if (!show || actionLoading) return
+    setActionLoading('wl-solo')
+    try {
+      const tvShowDbId = await ensureTvShow(show)
+      setDbId(tvShowDbId)
+      if (onWatchlistSolo) {
+        const { data: row } = await supabase.from('tv_watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('tv_show_id', tvShowDbId).limit(1).maybeSingle()
+        if (row) await supabase.from('tv_watchlist').delete().eq('id', row.id)
+        setOnWatchlistSolo(false)
+        showToast('Retiré de ta liste solo')
+      } else {
+        const { error } = await supabase.from('tv_watchlist').insert({ tv_show_id: tvShowDbId, added_by: user.id, couple_id: null })
+        if (!error) { setOnWatchlistSolo(true); showToast('Ajouté à ta liste solo ✓') }
+      }
+    } catch {
+      showToast('Erreur')
+    } finally { setActionLoading(null) }
+  }
+
+  async function handleToggleWatchlistCouple() {
+    if (!user || !coupleId) return
+    if (!show || actionLoading) return
+    setActionLoading('wl-couple')
+    try {
+      const tvShowDbId = await ensureTvShow(show)
+      setDbId(tvShowDbId)
+      if (onWatchlistCouple) {
+        const { data: row } = await supabase.from('tv_watchlist').select('id').eq('couple_id', coupleId).eq('tv_show_id', tvShowDbId).limit(1).maybeSingle()
+        if (row) await supabase.from('tv_watchlist').delete().eq('id', row.id)
+        setOnWatchlistCouple(false)
+        showToast('Retiré de la liste couple')
+      } else {
+        const { error } = await supabase.from('tv_watchlist').insert({ tv_show_id: tvShowDbId, added_by: user.id, couple_id: coupleId })
+        if (!error) { setOnWatchlistCouple(true); showToast('Ajouté à la liste couple ✓') }
+      }
+    } catch {
+      showToast('Erreur')
+    } finally { setActionLoading(null) }
+  }
 
   async function handleAddToCollection() {
     if (!user || !coupleId) { navigate('/profile'); return }
@@ -81,9 +123,15 @@ export function TvDetailPage() {
     try {
       const tvShowDbId = await ensureTvShow(show)
       setDbId(tvShowDbId)
+      // Retirer de la watchlist couple si présent
+      if (onWatchlistCouple) {
+        const { data: wlRow } = await supabase.from('tv_watchlist').select('id').eq('couple_id', coupleId).eq('tv_show_id', tvShowDbId).limit(1).maybeSingle()
+        if (wlRow) { await supabase.from('tv_watchlist').delete().eq('id', wlRow.id); setOnWatchlistCouple(false) }
+      }
       const { error } = await supabase.from('tv_collection').insert({
         tv_show_id: tvShowDbId,
         couple_id: coupleId,
+        watched_at: new Date().toISOString(),
       })
       if (!error) {
         setInCollection(true)
@@ -103,6 +151,11 @@ export function TvDetailPage() {
     try {
       const tvShowDbId = await ensureTvShow(show)
       setDbId(tvShowDbId)
+      // Retirer de la watchlist solo si présent
+      if (onWatchlistSolo) {
+        const { data: wlRow } = await supabase.from('tv_watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('tv_show_id', tvShowDbId).limit(1).maybeSingle()
+        if (wlRow) { await supabase.from('tv_watchlist').delete().eq('id', wlRow.id); setOnWatchlistSolo(false) }
+      }
       const { error } = await supabase.from('tv_personal_collection').insert({
         tv_show_id: tvShowDbId,
         user_id: user.id,
@@ -293,36 +346,78 @@ export function TvDetailPage() {
         <FriendsCard tmdbId={show.id} mediaType="tv" />
 
         {/* Actions */}
-        <div className="space-y-3 mt-6">
-          {coupleId && (
-            inCollection ? (
-              <div className="bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
-                ✓ Dans la collection
-              </div>
-            ) : (
+        <div className="space-y-4 mt-6">
+          {/* — À regarder — */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium mb-2 text-center">À regarder</p>
+            <div className={coupleId ? 'flex gap-3' : ''}>
               <button
-                onClick={handleAddToCollection}
+                onClick={handleToggleWatchlistSolo}
                 disabled={actionLoading !== null}
-                className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-60 text-white rounded-xl py-3 font-medium text-sm transition-colors"
+                className={[
+                  coupleId ? 'flex-1' : 'w-full',
+                  'rounded-xl py-3 font-medium text-sm transition-colors disabled:opacity-60',
+                  onWatchlistSolo
+                    ? 'bg-[var(--color-accent)] text-white'
+                    : 'bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]',
+                ].join(' ')}
               >
-                {actionLoading === 'collection' ? '…' : '👫 Vu ensemble'}
+                {actionLoading === 'wl-solo' ? '…' : onWatchlistSolo ? '✓ À voir solo' : '🎬 À voir solo'}
               </button>
-            )
-          )}
-
-          {inPersonal ? (
-            <div className="bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
-              ✓ Dans ma collection perso
+              {coupleId && (
+                <button
+                  onClick={handleToggleWatchlistCouple}
+                  disabled={actionLoading !== null}
+                  className={[
+                    'flex-1 rounded-xl py-3 font-medium text-sm transition-colors disabled:opacity-60',
+                    onWatchlistCouple
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]',
+                  ].join(' ')}
+                >
+                  {actionLoading === 'wl-couple' ? '…' : onWatchlistCouple ? '✓ À voir couple' : '👫 À voir couple'}
+                </button>
+              )}
             </div>
-          ) : (
-            <button
-              onClick={handleAddToPersonal}
-              disabled={actionLoading !== null}
-              className="w-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
-            >
-              {actionLoading === 'personal' ? '…' : '🎬 Vu en solo'}
-            </button>
-          )}
+          </div>
+
+          {/* — Déjà vu — */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium mb-2 text-center">Déjà vu</p>
+            <div className={coupleId ? 'flex gap-3' : ''}>
+              {inPersonal ? (
+                <div className={[coupleId ? 'flex-1' : 'w-full', 'bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30'].join(' ')}>
+                  ✓ Vu solo
+                </div>
+              ) : (
+                <button
+                  onClick={handleAddToPersonal}
+                  disabled={actionLoading !== null}
+                  className={[
+                    coupleId ? 'flex-1' : 'w-full',
+                    'bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors',
+                  ].join(' ')}
+                >
+                  {actionLoading === 'personal' ? '…' : '🎬 Vu solo'}
+                </button>
+              )}
+              {coupleId && (
+                inCollection ? (
+                  <div className="flex-1 bg-[var(--color-surface)] text-green-400 rounded-xl py-3 text-sm font-medium text-center border border-green-400/30">
+                    ✓ Vu ensemble
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleAddToCollection}
+                    disabled={actionLoading !== null}
+                    className="flex-1 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] disabled:opacity-60 text-[var(--color-text)] rounded-xl py-3 font-medium text-sm border border-[var(--color-border)] transition-colors"
+                  >
+                    {actionLoading === 'collection' ? '…' : '👫 Vu ensemble'}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
 
           {/* Recommander à un ami */}
           <RecommendButton movieId={null} tvShowId={show.id} title={show.name} onBeforeSend={() => ensureTvShow(show).then(() => {})} />

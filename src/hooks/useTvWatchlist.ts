@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TvWatchlistEntry } from '../types'
 
+// Watchlist séries au niveau série (une entrée = une série).
+// season_number est optionnel et purement informatif (« reprendre à la S3 »).
 export function useTvWatchlist(coupleId: string | null, userId?: string | null) {
   const [entries, setEntries] = useState<TvWatchlistEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Garde anti-obsolescence : coupleId se résout après le premier rendu, une
+  // réponse du fetch « solo » périmé ne doit pas écraser celle du fetch couple
+  const requestIdRef = useRef(0)
 
   const fetchWatchlist = useCallback(async () => {
+    const reqId = ++requestIdRef.current
     if (!coupleId && !userId) {
       setEntries([])
       setLoading(false)
@@ -28,6 +34,7 @@ export function useTvWatchlist(coupleId: string | null, userId?: string | null) 
     }
 
     const { data, error } = await query
+    if (reqId !== requestIdRef.current) return
 
     if (error) {
       setError(error.message)
@@ -43,18 +50,20 @@ export function useTvWatchlist(coupleId: string | null, userId?: string | null) 
 
   async function addToTvWatchlist(
     tvShowId: string,
-    seasonNumber: number,
     addedByUserId: string,
     note?: string,
+    seasonNumber?: number | null,
   ): Promise<{ error: string | null }> {
     const { error } = await supabase.from('tv_watchlist').insert({
       tv_show_id: tvShowId,
-      season_number: seasonNumber,
+      season_number: seasonNumber ?? null,
       added_by: addedByUserId,
       couple_id: coupleId ?? null,
       note: note ?? null,
     })
     if (!error) await fetchWatchlist()
+    // 23505 : la série est déjà dans la watchlist (index unique partiel) — pas une erreur
+    if (error && error.code === '23505') return { error: null }
     return { error: error?.message ?? null }
   }
 
@@ -65,13 +74,12 @@ export function useTvWatchlist(coupleId: string | null, userId?: string | null) 
     return { error: error?.message ?? null }
   }
 
-  async function isSeasonInWatchlist(tvShowId: string, seasonNumber: number): Promise<boolean> {
+  async function isInTvWatchlist(tvShowId: string): Promise<boolean> {
     if (!coupleId && !userId) return false
     let query = supabase
       .from('tv_watchlist')
       .select('id')
       .eq('tv_show_id', tvShowId)
-      .eq('season_number', seasonNumber)
 
     if (coupleId) {
       query = query.eq('couple_id', coupleId)
@@ -79,7 +87,7 @@ export function useTvWatchlist(coupleId: string | null, userId?: string | null) 
       query = query.is('couple_id', null).eq('added_by', userId!)
     }
 
-    const { data } = await query.maybeSingle()
+    const { data } = await query.limit(1).maybeSingle()
     return !!data
   }
 
@@ -89,7 +97,7 @@ export function useTvWatchlist(coupleId: string | null, userId?: string | null) 
     error,
     addToTvWatchlist,
     removeFromTvWatchlist,
-    isSeasonInWatchlist,
+    isInTvWatchlist,
     refetch: fetchWatchlist,
   }
 }

@@ -34,7 +34,7 @@ export function SuggestionCard({ movie, genres, onFeedback, onAccept }: Props) {
             {movie.vote_average > 0 && (
               <span className="text-[var(--color-gold)]">★ {movie.vote_average.toFixed(1)}</span>
             )}
-            <TrailerButton tmdbId={movie.id} mediaType="movie" />
+            <TrailerButton tmdbId={movie.id} mediaType={(movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'} />
           </div>
           {movieGenres.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">

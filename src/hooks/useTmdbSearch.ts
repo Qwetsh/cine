@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
-import type { TmdbMovie, TmdbTvShow, TmdbPersonDetail, SearchMode, MediaType, SearchFilters } from '../lib/tmdb'
+import { movieGenresToTv, mergeByPopularity } from '../lib/media'
+import type { MediaItem } from '../lib/media'
+import type { TmdbMovie, TmdbTvShow, TmdbPersonDetail, SearchMode, SearchFilters } from '../lib/tmdb'
 
 const DEFAULT_FILTERS: SearchFilters = {
   mode: 'title',
-  mediaType: 'movie',
   genres: [],
   yearRange: null,
   country: null,
 }
 
 type PagedResult<T> = { results: T[]; total_pages: number }
+
+const EMPTY_TV: PagedResult<TmdbTvShow> = { results: [], total_pages: 0 }
 
 interface SearchContext {
   trimmed: string
@@ -37,29 +40,39 @@ function buildContext(query: string, filters: SearchFilters, page: number): Sear
   }
 }
 
-function applyClientFilters(movies: TmdbMovie[], filters: SearchFilters): TmdbMovie[] {
-  return movies.filter(movie => {
+// Filtres client sur des items normalisés (les genres TV sont testés
+// à la fois sur les ids film sélectionnés et leur traduction TV)
+function applyClientFilters(items: MediaItem[], filters: SearchFilters): MediaItem[] {
+  return items.filter(item => {
     if (filters.genres.length > 0) {
-      if (!filters.genres.some(g => movie.genre_ids.includes(g))) return false
+      const wanted = item.media_type === 'tv'
+        ? [...filters.genres, ...movieGenresToTv(filters.genres)]
+        : filters.genres
+      if (!wanted.some(g => item.genre_ids.includes(g))) return false
     }
     if (filters.yearRange) {
-      const year = movie.release_date ? new Date(movie.release_date).getFullYear() : 0
+      const year = item.release_date ? new Date(item.release_date).getFullYear() : 0
       if (year < filters.yearRange[0] || year > filters.yearRange[1]) return false
     }
     return true
   })
 }
 
-async function searchTv(ctx: SearchContext): Promise<PagedResult<TmdbTvShow>> {
+async function searchTvBranch(ctx: SearchContext): Promise<PagedResult<TmdbTvShow>> {
   const { trimmed, hasQuery, hasAnyFilter, filters, page } = ctx
 
   if (hasQuery && !hasAnyFilter) {
     return tmdb.searchTv(trimmed, page)
   }
 
-  if (hasAnyFilter || !hasQuery) {
+  if (hasAnyFilter) {
     const params: Record<string, string | number | undefined> = {}
-    if (ctx.hasGenres) params.with_genres = filters.genres.join(',')
+    if (ctx.hasGenres) {
+      const tvGenres = movieGenresToTv(filters.genres)
+      // Aucun genre sélectionné n'existe côté séries → pas de résultats TV
+      if (tvGenres.length === 0) return EMPTY_TV
+      params.with_genres = tvGenres.join(',')
+    }
     if (ctx.hasYear) {
       params['first_air_date.gte'] = `${filters.yearRange![0]}-01-01`
       params['first_air_date.lte'] = `${filters.yearRange![1]}-12-31`
@@ -85,13 +98,13 @@ async function searchTv(ctx: SearchContext): Promise<PagedResult<TmdbTvShow>> {
   return tmdb.getTrendingTv('week')
 }
 
-async function searchMovies(
+async function searchMoviesBranch(
   ctx: SearchContext,
   personIdRef: React.MutableRefObject<number | null>,
   setMatchedPerson: (p: TmdbPersonDetail | null) => void,
   reqId: number,
   requestIdRef: React.MutableRefObject<number>,
-): Promise<PagedResult<TmdbMovie> | null> {
+): Promise<PagedResult<TmdbMovie>> {
   const { trimmed, hasQuery, hasAnyFilter, hasCountry, filters, page } = ctx
 
   const discoverParams: Record<string, string | number | undefined> = {}
@@ -104,22 +117,13 @@ async function searchMovies(
   discoverParams['vote_count.gte'] = '10'
   discoverParams.page = page
 
-  // Title search without filters
-  if (filters.mode === 'title' && hasQuery && !hasAnyFilter) {
+  // Title search (with or without filters — client filtering happens on merged list)
+  if (filters.mode === 'title' && hasQuery && (!hasAnyFilter || !hasCountry)) {
     return tmdb.searchMovies(trimmed, page)
   }
 
-  // Title search with non-country filters (client-side filtering)
-  if (filters.mode === 'title' && hasQuery && hasAnyFilter && !hasCountry) {
-    const raw = await tmdb.searchMovies(trimmed, page)
-    return {
-      results: applyClientFilters(raw.results, filters),
-      total_pages: raw.total_pages,
-    }
-  }
-
   // Title search with country filter (discover + client title filter)
-  if (filters.mode === 'title' && hasQuery && hasAnyFilter && hasCountry) {
+  if (filters.mode === 'title' && hasQuery && hasCountry) {
     discoverParams.sort_by = 'popularity.desc'
     const data = await tmdb.discoverMovies(discoverParams)
     const lower = trimmed.toLowerCase()
@@ -176,23 +180,33 @@ function loadSavedState(): { query: string; filters: SearchFilters } | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    if (parsed?.filters) {
+      // Ancien état (avant fusion) : le champ mediaType n'existe plus
+      delete parsed.filters.mediaType
+      parsed.filters = { ...DEFAULT_FILTERS, ...parsed.filters }
+    }
+    return parsed
   } catch { return null }
 }
 
-export function useTmdbSearch(showSeries = false) {
+/**
+ * Recherche TMDB mixte films + séries : une seule liste de résultats
+ * normalisés (MediaItem), fusionnés par popularité. Les modes Acteur /
+ * Réalisateur restent films uniquement (limite TMDB).
+ */
+export function useTmdbSearch(includeSeries = true) {
   const saved = loadSavedState()
 
-  const [results, setResults] = useState<TmdbMovie[]>([])
-  const [tvResults, setTvResults] = useState<TmdbTvShow[]>([])
+  const [results, setResults] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState<SearchFilters>(saved?.filters ?? DEFAULT_FILTERS)
   const [matchedPerson, setMatchedPerson] = useState<TmdbPersonDetail | null>(null)
-  const showSeriesRef = useRef(showSeries)
-  showSeriesRef.current = showSeries
+  const includeSeriesRef = useRef(includeSeries)
+  includeSeriesRef.current = includeSeries
 
   const queryRef = useRef(saved?.query ?? '')
   const personIdRef = useRef<number | null>(null)
@@ -210,25 +224,25 @@ export function useTmdbSearch(showSeries = false) {
 
     try {
       const ctx = buildContext(query, searchFilters, page)
+      const isPersonMode = searchFilters.mode === 'actor' || searchFilters.mode === 'director'
 
-      if (searchFilters.mediaType === 'tv') {
-        const tvData = await searchTv(ctx)
-        if (reqId !== requestIdRef.current) return
-        setResults([])
-        setTvResults(prev => append ? [...prev, ...tvData.results] : tvData.results)
-        setTotalPages(tvData.total_pages)
-        setCurrentPage(page)
-        setLoading(false)
-        return
+      const moviesP = searchMoviesBranch(ctx, personIdRef, setMatchedPerson, reqId, requestIdRef)
+      const tvP: Promise<PagedResult<TmdbTvShow>> = includeSeriesRef.current && !isPersonMode
+        ? searchTvBranch(ctx).catch(() => EMPTY_TV)
+        : Promise.resolve(EMPTY_TV)
+
+      const [movieData, tvData] = await Promise.all([moviesP, tvP])
+      if (reqId !== requestIdRef.current) return
+
+      let merged = mergeByPopularity(movieData.results, tvData.results)
+      // La recherche par titre ne permet pas de filtrer côté TMDB :
+      // genres/année s'appliquent côté client sur la liste fusionnée
+      if (ctx.hasQuery && ctx.hasAnyFilter && !ctx.hasCountry) {
+        merged = applyClientFilters(merged, searchFilters)
       }
 
-      const data = await searchMovies(ctx, personIdRef, setMatchedPerson, reqId, requestIdRef)
-      if (reqId !== requestIdRef.current) return
-      if (!data) return
-
-      setResults(prev => append ? [...prev, ...data.results] : data.results)
-      setTvResults([])
-      setTotalPages(data.total_pages)
+      setResults(prev => append ? [...prev, ...merged] : merged)
+      setTotalPages(Math.max(movieData.total_pages, tvData.total_pages))
       setCurrentPage(page)
     } catch (err) {
       if (reqId !== requestIdRef.current) return
@@ -265,16 +279,6 @@ export function useTmdbSearch(showSeries = false) {
   const setMode = useCallback((mode: SearchMode) => {
     setFilters(prev => {
       const next = { ...prev, mode }
-      personIdRef.current = null
-      setMatchedPerson(null)
-      executeSearch(queryRef.current, next, 1, false)
-      return next
-    })
-  }, [executeSearch])
-
-  const setMediaType = useCallback((mediaType: MediaType) => {
-    setFilters(prev => {
-      const next = { ...prev, mediaType, mode: 'title' as SearchMode, genres: [], yearRange: null, country: null }
       personIdRef.current = null
       setMatchedPerson(null)
       executeSearch(queryRef.current, next, 1, false)
@@ -322,7 +326,6 @@ export function useTmdbSearch(showSeries = false) {
     personIdRef.current = null
     setMatchedPerson(null)
     setResults([])
-    setTvResults([])
     setTotalPages(0)
     setCurrentPage(1)
     sessionStorage.removeItem(STORAGE_KEY)
@@ -338,7 +341,6 @@ export function useTmdbSearch(showSeries = false) {
 
   return {
     results,
-    tvResults,
     loading,
     error,
     hasMore: currentPage < totalPages,
@@ -348,7 +350,6 @@ export function useTmdbSearch(showSeries = false) {
     refresh,
     loadMore,
     setMode,
-    setMediaType,
     toggleGenre,
     setYearRange,
     setCountry,

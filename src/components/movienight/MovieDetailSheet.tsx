@@ -116,7 +116,7 @@ export function MovieDetailSheet({ movie, genres, open, onClose }: Props) {
                 ★ {movie.vote_average.toFixed(1)}
               </span>
             )}
-            <TrailerButton tmdbId={movie.id} mediaType="movie" />
+            <TrailerButton tmdbId={movie.id} mediaType={(movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'} />
           </div>
 
           {movieGenres.length > 0 && (

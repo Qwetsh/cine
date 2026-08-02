@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useLocalFilter } from '../../hooks/useLocalFilter'
 import { CollectionFilterPanel } from '../filters/CollectionFilterPanel'
 import { getPosterUrl } from '../../lib/tmdb'
-import type { WatchlistMovieEntry } from '../../types'
+import { detailPath } from '../../lib/media'
+import type { UnifiedWatchlistEntry } from '../../types'
 
 interface Props {
-  entries: WatchlistMovieEntry[]
+  entries: UnifiedWatchlistEntry[]
   loading: boolean
-  onMarkWatched: (entry: WatchlistMovieEntry) => Promise<void>
+  onMarkWatched: (entry: UnifiedWatchlistEntry) => Promise<void>
 }
 
 export function WatchlistPicker({ entries, loading, onMarkWatched }: Props) {
@@ -18,7 +19,7 @@ export function WatchlistPicker({ entries, loading, onMarkWatched }: Props) {
     setQuery, toggleGenre, setYearRange, clearAll,
   } = useLocalFilter(entries)
 
-  const [picked, setPicked] = useState<WatchlistMovieEntry | null>(null)
+  const [picked, setPicked] = useState<UnifiedWatchlistEntry | null>(null)
   const [rolling, setRolling] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const rollInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
@@ -108,7 +109,7 @@ export function WatchlistPicker({ entries, loading, onMarkWatched }: Props) {
 
       <div className="px-4 mb-3">
         <p className="text-sm text-[var(--color-text-muted)]">
-          {filtered.length} film{filtered.length !== 1 ? 's' : ''} disponible{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} titre{filtered.length !== 1 ? 's' : ''} disponible{filtered.length !== 1 ? 's' : ''}
         </p>
       </div>
 
@@ -128,17 +129,22 @@ export function WatchlistPicker({ entries, loading, onMarkWatched }: Props) {
         <div className={`mx-4 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden transition-opacity ${rolling ? 'opacity-60' : 'opacity-100'}`}>
           <div className="flex gap-4 p-4">
             <button
-              onClick={() => navigate(`/movie/${picked.movie.tmdb_id}`)}
-              className="w-24 flex-shrink-0 rounded-xl overflow-hidden shadow-lg"
+              onClick={() => navigate(detailPath({ id: picked.movie.tmdb_id, media_type: picked.media_type }))}
+              className="relative w-24 flex-shrink-0 rounded-xl overflow-hidden shadow-lg"
             >
               <img
                 src={getPosterUrl(picked.movie.poster_path, 'medium')}
                 alt={picked.movie.title}
                 className="w-full"
               />
+              {picked.media_type === 'tv' && (
+                <div className="absolute top-1.5 right-1.5 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                  Série
+                </div>
+              )}
             </button>
             <div className="flex-1 min-w-0">
-              <button onClick={() => navigate(`/movie/${picked.movie.tmdb_id}`)} className="text-left">
+              <button onClick={() => navigate(detailPath({ id: picked.movie.tmdb_id, media_type: picked.media_type }))} className="text-left">
                 <h3 className="font-bold text-lg text-[var(--color-text)] leading-tight hover:text-[var(--color-accent)] transition-colors">
                   {picked.movie.title}
                 </h3>

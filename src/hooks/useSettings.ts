@@ -58,9 +58,9 @@ export interface Settings {
   battleColor: BattleColor
   // Home display
   homeMode: HomeMode
-  // TV series
-  showSeries: boolean
-  suggestSeries: boolean
+  // TV series : l'expérience est fusionnée films+séries ; ce réglage
+  // masque les séries partout pour ceux qui n'en regardent pas
+  hideSeries: boolean
   // Enrichments on movie detail page
   showBooks: boolean
   showGames: boolean
@@ -78,8 +78,7 @@ const defaultSettings: Settings = {
   cinemas: [],
   battleColor: 'blue',
   homeMode: 'trending',
-  showSeries: false,
-  suggestSeries: false,
+  hideSeries: false,
   showBooks: true,
   showGames: true,
   showMusic: true,

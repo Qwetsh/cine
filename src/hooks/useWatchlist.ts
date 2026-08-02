@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { WatchlistMovieEntry } from '../types'
 
@@ -6,8 +6,12 @@ export function useWatchlist(coupleId: string | null, userId?: string | null) {
   const [entries, setEntries] = useState<WatchlistMovieEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Garde anti-obsolescence : coupleId se résout après le premier rendu, une
+  // réponse du fetch « solo » périmé ne doit pas écraser celle du fetch couple
+  const requestIdRef = useRef(0)
 
   const fetchWatchlist = useCallback(async () => {
+    const reqId = ++requestIdRef.current
     if (!coupleId && !userId) {
       setEntries([])
       setLoading(false)
@@ -28,6 +32,7 @@ export function useWatchlist(coupleId: string | null, userId?: string | null) {
     }
 
     const { data, error } = await query
+    if (reqId !== requestIdRef.current) return
 
     if (error) {
       setError(error.message)

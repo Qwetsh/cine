@@ -601,8 +601,14 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
                   ★ {movie.vote_average.toFixed(1)}
                 </span>
               )}
-              <TrailerButton tmdbId={movie.id} mediaType="movie" />
-              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} title={movie.title} originalTitle={movie.original_title} />
+              <TrailerButton tmdbId={movie.id} mediaType={(movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'} />
+              <WatchProviders
+                tmdbId={movie.id}
+                releaseDate={movie.release_date}
+                isTv={(movie as TmdbMovie & { media_type?: string }).media_type === 'tv'}
+                title={movie.title}
+                originalTitle={movie.original_title}
+              />
             </div>
 
             {movieGenres.length > 0 && (

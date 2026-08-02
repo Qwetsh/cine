@@ -7,6 +7,7 @@ import { useFriendsContext } from './FriendsContext'
 import { useToast } from '../hooks/useToast'
 import { supabase } from '../lib/supabase'
 import { ensureMovie } from '../lib/movies'
+import { ensureTvShow } from '../lib/tvShows'
 import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie } from '../lib/tmdb'
 import { RecommendModal } from '../components/movie/RecommendModal'
@@ -109,47 +110,61 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const isTv = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv'
+
     try {
-      let movieDbId = opts?.movieDbId
-      if (!movieDbId) {
-        // Objet partiel : on récupère la fiche TMDB complète pour ne pas
-        // insérer un film amputé (synopsis, genres…) dans la table movies
-        const toStore = opts?.partial ? await tmdb.getMovie(movie.id) : movie
-        movieDbId = await ensureMovie(toStore)
+      let dbId = opts?.movieDbId
+      if (!dbId) {
+        if (isTv) {
+          // L'objet série est normalisé en forme film (title…) : on refetch
+          // toujours la fiche TV brute avant insertion dans tv_shows
+          dbId = await ensureTvShow(await tmdb.getTvShow(movie.id))
+        } else {
+          // Objet partiel : on récupère la fiche TMDB complète pour ne pas
+          // insérer un film amputé (synopsis, genres…) dans la table movies
+          const toStore = opts?.partial ? await tmdb.getMovie(movie.id) : movie
+          dbId = await ensureMovie(toStore)
+        }
       }
 
+      // Tables et colonne de référence selon le média
+      const wlTable = isTv ? 'tv_watchlist' : 'watchlist'
+      const colTable = isTv ? 'tv_collection' : 'collection'
+      const persoTable = isTv ? 'tv_personal_collection' : 'personal_collection'
+      const idCol = isTv ? 'tv_show_id' : 'movie_id'
+
       if (key === 'wl-solo') {
-        const { data: row } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieDbId).maybeSingle()
+        const { data: row } = await supabase.from(wlTable).select('id').is('couple_id', null).eq('added_by', user.id).eq(idCol, dbId).maybeSingle()
         if (row) { showToast('Déjà dans ta liste solo'); return }
-        const { error } = await supabase.from('watchlist').insert({ movie_id: movieDbId, added_by: user.id, couple_id: null })
+        const { error } = await supabase.from(wlTable).insert({ [idCol]: dbId, added_by: user.id, couple_id: null })
         if (error) throw error
         showToast('Ajouté à ta liste solo ✓')
 
       } else if (key === 'wl-couple') {
         if (!coupleId) return
-        const { data: row } = await supabase.from('watchlist').select('id').eq('couple_id', coupleId).eq('movie_id', movieDbId).maybeSingle()
+        const { data: row } = await supabase.from(wlTable).select('id').eq('couple_id', coupleId).eq(idCol, dbId).maybeSingle()
         if (row) { showToast('Déjà dans la liste couple'); return }
-        const { error } = await supabase.from('watchlist').insert({ movie_id: movieDbId, added_by: user.id, couple_id: coupleId })
+        const { error } = await supabase.from(wlTable).insert({ [idCol]: dbId, added_by: user.id, couple_id: coupleId })
         if (error) throw error
         showToast('Ajouté à la liste couple ✓')
 
       } else if (key === 'col-solo') {
-        const { data: row } = await supabase.from('personal_collection').select('id').eq('user_id', user.id).eq('movie_id', movieDbId).maybeSingle()
+        const { data: row } = await supabase.from(persoTable).select('id').eq('user_id', user.id).eq(idCol, dbId).maybeSingle()
         if (row) { showToast('Déjà dans ta collection solo'); return }
         // Retirer de la watchlist solo si présent (même logique que la fiche film)
-        const { data: wlRow } = await supabase.from('watchlist').select('id').is('couple_id', null).eq('added_by', user.id).eq('movie_id', movieDbId).maybeSingle()
-        if (wlRow) await supabase.from('watchlist').delete().eq('id', wlRow.id)
-        const { error } = await supabase.from('personal_collection').insert({ movie_id: movieDbId, user_id: user.id, watched_at: new Date().toISOString() })
+        const { data: wlRow } = await supabase.from(wlTable).select('id').is('couple_id', null).eq('added_by', user.id).eq(idCol, dbId).maybeSingle()
+        if (wlRow) await supabase.from(wlTable).delete().eq('id', wlRow.id)
+        const { error } = await supabase.from(persoTable).insert({ [idCol]: dbId, user_id: user.id, watched_at: new Date().toISOString() })
         if (error) throw error
         showToast('Ajouté à ta collection solo ✓')
 
       } else if (key === 'col-couple') {
         if (!coupleId) return
-        const { data: row } = await supabase.from('collection').select('id').eq('couple_id', coupleId).eq('movie_id', movieDbId).maybeSingle()
+        const { data: row } = await supabase.from(colTable).select('id').eq('couple_id', coupleId).eq(idCol, dbId).maybeSingle()
         if (row) { showToast('Déjà dans la collection couple'); return }
-        const { data: wlRow } = await supabase.from('watchlist').select('id').eq('couple_id', coupleId).eq('movie_id', movieDbId).maybeSingle()
-        if (wlRow) await supabase.from('watchlist').delete().eq('id', wlRow.id)
-        const { error } = await supabase.from('collection').insert({ movie_id: movieDbId, couple_id: coupleId, watched_at: new Date().toISOString() })
+        const { data: wlRow } = await supabase.from(wlTable).select('id').eq('couple_id', coupleId).eq(idCol, dbId).maybeSingle()
+        if (wlRow) await supabase.from(wlTable).delete().eq('id', wlRow.id)
+        const { error } = await supabase.from(colTable).insert({ [idCol]: dbId, couple_id: coupleId, watched_at: new Date().toISOString() })
         if (error) throw error
         showToast('Ajouté à la collection couple ✓')
       }
@@ -215,12 +230,16 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
 
       {recoMovie && (
         <RecommendModal
-          movieId={recoMovie.id}
-          tvShowId={null}
+          movieId={(recoMovie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? null : recoMovie.id}
+          tvShowId={(recoMovie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? recoMovie.id : null}
           title={recoMovie.title}
           open
           onClose={() => setRecoMovie(null)}
-          onBeforeSend={() => ensureMovie(recoMovie)}
+          onBeforeSend={() =>
+            (recoMovie as TmdbMovie & { media_type?: string }).media_type === 'tv'
+              ? tmdb.getTvShow(recoMovie.id).then(ensureTvShow)
+              : ensureMovie(recoMovie)
+          }
         />
       )}
 

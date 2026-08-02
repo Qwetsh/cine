@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { MovieGrid } from '../components/movie/MovieGrid'
 import { tmdb } from '../lib/tmdb'
+import { detailPath, mediaKey } from '../lib/media'
+import type { MediaItem } from '../lib/media'
+import { useSettings } from '../hooks/useSettings'
 import { CrossFilmography } from '../components/movie/CrossFilmography'
 import { DirectorFrequentActors } from '../components/movie/DirectorFrequentActors'
 import { AwardsButton } from '../components/movie/AwardsButton'
@@ -9,9 +12,54 @@ import type { TmdbMovie, TmdbPersonDetail, TmdbExternalIds } from '../lib/tmdb'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p'
 
+// Crédit brut de /person/{id}/combined_credits : films et séries mélangés
+interface RawCombinedCredit {
+  id: number
+  media_type: 'movie' | 'tv'
+  title?: string
+  name?: string
+  original_title?: string
+  original_name?: string
+  overview?: string
+  poster_path: string | null
+  backdrop_path?: string | null
+  release_date?: string
+  first_air_date?: string
+  vote_average?: number
+  vote_count?: number
+  genre_ids?: number[]
+  popularity?: number
+  character?: string
+  job?: string
+  department?: string
+}
+
 interface CreditsResult {
-  cast: (TmdbMovie & { character?: string })[]
-  crew: (TmdbMovie & { job: string; department: string })[]
+  cast: RawCombinedCredit[]
+  crew: RawCombinedCredit[]
+}
+
+type CreditItem = MediaItem & { character?: string; job?: string; department?: string }
+
+function normalizeCredit(c: RawCombinedCredit): CreditItem {
+  return {
+    id: c.id,
+    title: (c.media_type === 'tv' ? c.name : c.title) ?? c.title ?? c.name ?? '',
+    original_title: (c.media_type === 'tv' ? c.original_name : c.original_title) ?? '',
+    overview: c.overview ?? '',
+    poster_path: c.poster_path,
+    backdrop_path: c.backdrop_path ?? null,
+    release_date: (c.media_type === 'tv' ? c.first_air_date : c.release_date) ?? '',
+    vote_average: c.vote_average ?? 0,
+    vote_count: c.vote_count ?? 0,
+    genre_ids: c.genre_ids ?? [],
+    popularity: c.popularity ?? 0,
+    adult: false,
+    media_type: c.media_type,
+    character: c.character,
+    job: c.job,
+    department: c.department,
+  }
 }
 
 function formatDate(dateStr: string): string {
@@ -38,10 +86,12 @@ function getCareerSpan(movies: TmdbMovie[]): { first: number; last: number } | n
 export function PersonPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { settings } = useSettings()
+  const includeSeries = !settings.hideSeries
   const [person, setPerson] = useState<TmdbPersonDetail | null>(null)
   const [biography, setBiography] = useState('')
   const [movies, setMovies] = useState<TmdbMovie[]>([])
-  const [filmSections, setFilmSections] = useState<{ label: string; movies: TmdbMovie[] }[]>([])
+  const [filmSections, setFilmSections] = useState<{ label: string; movies: CreditItem[] }[]>([])
   const [externalIds, setExternalIds] = useState<TmdbExternalIds | null>(null)
   const [loading, setLoading] = useState(true)
   const [bioExpanded, setBioExpanded] = useState(false)
@@ -57,10 +107,19 @@ export function PersonPage() {
       tmdb.getPerson(numId),
       tmdb.getPersonEn(numId),
       tmdb.getPersonExternalIds(numId).catch(() => null),
-      fetch(`https://api.themoviedb.org/3/person/${numId}/movie_credits?api_key=${import.meta.env.VITE_TMDB_API_KEY}&language=fr-FR`)
+      fetch(`https://api.themoviedb.org/3/person/${numId}/combined_credits?api_key=${import.meta.env.VITE_TMDB_API_KEY}&language=fr-FR`)
         .then(r => r.json()) as Promise<CreditsResult>,
     ])
-      .then(([personFr, personEn, extIds, creditsData]) => {
+      .then(([personFr, personEn, extIds, rawCredits]) => {
+        // Filmographie mixte films + séries, normalisée (séries écartées si masquées)
+        const creditsData = {
+          cast: (rawCredits.cast ?? [])
+            .filter(c => includeSeries || c.media_type !== 'tv')
+            .map(normalizeCredit),
+          crew: (rawCredits.crew ?? [])
+            .filter(c => includeSeries || c.media_type !== 'tv')
+            .map(normalizeCredit),
+        }
         setPerson(personFr)
         setExternalIds(extIds)
 
@@ -90,26 +149,28 @@ export function PersonPage() {
           'Crew': 'équipe technique',
         }
 
-        const dedup = (list: TmdbMovie[]) => {
-          const seen = new Set<number>()
+        const dedup = (list: CreditItem[]) => {
+          const seen = new Set<string>()
           return list.filter(m => {
-            if (seen.has(m.id)) return false
-            seen.add(m.id)
+            const key = mediaKey(m)
+            if (seen.has(key)) return false
+            seen.add(key)
             return true
           })
         }
 
-        const sortByPop = (list: TmdbMovie[]) =>
+        const sortByPop = (list: CreditItem[]) =>
           list.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
 
         // Group crew by department
-        const crewByDept = new Map<string, TmdbMovie[]>()
+        const crewByDept = new Map<string, CreditItem[]>()
         for (const c of creditsData.crew) {
-          if (!crewByDept.has(c.department)) crewByDept.set(c.department, [])
-          crewByDept.get(c.department)!.push(c)
+          const dept = c.department ?? 'Crew'
+          if (!crewByDept.has(dept)) crewByDept.set(dept, [])
+          crewByDept.get(dept)!.push(c)
         }
 
-        const sections: { label: string; movies: TmdbMovie[] }[] = []
+        const sections: { label: string; movies: CreditItem[] }[] = []
         const primaryDept = personFr.known_for_department
 
         // Primary department first
@@ -153,9 +214,10 @@ export function PersonPage() {
 
         setFilmSections(sections)
 
-        // All movies combined for stats
-        const allMovies = dedup(sections.flatMap(s => s.movies))
-        setMovies(allMovies)
+        // Films uniquement pour les stats et modules croisés
+        // (CrossFilmography / DirectorFrequentActors raisonnent en ids de films)
+        const allItems = dedup(sections.flatMap(s => s.movies))
+        setMovies(allItems.filter(m => m.media_type !== 'tv'))
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -376,7 +438,7 @@ export function PersonPage() {
           </div>
           <MovieGrid
             movies={section.movies}
-            onMovieClick={(movie) => navigate(`/movie/${movie.id}`)}
+            onMovieClick={(movie) => navigate(detailPath(movie))}
           />
         </div>
       ))}

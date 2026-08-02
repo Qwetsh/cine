@@ -3,6 +3,7 @@ import { useSettings } from '../../hooks/useSettings'
 import { getPosterUrl } from '../../lib/tmdb'
 import type { TmdbMovie } from '../../lib/tmdb'
 import { HoldablePoster } from '../hold/HoldablePoster'
+import { TvProviderLogos } from './TvProviderLogos'
 
 interface MovieCardProps {
   movie: TmdbMovie
@@ -11,11 +12,11 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
-  const mediaType = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'
+  const mediaType: 'movie' | 'tv' = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv' ? 'tv' : 'movie'
   const { getFriendsWantCount, getFriendsWhoLoved } = useFriendsContext()
   const { settings } = useSettings()
-  const friendsWant = getFriendsWantCount(movie.id, mediaType as 'movie' | 'tv')
-  const lovedBy = settings.showFriendRatings ? getFriendsWhoLoved(movie.id) : []
+  const friendsWant = getFriendsWantCount(movie.id, mediaType)
+  const lovedBy = settings.showFriendRatings ? getFriendsWhoLoved(movie.id, mediaType) : []
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null
   const rating = movie.vote_average ? movie.vote_average.toFixed(1) : null
 
@@ -63,10 +64,15 @@ export function MovieCard({ movie, onClick, compact = false }: MovieCardProps) {
             ★ {rating}
           </div>
         )}
-        {(movie as TmdbMovie & { media_type?: string }).media_type === 'tv' && (
-          <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-            Série
-          </div>
+        {mediaType === 'tv' && (
+          <>
+            <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+              Série
+            </div>
+            <div className="absolute bottom-1.5 left-1.5">
+              <TvProviderLogos tmdbId={movie.id} overlay />
+            </div>
+          </>
         )}
         {lovedBy.length > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-4 text-center">

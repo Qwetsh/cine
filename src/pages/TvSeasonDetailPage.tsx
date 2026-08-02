@@ -79,6 +79,8 @@ export function TvSeasonDetailPage() {
     if (!user || !coupleId || !show) return
     try {
       const tvShowDbId = await ensureTvShow(show)
+      // La watchlist est au niveau série : season_number garde l'info
+      // « à reprendre à la saison N »
       const { error } = await supabase.from('tv_watchlist').insert({
         tv_show_id: tvShowDbId,
         season_number: sn,
@@ -86,9 +88,11 @@ export function TvSeasonDetailPage() {
         couple_id: coupleId,
       })
       if (!error) {
-        setToast('Saison ajoutée à voir ✓')
-        setTimeout(() => setToast(null), 3000)
+        setToast('Série ajoutée à voir ✓')
+      } else if (error.code === '23505') {
+        setToast('Déjà dans la liste à voir')
       }
+      setTimeout(() => setToast(null), 3000)
     } catch (e) {
       console.error(e)
     }

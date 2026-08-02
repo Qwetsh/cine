@@ -7,6 +7,8 @@ import { useCollection } from '../hooks/useCollection'
 import { usePersonalCollection } from '../hooks/usePersonalCollection'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useTvWatchlist } from '../hooks/useTvWatchlist'
+import { useTvCollection } from '../hooks/useTvCollection'
+import { useTvPersonalCollection } from '../hooks/useTvPersonalCollection'
 import { tmdb, getPosterUrl, getBackdropUrl } from '../lib/tmdb'
 import { ensureMovie } from '../lib/movies'
 import { ensureTvShow } from '../lib/tvShows'
@@ -44,6 +46,8 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
   const personal = usePersonalCollection(user?.id ?? null)
   const watchlist = useWatchlist(coupleId, user?.id)
   const tvWatchlist = useTvWatchlist(coupleId, user?.id)
+  const tvCouple = useTvCollection(coupleId)
+  const tvPersonal = useTvPersonalCollection(user?.id ?? null)
   const [receivedItems, setReceivedItems] = useState<RecoDisplay[]>([])
   const [sentItems, setSentItems] = useState<RecoDisplay[]>([])
   const [loading, setLoading] = useState(true)
@@ -168,17 +172,18 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
     return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   }
 
-  function isAlreadyInCouple(tmdbId: number): boolean {
-    return couple.entries.some(e => e.movie.tmdb_id === tmdbId)
+  function isAlreadyInCouple(item: RecoDisplay): boolean {
+    if (item.mediaType === 'movie') return couple.entries.some(e => e.movie.tmdb_id === item.tmdbId)
+    return tvCouple.entries.some(e => e.tv_show.tmdb_id === item.tmdbId)
   }
 
-  function isAlreadyInPersonal(tmdbId: number): boolean {
-    return personal.entries.some(e => e.movie.tmdb_id === tmdbId)
+  function isAlreadyInPersonal(item: RecoDisplay): boolean {
+    if (item.mediaType === 'movie') return personal.entries.some(e => e.movie.tmdb_id === item.tmdbId)
+    return tvPersonal.entries.some(e => e.tv_show.tmdb_id === item.tmdbId)
   }
 
   function isAlreadyWatched(item: RecoDisplay): boolean {
-    if (item.mediaType !== 'movie') return false
-    return isAlreadyInCouple(item.tmdbId) || isAlreadyInPersonal(item.tmdbId)
+    return isAlreadyInCouple(item) || isAlreadyInPersonal(item)
   }
 
   function isInWatchlist(item: RecoDisplay): boolean {
@@ -200,7 +205,7 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
       } else {
         const show = await tmdb.getTvShow(item.tmdbId)
         const tvDbId = await ensureTvShow(show)
-        const { error } = await tvWatchlist.addToTvWatchlist(tvDbId, 1, user.id)
+        const { error } = await tvWatchlist.addToTvWatchlist(tvDbId, user.id)
         if (!error) showToast(coupleId ? 'Ajouté à votre liste !' : 'Ajouté à ta liste !')
       }
     } catch (e) {
@@ -211,13 +216,26 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
     }
   }
 
+  async function resolveDbId(item: RecoDisplay): Promise<string | null> {
+    if (item.mediaType === 'movie') {
+      if (!item.tmdbMovie) return null
+      return ensureMovie(item.tmdbMovie)
+    }
+    const show = await tmdb.getTvShow(item.tmdbId)
+    return ensureTvShow(show)
+  }
+
   async function handleMarkWatchedCouple(item: RecoDisplay) {
-    if (!item.tmdbMovie || !coupleId || actionLoading) return
+    if (!coupleId || actionLoading) return
     setActionLoading(item.id)
     try {
-      const movieDbId = await ensureMovie(item.tmdbMovie)
-      const { error } = await couple.addToCollection(movieDbId)
-      if (!error) showToast('Ajouté à la collection couple !')
+      const dbId = await resolveDbId(item)
+      if (dbId) {
+        const { error } = item.mediaType === 'movie'
+          ? await couple.addToCollection(dbId)
+          : await tvCouple.addToTvCollection(dbId)
+        if (!error) showToast('Ajouté à la collection couple !')
+      }
     } catch (e) {
       console.error(e)
     }
@@ -225,12 +243,16 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
   }
 
   async function handleMarkWatchedSolo(item: RecoDisplay) {
-    if (!item.tmdbMovie || actionLoading) return
+    if (actionLoading) return
     setActionLoading(item.id)
     try {
-      const movieDbId = await ensureMovie(item.tmdbMovie)
-      const { error } = await personal.addToPersonalCollection(movieDbId)
-      if (!error) showToast('Ajouté à ta collection perso !')
+      const dbId = await resolveDbId(item)
+      if (dbId) {
+        const { error } = item.mediaType === 'movie'
+          ? await personal.addToPersonalCollection(dbId)
+          : await tvPersonal.addToTvPersonalCollection(dbId)
+        if (!error) showToast('Ajouté à ta collection perso !')
+      }
     } catch (e) {
       console.error(e)
     }
@@ -311,10 +333,9 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
         <div className="space-y-3">
           {items.map(item => {
             const watched = isAlreadyWatched(item)
-            const inCouple = isAlreadyInCouple(item.tmdbId)
-            const inPersonal = isAlreadyInPersonal(item.tmdbId)
+            const inCouple = isAlreadyInCouple(item)
+            const inPersonal = isAlreadyInPersonal(item)
             const inWatchlist = isInWatchlist(item)
-            const isMovie = item.mediaType === 'movie'
             const isLoading = actionLoading === item.id
             const unread = unreadMessages.get(item.id) ?? 0
             const isReceived = item.direction === 'received'
@@ -392,8 +413,8 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
                     )
                   )}
 
-                  {/* Vu en couple — only for received movies */}
-                  {isReceived && isMovie && coupleId && (
+                  {/* Vu en couple — received only */}
+                  {isReceived && coupleId && (
                     inCouple ? (
                       <span className="flex-1 text-center text-xs text-[var(--color-text-muted)] py-1.5">
                         Vu en couple
@@ -409,8 +430,8 @@ export function FriendRecommendationsPage({ embedded = false }: { embedded?: boo
                     )
                   )}
 
-                  {/* Vu solo — only for received movies */}
-                  {isReceived && isMovie && (
+                  {/* Vu solo — received only */}
+                  {isReceived && (
                     inPersonal ? (
                       <span className="flex-1 text-center text-xs text-[var(--color-text-muted)] py-1.5">
                         Vu solo

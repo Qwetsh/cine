@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie, TmdbTvShow, TmdbGenre } from '../lib/tmdb'
-import type { CollectionMovieEntry, WatchlistMovieEntry, PersonalCollectionEntry } from '../types'
+import { tvToMovie, mediaKey, movieGenresToTv } from '../lib/media'
+import type { MediaItem } from '../lib/media'
+import type { CollectionMovieEntry, WatchlistMovieEntry, PersonalCollectionEntry, MediaTypeTag } from '../types'
 
 /**
  * Build personalized recommendations from collection + watchlist.
@@ -10,30 +12,15 @@ import type { CollectionMovieEntry, WatchlistMovieEntry, PersonalCollectionEntry
  * 1. Build genre preference profile (weighted by ratings)
  * 2. Discover movies by top genres (random TMDB page for variety)
  * 3. Fetch similar movies for random highly-rated films
- * 4. Optionally discover TV shows by same genres (when suggestSeries enabled)
+ * 4. Optionally discover TV shows by same genres (when includeSeries enabled)
  * 5. Merge, exclude already seen/watchlisted, shuffle, pick 9
+ *
+ * Les entrées peuvent être mixtes (films + séries normalisées avec media_type).
  */
 
-export type RecommendationItem = TmdbMovie & { media_type?: 'movie' | 'tv' }
+export type RecommendationItem = MediaItem
 
-/** Convert a TmdbTvShow into a TmdbMovie-compatible shape for unified rendering */
-function tvToMovie(show: TmdbTvShow): RecommendationItem {
-  return {
-    id: show.id,
-    title: show.name,
-    original_title: show.original_name,
-    overview: show.overview,
-    poster_path: show.poster_path,
-    backdrop_path: show.backdrop_path,
-    release_date: show.first_air_date,
-    vote_average: show.vote_average,
-    vote_count: show.vote_count,
-    genre_ids: show.genre_ids,
-    popularity: show.popularity,
-    adult: false,
-    media_type: 'tv',
-  }
-}
+type TaggedEntry = { movie: { tmdb_id: number; genres: string[] }; media_type?: MediaTypeTag }
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -105,12 +92,12 @@ function getHighRatedMovies(collection: CollectionMovieEntry[]): CollectionMovie
 }
 
 export function useRecommendations(
-  collection: CollectionMovieEntry[],
-  watchlist: WatchlistMovieEntry[],
+  collection: (CollectionMovieEntry & { media_type?: MediaTypeTag })[],
+  watchlist: (WatchlistMovieEntry & { media_type?: MediaTypeTag })[],
   genres: TmdbGenre[],
   enabled: boolean,
-  personalCollection: PersonalCollectionEntry[] = [],
-  suggestSeries = false,
+  personalCollection: (PersonalCollectionEntry & { media_type?: MediaTypeTag })[] = [],
+  includeSeries = false,
 ) {
   const [results, setResults] = useState<RecommendationItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -135,11 +122,13 @@ export function useRecommendations(
         return
       }
 
-      // Set of tmdb_ids to exclude (couple collection + watchlist + solo collection)
-      const excludeIds = new Set<number>()
-      for (const e of collection) excludeIds.add(e.movie.tmdb_id)
-      for (const e of watchlist) excludeIds.add(e.movie.tmdb_id)
-      for (const e of personalCollection) excludeIds.add(e.movie.tmdb_id)
+      // Clés composites à exclure (un film et une série peuvent partager un id TMDB)
+      const excludeKeys = new Set<string>()
+      const addExclude = (e: TaggedEntry) =>
+        excludeKeys.add(mediaKey({ id: e.movie.tmdb_id, media_type: e.media_type }))
+      collection.forEach(addExclude)
+      watchlist.forEach(addExclude)
+      personalCollection.forEach(addExclude)
 
       const allItems: RecommendationItem[] = []
 
@@ -177,22 +166,26 @@ export function useRecommendations(
         allItems.push(...d.results)
       }
 
-      // --- Discover TV shows by same genres (when suggestSeries enabled) ---
-      if (suggestSeries && topGenres.length >= 1) {
-        const tvGenre = topGenres[0]
-        const pTv = tmdb.discoverTv({
-          with_genres: String(tvGenre.id),
-          sort_by: 'popularity.desc',
-          'vote_count.gte': '50',
-          page: randomPage(),
-        }).catch(() => ({ results: [] as TmdbTvShow[], total_pages: 0 }))
+      // --- Discover TV shows by same genres (when includeSeries enabled) ---
+      // Les ids de genres film sont traduits vers le référentiel TV (ids différents)
+      if (includeSeries && topGenres.length >= 1) {
+        const tvGenreIds = movieGenresToTv(topGenres.slice(0, 2).map(g => g.id))
+        if (tvGenreIds.length > 0) {
+          const pTv = tmdb.discoverTv({
+            with_genres: tvGenreIds.join(','),
+            sort_by: 'popularity.desc',
+            'vote_count.gte': '50',
+            page: randomPage(),
+          }).catch(() => ({ results: [] as TmdbTvShow[], total_pages: 0 }))
 
-        const tvResult = await pTv
-        allItems.push(...tvResult.results.map(tvToMovie))
+          const tvResult = await pTv
+          allItems.push(...tvResult.results.map(tvToMovie))
+        }
       }
 
       // --- Similar movies from random highly-rated films ---
-      const highRated = getHighRatedMovies(collection)
+      // (getSimilar est un endpoint film : on écarte les seeds séries)
+      const highRated = getHighRatedMovies(collection.filter(e => e.media_type !== 'tv'))
       if (highRated.length > 0) {
         const seeds = pickRandom(highRated, 3)
         const similarPromises = seeds.map(e =>
@@ -211,8 +204,8 @@ export function useRecommendations(
       const seen = new Set<string>()
       const unique: RecommendationItem[] = []
       for (const m of allItems) {
-        const key = `${m.media_type ?? 'movie'}-${m.id}`
-        if (excludeIds.has(m.id) || seen.has(key)) continue
+        const key = mediaKey(m)
+        if (excludeKeys.has(key) || seen.has(key)) continue
         if (!m.poster_path) continue
         seen.add(key)
         unique.push(m)
@@ -237,18 +230,18 @@ export function useRecommendations(
     } finally {
       setLoading(false)
     }
-  }, [collection, watchlist, genres, personalCollection, suggestSeries])
+  }, [collection, watchlist, genres, personalCollection, includeSeries])
 
   // Auto-fetch once when data is ready (re-fetch if collection/watchlist size changes)
   useEffect(() => {
     if (!enabled) return
     if (genres.length === 0 || (collection.length === 0 && watchlist.length === 0)) return
-    const key = `${collection.length}-${watchlist.length}-${personalCollection.length}-${suggestSeries}`
+    const key = `${collection.length}-${watchlist.length}-${personalCollection.length}-${includeSeries}`
     if (didFetchRef.current && dataKeyRef.current === key) return
     didFetchRef.current = true
     dataKeyRef.current = key
     refresh()
-  }, [enabled, genres.length, collection.length, watchlist.length, personalCollection.length, suggestSeries, refresh])
+  }, [enabled, genres.length, collection.length, watchlist.length, personalCollection.length, includeSeries, refresh])
 
   return { results, loading, refresh }
 }
