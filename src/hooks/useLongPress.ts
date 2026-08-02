@@ -11,8 +11,8 @@ export interface UseLongPressOptions {
   disabled?: boolean
   /** Appelé dès le pointerdown (utile pour précharger des données) */
   onPressStart?: () => void
-  /** Le liseré a fait le tour : le geste est activé */
-  onComplete: () => void
+  /** Le liseré a fait le tour : le geste est activé. start = point d'appui (viewport) */
+  onComplete: (start: { x: number; y: number }) => void
   /** Déplacement du doigt après activation, en px depuis le point d'appui */
   onMove?: (dx: number, dy: number) => void
   /** Relâchement après activation */
@@ -84,7 +84,7 @@ export function useLongPress(options: UseLongPressOptions) {
         doneAtRef.current = Date.now()
         try { navigator.vibrate?.(35) } catch { /* non supporté */ }
         document.addEventListener('touchmove', preventTouchMove, { passive: false })
-        cbRef.current.onComplete()
+        cbRef.current.onComplete({ x: startRef.current.x, y: startRef.current.y })
       }, duration)
     }, delay)
   }, [disabled, delay, duration, preventTouchMove])

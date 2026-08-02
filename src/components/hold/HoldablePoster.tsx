@@ -29,10 +29,13 @@ export function HoldablePoster({ movie, movieDbId, partial, className = '', radi
   const isTv = (movie as TmdbMovie & { media_type?: string }).media_type === 'tv'
 
   const { charging, ringDuration, handlers } = useLongPress({
+    // Un peu plus long que le défaut : évite les ouvertures accidentelles
+    // pendant la navigation dans les listes
+    delay: 400,
     disabled: isTv || !menu.enabled,
-    onComplete: () => {
+    onComplete: (start) => {
       const rect = ref.current?.getBoundingClientRect()
-      if (rect) menu.openMenu(movie, rect, { movieDbId, partial })
+      if (rect) menu.openMenu(movie, rect, start, { movieDbId, partial })
     },
     onMove: menu.moveDrag,
     onRelease: menu.releaseDrag,

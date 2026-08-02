@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from './AuthContext'
@@ -11,17 +11,18 @@ import { tmdb } from '../lib/tmdb'
 import type { TmdbMovie } from '../lib/tmdb'
 import { RecommendModal } from '../components/movie/RecommendModal'
 import { PosterHoldMenu } from '../components/hold/PosterHoldMenu'
-import { HOLD_ZONES, zoneForDrag } from '../components/hold/holdZones'
-import type { HoldZoneKey } from '../components/hold/holdZones'
+import { HOLD_ZONES, placeZones, zoneAtPoint, tierForDist } from '../components/hold/holdZones'
+import type { HoldZoneKey, PlacedZone } from '../components/hold/holdZones'
 
 interface HoldMenuApi {
   /** Le menu peut s'ouvrir (utilisateur connecté) */
   enabled: boolean
   /**
+   * origin : point d'appui du doigt (viewport) — les bulles se placent en cercle autour.
    * movieDbId : UUID de la table movies si déjà connu (évite un upsert avec données partielles).
    * partial : l'objet movie est incomplet (reco d'ami…) → refetch TMDB avant ensureMovie.
    */
-  openMenu: (movie: TmdbMovie, rect: DOMRect, opts?: { movieDbId?: string; partial?: boolean }) => void
+  openMenu: (movie: TmdbMovie, rect: DOMRect, origin: { x: number; y: number }, opts?: { movieDbId?: string; partial?: boolean }) => void
   moveDrag: (dx: number, dy: number) => void
   releaseDrag: (dx: number, dy: number) => void
   abortDrag: () => void
@@ -35,6 +36,11 @@ const HoldMenuContext = createContext<HoldMenuApi>({
   abortDrag: () => {},
 })
 
+/** Position du doigt = point d'appui + vecteur de glissement */
+function fingerAt(origin: { x: number; y: number }, drag: { dx: number; dy: number }) {
+  return { x: origin.x + drag.dx, y: origin.y + drag.dy }
+}
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useHoldMenu() {
   return useContext(HoldMenuContext)
@@ -45,6 +51,9 @@ interface MenuState {
   movieDbId?: string
   partial?: boolean
   rect: { top: number; left: number; width: number; height: number }
+  origin: { x: number; y: number }
+  /** Bulles placées en cercle autour du point d'appui (figées à l'ouverture) */
+  placed: PlacedZone[]
   closing: boolean
 }
 
@@ -80,7 +89,9 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
     [coupleId, hasRecipients],
   )
   const zonesRef = useRef(zones)
-  zonesRef.current = zones
+  useEffect(() => {
+    zonesRef.current = zones
+  }, [zones])
 
   const closeMenu = useCallback(() => {
     setMenu(m => (m ? { ...m, closing: true } : m))
@@ -149,10 +160,19 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<HoldMenuApi>(() => ({
     enabled: !!user,
-    openMenu: (movie, rect, opts) => {
+    openMenu: (movie, rect, origin, opts) => {
       clearTimeout(closeTimer.current)
       setDrag(null)
-      setMenu({ movie, movieDbId: opts?.movieDbId, partial: opts?.partial, rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height }, closing: false })
+      const placed = placeZones(zonesRef.current, origin, { width: window.innerWidth, height: window.innerHeight })
+      setMenu({
+        movie,
+        movieDbId: opts?.movieDbId,
+        partial: opts?.partial,
+        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+        origin,
+        placed,
+        closing: false,
+      })
     },
     moveDrag: (dx, dy) => {
       setDrag({ dx, dy })
@@ -160,8 +180,9 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
     releaseDrag: (dx, dy) => {
       const current = stateRef.current.menu
       if (!current || current.closing) return
-      const hit = zoneForDrag(dx, dy, zonesRef.current)
-      if (hit && hit.progress >= 1) {
+      const finger = fingerAt(current.origin, { dx, dy })
+      const hit = zoneAtPoint(current.placed, finger.x, finger.y)
+      if (hit) {
         void runAction(hit.zone.key, current.movie, { movieDbId: current.movieDbId, partial: current.partial })
       }
       closeMenu()
@@ -169,10 +190,11 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
     abortDrag: () => closeMenu(),
   }), [user, runAction, closeMenu])
 
-  // Zone visée et tier de proximité pour le rendu
-  const hit = menu && !menu.closing && drag ? zoneForDrag(drag.dx, drag.dy, zones) : null
+  // Bulle survolée et tier de proximité pour le rendu
+  const finger = menu && !menu.closing && drag ? fingerAt(menu.origin, drag) : null
+  const hit = menu && finger ? zoneAtPoint(menu.placed, finger.x, finger.y) : null
   const activeKey = hit ? hit.zone.key : null
-  const tier: 0 | 1 | 2 | 3 = !hit ? 0 : hit.progress >= 1 ? 3 : hit.progress >= 0.75 ? 2 : 1
+  const tier: 0 | 1 | 2 | 3 = hit ? tierForDist(hit.dist) : 0
 
   return (
     <HoldMenuContext.Provider value={api}>
@@ -183,7 +205,7 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
           movie={menu.movie}
           rect={menu.rect}
           closing={menu.closing}
-          zones={zones}
+          zones={menu.placed}
           activeKey={activeKey}
           tier={tier}
           drag={menu.closing ? null : drag}
@@ -203,7 +225,7 @@ export function HoldMenuProvider({ children }: { children: ReactNode }) {
       )}
 
       {toast && createPortal(
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[80] bg-green-600 text-white text-sm px-4 py-2 rounded-full shadow-lg">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white text-sm px-4 py-2 rounded-full shadow-lg">
           {toast}
         </div>,
         document.body,

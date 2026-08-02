@@ -1,48 +1,81 @@
-import type { CSSProperties } from 'react'
-
 export type HoldZoneKey = 'reco' | 'col-solo' | 'col-couple' | 'wl-couple' | 'wl-solo'
 
 export interface HoldZone {
   key: HoldZoneKey
-  /** Angle de glissement en degrés (atan2, y vers le bas) */
+  /** Angle de placement en degrés autour du point d'appui (atan2, y vers le bas) */
   angle: number
-  emoji: string
   label: string
-  /** Couleur de zone "r,g,b" (palette SwipeCard) */
-  color: string
-  slotStyle: CSSProperties
 }
 
-/** Distance de glissement (px) à partir de laquelle relâcher valide l'action */
-export const HOLD_ZONE_THRESHOLD = 90
-/** Tolérance angulaire (deg) pour cibler une zone */
-export const HOLD_ZONE_ANGLE_TOLERANCE = 32
+export interface PlacedZone extends HoldZone {
+  /** Centre de la bulle (coordonnées viewport) */
+  x: number
+  y: number
+}
 
-const safeTop = (px: number) => `calc(env(safe-area-inset-top, 0px) + ${px}px)`
+/** Rayon du cercle de bulles autour du point d'appui */
+export const HOLD_MENU_RADIUS = 118
+/** Distance doigt→bulle en dessous de laquelle relâcher valide l'action */
+export const HOLD_SELECT_RADIUS = 55
+
 export const holdSafeBottom = (px: number) => `calc(env(safe-area-inset-bottom, 0px) + ${px}px)`
 
-/** Les 5 zones : coins + haut, disposition demandée par Thomas */
+/** Les 5 zones : haut + coins, disposition demandée par Thomas */
 export const HOLD_ZONES: HoldZone[] = [
-  { key: 'reco', angle: -90, emoji: '💌', label: 'Recommander à un ami', color: '244,63,94', slotStyle: { top: safeTop(14), left: '50%', transform: 'translateX(-50%)' } },
-  { key: 'col-solo', angle: -45, emoji: '🎬', label: 'Collection solo', color: '16,185,129', slotStyle: { top: safeTop(76), right: '12px' } },
-  { key: 'col-couple', angle: 45, emoji: '👫', label: 'Collection couple', color: '245,158,11', slotStyle: { bottom: holdSafeBottom(18), right: '12px' } },
-  { key: 'wl-couple', angle: -135, emoji: '💑', label: 'À voir couple', color: '139,92,246', slotStyle: { top: safeTop(76), left: '12px' } },
-  { key: 'wl-solo', angle: 135, emoji: '👁️', label: 'À voir solo', color: '6,182,212', slotStyle: { bottom: holdSafeBottom(18), left: '12px' } },
+  { key: 'reco', angle: -90, label: 'Recommander' },
+  { key: 'col-solo', angle: -40, label: 'Collection solo' },
+  { key: 'col-couple', angle: 40, label: 'Collection couple' },
+  { key: 'wl-couple', angle: -140, label: 'À voir couple' },
+  { key: 'wl-solo', angle: 140, label: 'À voir solo' },
 ]
 
-/** Zone visée par le vecteur de glissement, ou null hors tolérance */
-export function zoneForDrag(dx: number, dy: number, zones: HoldZone[]): { zone: HoldZone; progress: number } | null {
-  const dist = Math.hypot(dx, dy)
-  if (dist < 30) return null
-  const angle = (Math.atan2(dy, dx) * 180) / Math.PI
-  let best: { zone: HoldZone; diff: number } | null = null
-  for (const z of zones) {
-    let diff = Math.abs(angle - z.angle)
-    if (diff > 180) diff = 360 - diff
-    if (diff <= HOLD_ZONE_ANGLE_TOLERANCE && (!best || diff < best.diff)) {
-      best = { zone: z, diff }
+/**
+ * Place les bulles en cercle autour du point d'appui. Si l'appui est trop
+ * près d'un bord, le centre du cercle est ramené vers l'intérieur pour que
+ * toutes les bulles restent visibles et atteignables.
+ */
+export function placeZones(
+  zones: HoldZone[],
+  origin: { x: number; y: number },
+  viewport: { width: number; height: number },
+): PlacedZone[] {
+  // Marges : demi-bulle horizontale, et de quoi ne pas passer sous les
+  // barres système en haut/bas
+  const mx = 74
+  const mTop = 96
+  const mBottom = 110
+  const cx = Math.min(Math.max(origin.x, HOLD_MENU_RADIUS + mx), viewport.width - HOLD_MENU_RADIUS - mx)
+  const cy = Math.min(Math.max(origin.y, HOLD_MENU_RADIUS + mTop), viewport.height - HOLD_MENU_RADIUS - mBottom)
+
+  return zones.map(zone => {
+    const rad = (zone.angle * Math.PI) / 180
+    return {
+      ...zone,
+      x: cx + Math.cos(rad) * HOLD_MENU_RADIUS,
+      y: cy + Math.sin(rad) * HOLD_MENU_RADIUS,
+    }
+  })
+}
+
+/** Bulle la plus proche du doigt, ou null si aucune à portée de sélection */
+export function zoneAtPoint(
+  placed: PlacedZone[],
+  x: number,
+  y: number,
+): { zone: PlacedZone; dist: number } | null {
+  let best: { zone: PlacedZone; dist: number } | null = null
+  for (const zone of placed) {
+    const dist = Math.hypot(x - zone.x, y - zone.y)
+    if (dist <= HOLD_SELECT_RADIUS && (!best || dist < best.dist)) {
+      best = { zone, dist }
     }
   }
-  if (!best) return null
-  return { zone: best.zone, progress: dist / HOLD_ZONE_THRESHOLD }
+  return best
+}
+
+/** Tier de proximité (1-3) pour le retour visuel pendant le survol */
+export function tierForDist(dist: number): 1 | 2 | 3 {
+  if (dist <= 28) return 3
+  if (dist <= 42) return 2
+  return 1
 }

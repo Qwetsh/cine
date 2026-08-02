@@ -59,7 +59,9 @@
 .hold-menu {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* Au-dessus du peek filmographie (z 70) : le menu rapide doit pouvoir
+     s'ouvrir depuis un film du manège verrouillé */
+  z-index: 90;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -72,11 +74,11 @@
   pointer-events: none;
 }
 
-/* Conteneur de drag : suit le doigt (translate/rotate en inline style) */
+/* Conteneur de drag : suit le doigt 1:1 (translate/rotate en inline style,
+   aucune transition pendant le glisser pour coller au doigt) */
 .hold-menu__poster-drag {
   position: fixed;
   z-index: 1;
-  transition: transform 0.08s linear;
   will-change: transform;
 }
 
@@ -113,57 +115,75 @@
   z-index: 2;
 }
 
+/* Bulle = cercle sombre (charte : surface + bordure discrète) avec icône
+   au trait, libellé dessous. L'accent rouge est réservé à la sélection. */
 .hold-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 10px 13px;
-  border-radius: 16px;
-  max-width: 128px;
+  gap: 6px;
+  width: 88px;
   text-align: center;
-  background: rgba(18, 18, 18, 0.88);
-  border: 1.5px solid rgba(var(--zone-c), 0.5);
-  box-shadow: 0 0 12px rgba(var(--zone-c), 0.22);
   animation: hold-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
   /* animation-delay (stagger) injecté en inline style */
-  transition: transform 0.15s ease, opacity 0.15s ease,
-    box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 
-.hold-zone__emoji {
-  font-size: 22px;
-  line-height: 1;
+.hold-zone__icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 26, 0.94);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .hold-zone__label {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
-  color: var(--color-text);
+  color: var(--color-text-muted);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  transition: color 0.15s ease;
 }
 
-/* Tiers de proximité pendant le glisser (cf. SwipeCard) */
-.hold-zone.dimmed { opacity: 0.35; }
-.hold-zone.t1 {
-  transform: scale(1.05);
-  border-color: rgba(var(--zone-c), 0.8);
+/* Tiers de proximité pendant le dépose */
+.hold-zone.dimmed { opacity: 0.4; }
+
+.hold-zone.t1 .hold-zone__icon {
+  transform: scale(1.06);
+  border-color: rgba(229, 9, 20, 0.55);
+  color: var(--color-text);
 }
-.hold-zone.t2 {
-  transform: scale(1.12);
-  border-color: rgb(var(--zone-c));
-  box-shadow: 0 0 18px rgba(var(--zone-c), 0.5);
+.hold-zone.t2 .hold-zone__icon {
+  transform: scale(1.14);
+  border-color: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.4);
 }
-.hold-zone.t3 {
-  border-color: rgb(var(--zone-c));
-  box-shadow: 0 0 28px rgba(var(--zone-c), 0.85);
-  background: rgba(var(--zone-c), 0.22);
+.hold-zone.t3 .hold-zone__icon {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(229, 9, 20, 0.75);
   animation: hold-zone-pulse 0.9s ease-in-out infinite;
+}
+
+.hold-zone.t1 .hold-zone__label,
+.hold-zone.t2 .hold-zone__label,
+.hold-zone.t3 .hold-zone__label {
+  color: var(--color-text);
 }
 
 @keyframes hold-zone-pulse {
   0%, 100% { transform: scale(1.18); }
-  50% { transform: scale(1.28); }
+  50% { transform: scale(1.26); }
 }
 
 .hold-menu__hint {
@@ -224,6 +244,64 @@
   flex-shrink: 0;
   animation: hold-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
   /* animation-delay (stagger) injecté en inline style */
+}
+
+/* ── Cadenas de verrouillage / bouton Retour ── */
+.person-peek__lock {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+}
+
+.person-peek__lockbtn {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 26, 0.94);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: hold-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.15s both;
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.person-peek__lockbtn.charging {
+  transform: scale(1.1);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.person-peek__lockbtn.ready {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 0 22px rgba(229, 9, 20, 0.75);
+}
+
+.person-peek__backbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  background: rgba(26, 26, 26, 0.94);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: hold-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.person-peek__backbtn:hover {
+  border-color: var(--color-accent);
 }
 
 .person-peek__hint {
