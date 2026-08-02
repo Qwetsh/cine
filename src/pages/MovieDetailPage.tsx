@@ -255,7 +255,7 @@ export function MovieDetailPage() {
               {settings.showBooks && <BookSource tmdbId={movie.id} keywords={movie.keywords} />}
               <AwardsButton imdbId={movie.imdb_id} />
               <FilmingLocations imdbId={movie.imdb_id} />
-              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
+              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} imdbId={movie.imdb_id} title={movie.title} originalTitle={movie.original_title} />
             </div>
           </div>
         </div>

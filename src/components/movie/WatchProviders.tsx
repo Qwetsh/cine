@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { tmdb } from '../../lib/tmdb'
 import { useSettings, KINEPOLIS_CINEMAS } from '../../hooks/useSettings'
+import { findKinepolisFilm, getKinepolisFilmUrl, getKinepolisOverviewUrl } from '../../lib/kinepolis'
+import type { KinepolisFilm } from '../../lib/kinepolis'
 import type { WatchProviderCountry } from '../../lib/tmdb'
 
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w92'
@@ -9,6 +11,9 @@ interface Props {
   tmdbId: number
   releaseDate?: string
   isTv?: boolean
+  imdbId?: string | null
+  title?: string
+  originalTitle?: string
 }
 
 interface ProviderGroup {
@@ -35,14 +40,11 @@ function getCinemaStatus(releaseDate?: string): 'in_theaters' | 'upcoming' | nul
   return null
 }
 
-function getCinemaUrl(slug: string): string {
-  return `https://kinepolis.fr/cinemas/${slug}/info/`
-}
-
-export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
+export function WatchProviders({ tmdbId, releaseDate, isTv, imdbId, title, originalTitle }: Props) {
   const [providers, setProviders] = useState<WatchProviderCountry | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [kinepolisFilm, setKinepolisFilm] = useState<KinepolisFilm | null>(null)
   const { settings } = useSettings()
 
   useEffect(() => {
@@ -53,6 +55,17 @@ export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
       .catch(() => setProviders(null))
       .finally(() => setLoading(false))
   }, [tmdbId, isTv])
+
+  // À l'ouverture de la modale, tenter de retrouver la fiche du film sur kinepolis.fr
+  const wantsKinepolis = Boolean(open && !isTv && (imdbId || title) && getCinemaStatus(releaseDate))
+  useEffect(() => {
+    if (!wantsKinepolis) return
+    let cancelled = false
+    findKinepolisFilm({ imdbId, title, originalTitle }).then(film => {
+      if (!cancelled) setKinepolisFilm(film)
+    })
+    return () => { cancelled = true }
+  }, [wantsKinepolis, imdbId, title, originalTitle])
 
   if (loading) return null
 
@@ -138,7 +151,9 @@ export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
                     {selectedCinemas.map(cinema => (
                       <a
                         key={cinema.slug}
-                        href={getCinemaUrl(cinema.slug)}
+                        href={kinepolisFilm
+                          ? getKinepolisFilmUrl(kinepolisFilm, cinema.complex)
+                          : getKinepolisOverviewUrl(cinema.complex)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border)] px-3 py-2.5 hover:bg-[var(--color-border)] transition-colors group"
@@ -152,7 +167,7 @@ export function WatchProviders({ tmdbId, releaseDate, isTv }: Props) {
                           </p>
                           <p className="text-[10px] text-[var(--color-text-muted)]">
                             {cinemaStatus === 'in_theaters'
-                              ? 'En salle — voir les séances'
+                              ? kinepolisFilm ? 'En salle — séances du film' : 'En salle — voir la programmation'
                               : `Sortie le ${formatDate(releaseDate!)}`}
                           </p>
                         </div>

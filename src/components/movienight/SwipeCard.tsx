@@ -602,7 +602,7 @@ export function SwipeCard({ movie, genres, onFeedback, onAccept, loading }: Prop
                 </span>
               )}
               <TrailerButton tmdbId={movie.id} mediaType="movie" />
-              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} />
+              <WatchProviders tmdbId={movie.id} releaseDate={movie.release_date} title={movie.title} originalTitle={movie.original_title} />
             </div>
 
             {movieGenres.length > 0 && (

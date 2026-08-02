@@ -15,25 +15,26 @@ export const STREAMING_PROVIDERS = [
 
 export type BattleColor = 'blue' | 'green' | 'purple' | 'pink' | 'orange'
 
-// Kinepolis cinemas in France — slug used in kinepolis.fr URLs
+// Kinepolis cinemas in France — slug historique (clé stockée dans les settings),
+// complex = code utilisé par kinepolis.fr et son API de programmation
 export const KINEPOLIS_CINEMAS = [
-  { slug: 'kinepolis-amneville', name: 'Amnéville' },
-  { slug: 'kinepolis-belfort', name: 'Belfort' },
-  { slug: 'kinepolis-bourgoin-jallieu', name: 'Bourgoin-Jallieu' },
-  { slug: 'kinepolis-bretigny-sur-orge', name: 'Brétigny-sur-Orge' },
-  { slug: 'kinepolis-beziers', name: 'Béziers' },
-  { slug: 'kinepolis-fenouillet', name: 'Fenouillet' },
-  { slug: 'kinepolis-lomme', name: 'Lomme' },
-  { slug: 'kinepolis-longwy', name: 'Longwy' },
-  { slug: 'kinepolis-metz', name: 'Metz' },
-  { slug: 'kinepolis-mulhouse', name: 'Mulhouse' },
-  { slug: 'kinepolis-nancy', name: 'Nancy' },
-  { slug: 'kinepolis-nimes', name: 'Nîmes' },
-  { slug: 'kinepolis-rouen', name: 'Rouen' },
-  { slug: 'kinepolis-servon', name: 'Servon' },
-  { slug: 'kinepolis-st-julien-les-metz', name: 'St-Julien-lès-Metz' },
-  { slug: 'kinepolis-thionville', name: 'Thionville' },
-  { slug: 'kinepolis-waves', name: 'Waves' },
+  { slug: 'kinepolis-amneville', name: 'Amnéville', complex: 'FRAMN' },
+  { slug: 'kinepolis-belfort', name: 'Belfort', complex: 'FRBLF' },
+  { slug: 'kinepolis-bourgoin-jallieu', name: 'Bourgoin-Jallieu', complex: 'KBOUR' },
+  { slug: 'kinepolis-bretigny-sur-orge', name: 'Brétigny-sur-Orge', complex: 'BRETI' },
+  { slug: 'kinepolis-beziers', name: 'Béziers', complex: 'FRBEZ' },
+  { slug: 'kinepolis-fenouillet', name: 'Fenouillet', complex: 'KFEN' },
+  { slug: 'kinepolis-lomme', name: 'Lomme', complex: 'KLOM' },
+  { slug: 'kinepolis-longwy', name: 'Longwy', complex: 'ULONG' },
+  { slug: 'kinepolis-metz', name: 'Metz — AMPHI Quartier Muse', complex: 'MTZAM' },
+  { slug: 'kinepolis-mulhouse', name: 'Mulhouse', complex: 'KMUL' },
+  { slug: 'kinepolis-nancy', name: 'Nancy', complex: 'KNCY' },
+  { slug: 'kinepolis-nimes', name: 'Nîmes', complex: 'KNIM' },
+  { slug: 'kinepolis-rouen', name: 'Rouen', complex: 'KROU' },
+  { slug: 'kinepolis-servon', name: 'Servon', complex: 'KSERV' },
+  { slug: 'kinepolis-st-julien-les-metz', name: 'St-Julien-lès-Metz', complex: 'KMETZ' },
+  { slug: 'kinepolis-thionville', name: 'Thionville', complex: 'KTHIO' },
+  { slug: 'kinepolis-waves', name: 'Waves', complex: 'WAVES' },
 ] as const
 
 export const BATTLE_COLORS: { id: BattleColor; label: string; gradient: string; glow: string }[] = [
